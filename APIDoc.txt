@@ -1,0 +1,86 @@
+
+
+API Documentation for Urban Analytics Project
+
+1. **Signup**
+   - **URL**: /api/signup/
+   - **Method**: POST
+   - **Description**: Registers a new user account and sends a verification email with OTP.
+   - **Request Body**:
+     {
+       "username": "string",
+       "email": "string",
+       "password": "string"
+     }
+   - **Response**:
+     - Success: 200 OK
+     - Failure: 400 Bad Request (e.g., existing username or email)
+
+2. **Verify Email**
+   - **URL**: /api/verify-email/
+   - **Method**: GET
+   - **Description**: Verifies the user's email address by clicking the verification link.
+   - **Query Parameters**:
+     - uid: User ID
+     - token: Verification token
+   - **Response**:
+     - Success: 200 OK (Email verified successfully)
+     - Failure: 400 Bad Request (Invalid or expired token)
+
+3. **Verify OTP**
+   - **URL**: /api/verify-otp/
+   - **Method**: POST
+   - **Description**: Verifies the OTP sent to the user's email.
+   - **Request Body**:
+     {
+       "email": "string",
+       "otp": "string"
+     }
+   - **Response**:
+     - Success: 200 OK (OTP verified successfully)
+     - Failure: 400 Bad Request (Invalid OTP)
+
+4. **Resend Verification Email**
+   - **URL**: /api/resend-verification-email/
+   - **Method**: POST
+   - **Description**: Resends the verification email to the user.
+   - **Request Body**:
+     {
+       "email": "string"
+     }
+   - **Response**:
+     - Success: 200 OK (Verification email resent successfully)
+     - Failure: 404 Not Found (User not found)
+
+5. **Forgot Password**
+   - **URL**: /api/forgot-password/
+   - **Method**: POST
+   - **Description**: Sends a password reset link to the user's email.
+   - **Request Body**:
+     {
+       "email": "string"
+     }
+   - **Response**:
+     - Success: 200 OK (Password reset email sent successfully)
+     - Failure: 404 Not Found (User not found)
+
+6. **Reset Password**
+   - **URL**: /api/reset-password/
+   - **Method**: POST
+   - **Description**: Resets the user's password using a reset link and token.
+   - **Request Body**:
+     {
+       "uid": "string",
+       "token": "string",
+       "new_password": "string"
+     }
+   - **Response**:
+     - Success: 200 OK (Password reset successfully)
+     - Failure: 400 Bad Request (Invalid or expired token)
+
+---
+
+**Error Codes**
+- 400 Bad Request: Invalid request (missing or incorrect data)
+- 404 Not Found: User not found
+- 500 Internal Server Error: Server-side error (e.g., email sending failure)
