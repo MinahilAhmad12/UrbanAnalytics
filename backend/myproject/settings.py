@@ -19,12 +19,6 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 
 # settings.py
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'localhost'
-EMAIL_PORT = 1025
-EMAIL_HOST_USER = ''
-EMAIL_HOST_PASSWORD = 'hevp stxe xjhw icir'
-EMAIL_USE_TLS = False
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -141,3 +135,11 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'minahilahmadsiddiqui7@gmail.com'      # your Gmail address
 EMAIL_HOST_PASSWORD = 'hevp stxe xjhw icir'    # 16-char app password
+# settings.py
+
+AUTHENTICATION_BACKENDS = (
+    'accounts.authentication.backends.CustomAuthenticationBackend',  # Path to your custom backend
+    'django.contrib.auth.backends.ModelBackend',  # The default backend for fallback
+)
+
+
