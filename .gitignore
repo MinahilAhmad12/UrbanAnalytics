@@ -1,7 +1,20 @@
-venv/
-__pycache__/
-*.pyc
-db.sqlite3
-.env
-/media/
+# Python
+**/__pycache__/
+*.py[cod]
 
+# Virtual environment
+venv/
+
+# SQLite DB (inside backend folder)
+backend/db.sqlite3
+
+# Environment variables
+.env
+
+# Media folder (inside backend folder)
+backend/media/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
