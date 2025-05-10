@@ -16,8 +16,11 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-AUTH_USER_MODEL = 'accounts.CustomUser'
+
+AUTH_USER_MODEL = 'urbananalytics.CustomUser'
 
 
 # settings.py
@@ -42,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts',
+    'urbananalytics',
     'corsheaders',
 ]
 
@@ -148,6 +151,15 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 # settings.py
 
 AUTHENTICATION_BACKENDS = (
-    'accounts.authentication.backends.CustomAuthenticationBackend',  # Path to your custom backend
+    'urbananalytics.authentication.backends.CustomAuthenticationBackend',  # Path to your custom backend
     'django.contrib.auth.backends.ModelBackend',  # The default backend for fallback
 )
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
