@@ -11,7 +11,6 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
 User = get_user_model()
 
 @csrf_exempt
@@ -214,14 +213,14 @@ def signin_view(request):
             if not username or not password:
                 return JsonResponse({'error': 'Username and password are required.'}, status=400)
 
-            # Debugging print
+            
             print(f"Received username: {username}")
             print(f"Received password: {password}")
 
-            # Authenticate user
+            
             user = authenticate(request, username=username, password=password)
 
-            # Debugging print
+            
             print(f"Authenticated user: {user}")
 
             if user is not None:
@@ -230,7 +229,7 @@ def signin_view(request):
 
                 login(request, user)
 
-                # Create JWT tokens
+                
                 refresh = RefreshToken.for_user(user)
                 access_token = str(refresh.access_token)
                 refresh_token = str(refresh)

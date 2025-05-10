@@ -2,88 +2,88 @@
 
 API Documentation for Urban Analytics Project
 
-1. **Signup**
-   - **URL**: /api/signup/
-   - **Method**: POST
-   - **Description**: Registers a new user account and sends a verification email with OTP.
-   - **Request Body**:
+1. Signup
+   - URL: /api/signup/
+   - Method: POST
+   - Description: Registers a new user account and sends a verification email with OTP.
+   - Request Body:
      {
        "username": "string",
        "email": "string",
        "password": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK
      - Failure: 400 Bad Request (e.g., existing username or email)
 
 
-2. **Verify Signup OTP**
-   - **URL**: /api/verify-signup-otp/
-   - **Method**: POST
-   - **Description**: Verifies the OTP sent to the user's email.
-   - **Request Body**:
+2. Verify Signup OTP
+   - URL: /api/verify-signup-otp/
+   - Method: POST
+   - Description: Verifies the OTP sent to the user's email.
+   - Request Body:
      {
        "email": "string",
        "otp": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK (OTP verified successfully)
      - Failure: 400 Bad Request (Invalid OTP)
 
-3. **Resend Signup Verification Email**
-   - **URL**: /api/resend-signup-verification-email/
-   - **Method**: POST
-   - **Description**: Resends the verification email to the user.
-   - **Request Body**:
+3. Resend Signup Verification Email
+   - URL: /api/resend-signup-verification-email/
+   - Method: POST
+   - Description: Resends the verification email to the user.
+   - Request Body:
      {
        "email": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK (Verification email resent successfully)
      - Failure: 404 Not Found (User not found)
 
 4. **Forgot Password**
-   - **URL**: /api/forgot-password/
-   - **Method**: POST
-   - **Description**: Sends a password reset opt to the user's email.
-   - **Request Body**:
+   - URL: /api/forgot-password/
+   - Method: POST
+   - Description: Sends a password reset opt to the user's email.
+   - Request Body:
      {
        "email": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK (Password reset email sent successfully)
      - Failure: 404 Not Found (User not found)
 
 5. **Resend  Forgot password Verification Email**
-   - **URL**: /api/resend-forgot-password-email/
-   - **Method**: POST
-   - **Description**: Resends the verification email for password reset to the user.
-   - **Request Body**:
+   - URL: /api/resend-forgot-password-email/
+   - Method: POST
+   - Description: Resends the verification email for password reset to the user.
+   - Request Body:
      {
        "email": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK (Verification email resent successfully)
      - Failure: 404 Not Found (User not found)
 
-6.. **Verify Forgot Password OTP**
-   - **URL**: /api/verify-forgot-password-otp/
-   - **Method**: POST
-   - **Description**: Verifies the OTP sent for passowrd reset to the user's email.
-   - **Request Body**:
+6.. Verify Forgot Password OTP
+   - URL: /api/verify-forgot-password-otp/
+   - Method: POST
+   - Description: Verifies the OTP sent for passowrd reset to the user's email.
+   - Request Body:
      {
        "email": "string",
        "otp": "string"
      }
-   - **Response**:
+   - Response:
      - Success: 200 OK (OTP verified successfully)
      - Failure: 400 Bad Request (Invalid OTP)
 
-7. **Reset Password**
-   - **URL**: /api/reset-password/
-   - **Method**: POST
-   - **Description**: Resets the user's password. 
-   - **Request Body**:
+7.  Reset Password
+   -   URL: /api/reset-password/
+   -   Method : POST
+   -   Description : Resets the user's password. 
+   -  Request Body :
      {
       "email": "string",
        "new_password": "string",
@@ -94,20 +94,141 @@ API Documentation for Urban Analytics Project
      - Failure: 400 Bad Request (Invalid or expired token)
 
 ---
-8. **Signin**
-   - **URL**: /api/signin/
-   - **Method**: POST
-   - **Description**: Authenticates a user using their username and password. 
-   - **Request Body**:
+8.   Signin
+   -   URL: /api/signin/
+   -   Method: POST
+   -   Description: Authenticates a user using their username and password. 
+   -   Request Body:
      {
        "username": "string",
        "password": "string"
      }
-   - **Response**:
+    Response:
      - Success: 200 OK
      - Failure: 400 Bad Request (e.g., existing username or email)
 
-**Error Codes**
+All these APIs require authentication via token
+
+9. create a project
+
+   -URL: /api/create-project/
+   -Method: POST
+   -Authentication: Required (Token)
+   -Description: Creates a new project using either a location or a KML file.
+   -Request Body (multipart/form-data):
+
+  {
+    "name": "string",
+    "location": "string",  // Optional, only provide this or kml_file
+    "kml_file": "file"     // Optional, only provide this or location
+  }
+   -Response:
+
+   Success: 201 Created
+    {
+      "message": "Project created",
+      "project_id": "int"
+    }
+
+    Failure: 400 Bad Request (e.g., both or neither location/KML provided)
+
+  10. List User Projects
+      -URL: /api/list-user-projects/
+      -Method: GET
+      -Authentication: Required (Token)
+      -Description: Returns all projects created by the user. Supports optional filters by name or creation date.
+      -Response:
+
+      Success: 200 OK
+      [
+        {
+          "id": "int",
+          "name": "string",
+          "location": "string or null",
+          "kml_file": "file or null",
+          "map_data": json({...}),
+          "created_at": "date"
+        }
+      ]
+      Failure: 400 Bad Request (Invalid query)
+
+  11. View project Details
+
+   - URL: /api/view-project/<int:project_id>/
+   -Method: GET
+   -Authentication: Required (Token)
+   -Description: Fetches details of a specific project along with its city analysis data.
+
+  -Response:
+
+    Success: 200 OK
+    {
+      "id": "int",
+      "name": "string",
+      "map_data": json({...}),
+      "created_at": "date",
+      "city_analyses": [
+        {
+          "city_name": "string",
+          "selected_ucs": ["string"],
+          "ndvi": {"value": "float"},
+          "thermal": {"value": "float"},
+          "aqi": {"value": "float"}
+        }
+      ]
+    }
+    Failure: 404 Not Found (if project doesn't exist or doesn't belong to the user)
+
+
+  12. Delete a project
+      -URL: /api/delete-project/<int:project_id>/
+      -Method: DELETE
+      -Authentication: Required (Token)
+      -Description: Deletes a project by its ID.
+      -Response:
+        Success: 200 OK
+        {
+          "message": "Project deleted"
+        }
+        Failure: 404 Not Found (if project doesn't exist or doesn't belong to the user)
+
+
+  13. Generate Project Report
+      -URL: /api/generate-report/<int:project_id>/
+      -Method: POST
+      -Authentication: Required (Token)
+      -Description: Generates a PDF report for the selected project and stores it in the database.
+      -Response:
+
+      Success: 201 Created
+
+      {
+        "message": "Report generated",
+        "report_id": "int"
+      }
+
+      Failure: 400 Bad Request (Project not found or internal error)
+
+  14. GET Saved reports
+      
+      -URL: /api/get-saved-reports/
+      -Method: GET
+      -Authentication: Required (Token)
+      -Description: Lists all generated reports for the authenticated user.
+      -Response:
+       Success: 200 OK
+      [
+        {
+          "report_id": "int",
+          "name": "string",
+          "generated_at": "date",
+          "report_file": ""url"("http://example.com/media/reports/filename.pdf")
+        }
+      ]
+      Failure: 400 Bad Request (e.g., database error)
+
+   
+    Error Codes
 - 400 Bad Request: Invalid request (missing or incorrect data)
 - 404 Not Found: User not found
 - 500 Internal Server Error: Server-side error (e.g., email sending failure)
