@@ -1,3 +1,12 @@
+
+import os
+from django.core.exceptions import ImproperlyConfigured
+
+GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
+
+if not os.path.exists(GDAL_LIBRARY_PATH):
+    raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
+
 """
 Django settings for myproject project.
 
@@ -9,9 +18,12 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-import os
+
 from decouple import config
 from pathlib import Path
+from datetime import timedelta
+
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +56,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'rest_framework',
+    'rest_framework_simplejwt',
     'django.contrib.staticfiles',
     'urbananalytics',
     'corsheaders',
@@ -91,10 +105,16 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'urbananalytics',
+        'USER': 'postgres',
+        'PASSWORD': 'urbananalytics',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -161,5 +181,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # you can add other options here if you like
 }
 

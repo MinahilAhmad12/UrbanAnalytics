@@ -2,233 +2,285 @@
 
 API Documentation for Urban Analytics Project
 
-1. Signup
-   - URL: /api/signup/
-   - Method: POST
-   - Description: Registers a new user account and sends a verification email with OTP.
-   - Request Body:
-     {
-       "username": "string",
-       "email": "string",
-       "password": "string"
-     }
-   - Response:
-     - Success: 200 OK
-     - Failure: 400 Bad Request (e.g., existing username or email)
+ Authentication APIs
+1.  Signup
+POST api/signup/
 
+Registers a new user and sends an OTP to verify their email.
 
-2. Verify Signup OTP
-   - URL: /api/verify-signup-otp/
-   - Method: POST
-   - Description: Verifies the OTP sent to the user's email.
-   - Request Body:
-     {
-       "email": "string",
-       "otp": "string"
-     }
-   - Response:
-     - Success: 200 OK (OTP verified successfully)
-     - Failure: 400 Bad Request (Invalid OTP)
+Request Body (JSON):
 
-3. Resend Signup Verification Email
-   - URL: /api/resend-signup-verification-email/
-   - Method: POST
-   - Description: Resends the verification email to the user.
-   - Request Body:
-     {
-       "email": "string"
-     }
-   - Response:
-     - Success: 200 OK (Verification email resent successfully)
-     - Failure: 404 Not Found (User not found)
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "securepassword123"
+}
+Response:
 
-4. **Forgot Password**
-   - URL: /api/forgot-password/
-   - Method: POST
-   - Description: Sends a password reset opt to the user's email.
-   - Request Body:
-     {
-       "email": "string"
-     }
-   - Response:
-     - Success: 200 OK (Password reset email sent successfully)
-     - Failure: 404 Not Found (User not found)
+{
+  "message": "User created successfully. Verification email sent!"
+}
 
-5. **Resend  Forgot password Verification Email**
-   - URL: /api/resend-forgot-password-email/
-   - Method: POST
-   - Description: Resends the verification email for password reset to the user.
-   - Request Body:
-     {
-       "email": "string"
-     }
-   - Response:
-     - Success: 200 OK (Verification email resent successfully)
-     - Failure: 404 Not Found (User not found)
+2.  Verify Signup OTP
+POST api/verify-signup-otp/
 
-6.. Verify Forgot Password OTP
-   - URL: /api/verify-forgot-password-otp/
-   - Method: POST
-   - Description: Verifies the OTP sent for passowrd reset to the user's email.
-   - Request Body:
-     {
-       "email": "string",
-       "otp": "string"
-     }
-   - Response:
-     - Success: 200 OK (OTP verified successfully)
-     - Failure: 400 Bad Request (Invalid OTP)
+Verifies the OTP sent during signup.
 
-7.  Reset Password
-   -   URL: /api/reset-password/
-   -   Method : POST
-   -   Description : Resets the user's password. 
-   -  Request Body :
-     {
-      "email": "string",
-       "new_password": "string",
-       "confirm_password": "string"
-      }
-   - **Response**:
-     - Success: 200 OK (Password reset successfully)
-     - Failure: 400 Bad Request (Invalid or expired token)
+Request Body:
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+Response:
+{
+  "message": "Signup OTP verified successfully!"
+}
 
----
-8.   Signin
-   -   URL: /api/signin/
-   -   Method: POST
-   -   Description: Authenticates a user using their username and password. 
-   -   Request Body:
-     {
-       "username": "string",
-       "password": "string"
-     }
-    Response:
-     - Success: 200 OK
-     - Failure: 400 Bad Request (e.g., existing username or email)
+3.  Resend Signup OTP
+POST api/resend-signup-verification-email/
 
-All these APIs require authentication via token
+Sends a new OTP if the previous one was lost or expired.
 
-9. create a project
+Request Body:
+{
+  "email": "john@example.com"
+}
+Response:
 
-   -URL: /api/create-project/
-   -Method: POST
-   -Authentication: Required (Token)
-   -Description: Creates a new project using either a location or a KML file.
-   -Request Body (multipart/form-data):
+{
+  "message": "Verification email resent successfully."
+}
 
-  {
-    "name": "string",
-    "location": "string",  // Optional, only provide this or kml_file
-    "kml_file": "file"     // Optional, only provide this or location
+4 Sign In / Obtain Token Pair
+POST /signin/
+
+Authenticate the user and return a pair of access and refresh tokens.
+
+Request Body:
+
+{
+  "username": "testuser",
+  "password": "testpassword123"
+}
+ If using email for login:
+
+{
+  "email": "test@example.com",
+  "password": "testpassword123"
+}
+Response:
+
+{
+  "refresh": "eyJ0eXAiOiJKV1QiLCJh...<refresh_token>",
+  "access": "eyJ0eXAiOiJKV1QiLCJh...<access_token>",
+  "user": {
+    "id": 1,
+    "username": "testuser",
+    "email": "test@example.com",
+    "is_verified": true
   }
-   -Response:
+}
+ The access token is used for authenticating API calls.
+ The refresh token is used to get a new access token when the old one expires.
 
-   Success: 201 Created
-    {
-      "message": "Project created",
-      "project_id": "int"
-    }
+5.  Refresh Access Token
+POST /api/token/refresh/
 
-    Failure: 400 Bad Request (e.g., both or neither location/KML provided)
+Refresh your access token using a valid refresh token.
 
-  10. List User Projects
-      -URL: /api/list-user-projects/
-      -Method: GET
-      -Authentication: Required (Token)
-      -Description: Returns all projects created by the user. Supports optional filters by name or creation date.
-      -Response:
+Request Body:
 
-      Success: 200 OK
-      [
-        {
-          "id": "int",
-          "name": "string",
-          "location": "string or null",
-          "kml_file": "file or null",
-          "map_data": json({...}),
-          "created_at": "date"
-        }
-      ]
-      Failure: 400 Bad Request (Invalid query)
+{
+  "refresh": "eyJ0eXAiOiJKV1QiLCJh...<refresh_token>"
+}
+Response:
 
-  11. View project Details
-
-   - URL: /api/view-project/<int:project_id>/
-   -Method: GET
-   -Authentication: Required (Token)
-   -Description: Fetches details of a specific project along with its city analysis data.
-
-  -Response:
-
-    Success: 200 OK
-    {
-      "id": "int",
-      "name": "string",
-      "map_data": json({...}),
-      "created_at": "date",
-      "city_analyses": [
-        {
-          "city_name": "string",
-          "selected_ucs": ["string"],
-          "ndvi": {"value": "float"},
-          "thermal": {"value": "float"},
-          "aqi": {"value": "float"}
-        }
-      ]
-    }
-    Failure: 404 Not Found (if project doesn't exist or doesn't belong to the user)
+{
+  "access": "eyJ0eXAiOiJKV1QiLCJh...<new_access_token>"
+}
 
 
-  12. Delete a project
-      -URL: /api/delete-project/<int:project_id>/
-      -Method: DELETE
-      -Authentication: Required (Token)
-      -Description: Deletes a project by its ID.
-      -Response:
-        Success: 200 OK
-        {
-          "message": "Project deleted"
-        }
-        Failure: 404 Not Found (if project doesn't exist or doesn't belong to the user)
+6. Forgot Password
+POST api/forgot-password/
+
+Sends an OTP to reset the password.
+
+Request Body:
+
+{
+  "email": "john@example.com"
+}
+Response:
+
+{
+  "message": "Password reset OTP sent successfully."
+}
+7.  Resend Forgot Password OTP
+POST api/resend-forgot-password-email/
+
+Sends the OTP again for password reset.
+
+Request Body:
+
+{
+  "email": "john@example.com"
+}
+8.  Verify Forgot Password OTP
+POST api/verify-forgot-password-otp/
+
+Verifies OTP before allowing password reset.
+
+Request Body:
+
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+Response:
+
+{
+  "message": "Forgot password OTP verified successfully!"
+}
+9.  Reset Password
+POST api/reset-password/
+
+Sets a new password after OTP verification.
+
+Request Body:
+
+{
+  "email": "john@example.com",
+  "new_password": "newsecurepassword"
+}
+Response:
+
+{
+  "message": "Password reset successfully."
+}
+ Project Management APIs
+ All endpoints below require a valid JWT Access Token in the headers:
+
+Authorization: Bearer <access_token>
+
+10.  Create Project
+POST api/projects/
+
+Creates a new project.
+
+Request Body:
+{
+  "name": "My New Project"
+}
+Response:
+
+{
+  "id": 1,
+  "name": "My New Project",
+  ...
+}
+11.  Get User Projects
+GET api/my-projects/
+
+Returns all projects belonging to the authenticated user.
+
+Response:
+
+[
+  {
+    "id": 1,
+    "name": "My Project",
+    "areas": [...]
+  },
+  ...
+]
+12.  View Specific Project Area
+GET api/projects/{project_id}/areas/{area_id}/view/
+
+Fetch details of a specific project area and its saved map state.
+
+Response:
+
+{
+  "area": {...},
+  "map_state": {...}
+}
 
 
-  13. Generate Project Report
-      -URL: /api/generate-report/<int:project_id>/
-      -Method: POST
-      -Authentication: Required (Token)
-      -Description: Generates a PDF report for the selected project and stores it in the database.
-      -Response:
+ Reports API
+ Authorization: Bearer <access_token>
 
-      Success: 201 Created
+13. Delete an area of a project
+  DELETE /api/project-area/{area_id}/delete/
 
-      {
-        "message": "Report generated",
-        "report_id": "int"
-      }
+  Request: /api/project-area/123/delete/
+  
+  Response
+Success (204 No Content)
+The project area was deleted successfully.
 
-      Failure: 400 Bad Request (Project not found or internal error)
+14.  Generate Report
+POST /projects/{project_id}/areas/{area_id}/reports/
 
-  14. GET Saved reports
-      
-      -URL: /api/get-saved-reports/
-      -Method: GET
-      -Authentication: Required (Token)
-      -Description: Lists all generated reports for the authenticated user.
-      -Response:
-       Success: 200 OK
-      [
-        {
-          "report_id": "int",
-          "name": "string",
-          "generated_at": "date",
-          "report_file": ""url"("http://example.com/media/reports/filename.pdf")
-        }
-      ]
-      Failure: 400 Bad Request (e.g., database error)
+Generates a PDF report based on analysis.
 
-   
-    Error Codes
-- 400 Bad Request: Invalid request (missing or incorrect data)
-- 404 Not Found: User not found
-- 500 Internal Server Error: Server-side error (e.g., email sending failure)
+Request Body:
+
+{
+  "report_type": "environmental_summary"
+}
+Response: (PDF File Download)
+Headers:
+
+Content-Disposition: attachment; filename="report.pdf"
+Content-Type: application/pdf
+
+
+15. List All Saved Reports
+GET api/projects/<int:project_id>/reports/
+
+Fetch a list of all saved reports for the authenticated user.
+
+Response:
+
+[
+  {
+    "id": 10,
+    "project": 1,
+    "area": 5,
+    "report_name": "Environmental Summary",
+    "created_at": "2025-05-15T10:00:00Z",
+    "file_url": "http://<your-domain>/media/reports/report_10.pdf"
+  },
+  {
+    "id": 11,
+    "project": 2,
+    "area": 3,
+    "report_name": "Thermal Analysis Report",
+    "created_at": "2025-05-14T09:30:00Z",
+    "file_url": "http://<your-domain>/media/reports/report_11.pdf"
+  }
+]
+
+
+
+ Notes for Frontend Developer
+All requests must be in JSON format.
+
+For protected routes, include the Authorization header.
+
+Handle errors by checking for keys like "error" in the response.
+
+OTPs are 6-digit numeric codes.
+
+After signup or password reset request, frontend must guide the user to OTP verification.
+
+Let me know if you'd like this in Markdown, PDF, Swagger/OpenAPI format, or embedded directly into your frontend docs.
+
+
+
+
+
+
+
+
+

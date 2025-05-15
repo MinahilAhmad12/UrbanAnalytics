@@ -1,7 +1,11 @@
-#!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
+
 import os
 import sys
+
+
+GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
+#!/usr/bin/env python
+"""Django's command-line utility for administrative tasks."""
 
 
 def main():
