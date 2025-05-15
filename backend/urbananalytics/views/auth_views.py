@@ -9,7 +9,9 @@ from django.contrib.auth import authenticate, login
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from rest_framework_simplejwt.tokens import RefreshToken
+from urbananalytics.serializers import MyTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from urbananalytics.serializers import MyTokenObtainPairSerializer
 
 User = get_user_model()
 
@@ -185,10 +187,6 @@ def reset_password(request):
         data = json.loads(request.body)
         email = data.get('email')
         new_password = data.get('new_password')
-        confirm_password = data.get('confirm_password')
-
-        if new_password != confirm_password:
-            return JsonResponse({'error': 'Passwords do not match.'}, status=400)
 
         try:
             user = User.objects.get(email=email)
@@ -202,47 +200,6 @@ def reset_password(request):
     else:
         return JsonResponse({'error': 'Only POST method allowed.'}, status=400)
 
-@csrf_exempt
-def signin_view(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            username = data.get('username')
-            password = data.get('password')
 
-            if not username or not password:
-                return JsonResponse({'error': 'Username and password are required.'}, status=400)
-
-            
-            print(f"Received username: {username}")
-            print(f"Received password: {password}")
-
-            
-            user = authenticate(request, username=username, password=password)
-
-            
-            print(f"Authenticated user: {user}")
-
-            if user is not None:
-                if not user.is_verified:
-                    return JsonResponse({'error': 'Please verify your email before signing in.'}, status=400)
-
-                login(request, user)
-
-                
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-                refresh_token = str(refresh)
-
-                return JsonResponse({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'refresh_token': refresh_token
-                }, status=200)
-
-            else:
-                return JsonResponse({'error': 'Invalid credentials'}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    else:
-        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
