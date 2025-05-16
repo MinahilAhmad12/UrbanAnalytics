@@ -2,17 +2,11 @@
 import os
 import platform
 from django.core.exceptions import ImproperlyConfigured
+from django.contrib.gis import gdal
 
-GDAL_LIBRARY_PATH = os.environ.get("GDAL_LIBRARY_PATH")
+if not gdal.HAS_GDAL:
+    raise ImproperlyConfigured("GDAL is required but not properly configured.")
 
-if GDAL_LIBRARY_PATH is None:
-    if platform.system() == "Windows":
-        GDAL_LIBRARY_PATH = "C:\\Users\\user\\miniconda3\\envs\\geo_env\\Library\\bin\\gdal.dll"
-    else:
-        GDAL_LIBRARY_PATH = "/usr/lib/libgdal.so"
-
-if not os.path.exists(GDAL_LIBRARY_PATH):
-    raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
 
 
 # GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
