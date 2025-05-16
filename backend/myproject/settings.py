@@ -41,10 +41,14 @@ AUTH_USER_MODEL = 'urbananalytics.CustomUser'
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+import os
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-secret-for-dev')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ".onrender.com").split(",")
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-SECRET_KEY = 'django-insecure-_^8%or0$pixa31h!9749%v_z@024cuq@=_sgs$j#_vxu2*c*v4'
-DEBUG = 'True'
-ALLOWED_HOSTS = []
+# SECRET_KEY = 'django-insecure-_^8%or0$pixa31h!9749%v_z@024cuq@=_sgs$j#_vxu2*c*v4'
+#DEBUG = 'True'
+#ALLOWED_HOSTS = []
 
 
 
@@ -59,6 +63,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'urbananalytics',
     'corsheaders',
 ]
@@ -107,17 +112,25 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'urbananalytics',
-        'USER': 'postgres',
-        'PASSWORD': 'urbananalytics',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#         'NAME': 'urbananalytics',
+#         'USER': 'postgres',
+#         'PASSWORD': 'urbananalytics',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
+import dj_database_url
 
+DATABASES = {
+    'default': dj_database_url.config(
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600,
+        ssl_require=True
+    )
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

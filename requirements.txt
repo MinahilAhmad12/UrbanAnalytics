@@ -5,7 +5,7 @@ django-cors-headers==4.7.0
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 GDAL==3.6.2
-numpy @ file:///D:/bld/numpy_1682210459957/work
+numpy==2.2.5
 pillow==11.2.1
 psycopg2-binary==2.9.10
 PyJWT==2.9.0
@@ -13,3 +13,5 @@ python-decouple==3.8
 reportlab==4.4.1
 sqlparse==0.5.3
 tzdata==2025.2
+dj-database-url
+
