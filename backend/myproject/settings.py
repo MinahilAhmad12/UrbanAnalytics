@@ -122,7 +122,7 @@ import os
 
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('ENGINE'),
+        'ENGINE': os.getenv('ENGINE') or 'django.contrib.gis.db.backends.postgis',
         'NAME': os.getenv('NAME'),
         'USER': os.getenv('USER'),
         'PASSWORD': os.getenv('PASSWORD'),
