@@ -262,7 +262,53 @@ Response:
 ]
 
 
+16. To get UCs of a particular city
+GET api/ucs/<str:city_name>/
 
+Response:
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [[[...]]]  // coordinates of UC
+      },
+      "properties": {
+        "uc_name": "UC 1",
+        "city_name": "Lahore"
+      }
+    },
+    ...
+  ]
+}
+
+17. For analysis of an area
+
+POST /api/analyze/
+    Request JSON:
+    {
+        "city_name": "Lahore",
+        "analysis_type": "ndvi" | "thermal" | "aqi",
+        "start_date": "2023-01-01",
+        "end_date": "2023-12-31"
+    }
+
+    Response JSON:
+    {
+        "map_layer": {
+            "urlFormat": ".../map/{z}/{x}/{y}?token=...",
+            "mapid": "...",
+            "token": "..."
+        },
+        "stats": {
+            "mean": ...,
+            "min": ...,
+            "max": ...,
+            "std_dev": ...
+        }
+    }
  Notes for Frontend Developer
 All requests must be in JSON format.
 
