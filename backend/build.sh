@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
-# Install system dependencies
-apt-get update && apt-get install -y binutils libproj-dev gdal-bin
+# Install GDAL system libs
+apt-get update && apt-get install -y gdal-bin libgdal-dev
 
-# Install Python dependencies
+# Set environment paths if needed
+export CPLUS_INCLUDE_PATH=/usr/include/gdal
+export C_INCLUDE_PATH=/usr/include/gdal
+
+# Install Python deps
+pip install --upgrade pip
 pip install -r requirements.txt
