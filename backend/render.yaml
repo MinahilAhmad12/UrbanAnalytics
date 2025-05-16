@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: urbananalytics
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn myproject.wsgi:application
+    envVars:
+      - key: GDAL_LIBRARY_PATH
+        value: /usr/lib/libgdal.so
