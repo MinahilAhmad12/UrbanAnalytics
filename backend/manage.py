@@ -2,10 +2,6 @@
 import os
 import sys
 from django.core.exceptions import ImproperlyConfigured
-from django.contrib.gis.gdal import HAS_GDAL
-
-if not HAS_GDAL:
-    raise ImproperlyConfigured("GDAL is required but not properly configured.")
 
 
 
