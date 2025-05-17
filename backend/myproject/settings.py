@@ -130,7 +130,12 @@ print("settings.py is running...")
 
 
 import os
-
+print("Loaded DB_ENGINE:", os.getenv('ENGINE'))
+print("Loaded DB_NAME:", os.getenv('NAME'))
+print("Loaded DB_USER:", os.getenv('USER'))
+print("Loaded DB_PASSWORD:", os.getenv('PASSWORD'))
+print("Loaded DB_HOST:", os.getenv('HOST'))
+print("Loaded DB_PORT:", os.getenv('PORT'))
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('ENGINE', 'django.db.backends.postgresql'),
