@@ -2,7 +2,7 @@
 
 print("settings.py is running...")
 import os
-print(" DATABASE_URL =", os.environ.get("DATABASE_URL"))
+#print(" DATABASE_URL =", os.environ.get("DATABASE_URL"))
 
 
 from django.core.exceptions import ImproperlyConfigured
@@ -123,19 +123,32 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 #print("DATABASE_URL:", os.getenv("DATABASE_URL"))
-import os
-import dj_database_url
 
 # Show the settings are loading (as you did)
 print("settings.py is running...")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-print(" DATABASE_URL =", DATABASE_URL)
 
 DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'urbananalytics',
+        'USER': 'urbananalytics_user',
+        'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
+        'HOST': 'dpg-d0jok0q4d50c73fht7fg-a.singapore-postgres.render.com',
+        'PORT': '5432',
+    }
 }
-print("DATABASES =", DATABASES)
+
+
+
+
+# DATABASE_URL = os.getenv("DATABASE_URL")
+# print(" DATABASE_URL =", DATABASE_URL)
+
+# DATABASES = {
+#     'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+# }
+# print("DATABASES =", DATABASES)
 
 # DATABASES = {
 #     'default': dj_database_url.config(
