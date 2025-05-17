@@ -143,7 +143,7 @@ else:
             'NAME': 'urbananalytics',
             'USER': 'urbananalytics_user',
             'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
-            'HOST': 'dpg-d0jok0q4d50c73fht7fg-a.singapore-postgres.render.com',
+            'HOST': 'dpg-d0jok0q4d50c73fht7fg-a',
             'PORT': '5432',
         }
     }
