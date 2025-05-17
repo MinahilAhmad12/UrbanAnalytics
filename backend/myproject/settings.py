@@ -123,13 +123,25 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 #print("DATABASE_URL:", os.getenv("DATABASE_URL"))
+import os
+import dj_database_url
+
+# Show the settings are loading (as you did)
+print("settings.py is running...")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+print(" DATABASE_URL =", DATABASE_URL)
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),  # Will use this value from Render
-        conn_max_age=600,
-    )
+    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 }
+
+# DATABASES = {
+#     'default': dj_database_url.config(
+#         default=os.getenv('DATABASE_URL'),  # Will use this value from Render
+#         conn_max_age=600,
+#     )
+# }
 # if not os.getenv("DATABASE_URL"):
     
 #     DATABASES = {
