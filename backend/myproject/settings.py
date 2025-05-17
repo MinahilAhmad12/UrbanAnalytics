@@ -1,22 +1,25 @@
 
 
-print("settings.py is running...")
+# print("settings.py is running...")
+
 import os
+from django.core.exceptions import ImproperlyConfigured
+
 #print(" DATABASE_URL =", os.environ.get("DATABASE_URL"))
 
 
-from django.core.exceptions import ImproperlyConfigured
-from django.contrib.gis.gdal import HAS_GDAL
-if not HAS_GDAL:
-    raise ImproperlyConfigured("GDAL is required but not properly configured.")
+# from django.core.exceptions import ImproperlyConfigured
+# from django.contrib.gis.gdal import HAS_GDAL
+# if not HAS_GDAL:
+#     raise ImproperlyConfigured("GDAL is required but not properly configured.")
 
 
 
 
-# GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
+GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
 
-# if not os.path.exists(GDAL_LIBRARY_PATH):
-#     raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
+if not os.path.exists(GDAL_LIBRARY_PATH):
+    raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
 
 """
 Django settings for myproject project.
@@ -54,13 +57,13 @@ AUTH_USER_MODEL = 'urbananalytics.CustomUser'
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 import os
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-secret-for-dev')
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ".onrender.com").split(",")
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-secret-for-dev')
+# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ".onrender.com").split(",")
+# DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# SECRET_KEY = 'django-insecure-_^8%or0$pixa31h!9749%v_z@024cuq@=_sgs$j#_vxu2*c*v4'
-#DEBUG = 'True'
-#ALLOWED_HOSTS = []
+SECRET_KEY = 'django-insecure-_^8%or0$pixa31h!9749%v_z@024cuq@=_sgs$j#_vxu2*c*v4'
+DEBUG = 'True'
+ALLOWED_HOSTS = []
 
 
 
@@ -125,27 +128,27 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 #print("DATABASE_URL:", os.getenv("DATABASE_URL"))
 
 # Show the settings are loading (as you did)
-print("settings.py is running...")
+# print("settings.py is running...")
 
 
 
-import os
-print("Loaded DB_ENGINE:", os.getenv('ENGINE'))
-print("Loaded DB_NAME:", os.getenv('NAME'))
-print("Loaded DB_USER:", os.getenv('USER'))
-print("Loaded DB_PASSWORD:", os.getenv('PASSWORD'))
-print("Loaded DB_HOST:", os.getenv('HOST'))
-print("Loaded DB_PORT:", os.getenv('PORT'))
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('NAME'),
-        'USER': os.getenv('USER'),
-        'PASSWORD': os.getenv('PASSWORD'),
-        'HOST': os.getenv('HOST'),
-        'PORT': os.getenv('PORT'),
-    }
-}
+# import os
+# print("Loaded DB_ENGINE:", os.getenv('ENGINE'))
+# print("Loaded DB_NAME:", os.getenv('NAME'))
+# print("Loaded DB_USER:", os.getenv('USER'))
+# print("Loaded DB_PASSWORD:", os.getenv('PASSWORD'))
+# print("Loaded DB_HOST:", os.getenv('HOST'))
+# print("Loaded DB_PORT:", os.getenv('PORT'))
+# DATABASES = {
+#     'default': {
+#         'ENGINE': os.getenv('ENGINE', 'django.db.backends.postgresql'),
+#         'NAME': os.getenv('NAME'),
+#         'USER': os.getenv('USER'),
+#         'PASSWORD': os.getenv('PASSWORD'),
+#         'HOST': os.getenv('HOST'),
+#         'PORT': os.getenv('PORT'),
+#     }
+# }
 
 # 
 
@@ -160,13 +163,13 @@ DATABASES = {
 #         }
 #     }
 
-print("DATABASES at startup:", DATABASES)
+# print("DATABASES at startup:", DATABASES)
 
 # DATABASE_URL = os.getenv("DATABASE_URL")
 # print(" DATABASE_URL =", DATABASE_URL)
 
 # DATABASES = {
-#     'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+#     'default': dj_database_url.parse(os.environget("DATABASE_URL"))
 # }
 # print("DATABASES =", DATABASES)
 
@@ -202,16 +205,16 @@ print("DATABASES at startup:", DATABASES)
 # }
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-#         'NAME': 'urbananalytics',
-#         'USER': 'postgres',
-#         'PASSWORD': 'urbananalytics',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'urbananalytics',
+        'USER': 'postgres',
+        'PASSWORD': 'urbananalytics',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
 
 
 # DATABASES = {
@@ -257,6 +260,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = 'media/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
