@@ -128,18 +128,32 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 print("settings.py is running...")
 
 
-# 
+
+import os
 
 DATABASES = {
-        'default': {
-            'ENGINE': 'django.contrib.gis.db.backends.postgis',
-            'NAME': 'urbananalytics',
-            'USER': 'urbananalytics_user',
-            'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
-            'HOST': 'dpg-d0jok0q4d50c73fht7fg-a',
-            'PORT': '5432',
-        }
+    'default': {
+        'ENGINE': os.getenv('ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.getenv('NAME'),
+        'USER': os.getenv('USER'),
+        'PASSWORD': os.getenv('PASSWORD'),
+        'HOST': os.getenv('HOST'),
+        'PORT': os.getenv('PORT'),
     }
+}
+
+# 
+
+# DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#             'NAME': 'urbananalytics',
+#             'USER': 'urbananalytics_user',
+#             'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
+#             'HOST': 'dpg-d0jok0q4d50c73fht7fg-a',
+#             'PORT': '5432',
+#         }
+#     }
 
 print("DATABASES at startup:", DATABASES)
 
