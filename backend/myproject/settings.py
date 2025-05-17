@@ -123,7 +123,7 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv("DATABASE_URL"),
         conn_max_age=600,
-        # engine='django.contrib.gis.db.backends.postgis'
+        engine='django.contrib.gis.db.backends.postgis'
     )
 }
 # if not os.getenv("DATABASE_URL"):
