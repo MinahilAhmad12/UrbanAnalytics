@@ -29,6 +29,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from decouple import config
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
 
 
 
@@ -118,18 +119,24 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 import os
 
-
-
 DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('ENGINE') or 'django.contrib.gis.db.backends.postgis',
-        'NAME': os.getenv('NAME'),
-        'USER': os.getenv('USER'),
-        'PASSWORD': os.getenv('PASSWORD'),
-        'HOST': os.getenv('HOST'),
-        'PORT': os.getenv('PORT'),
-    }
+    'default': dj_database_url.config(
+        default=os.getenv("DATABASE_URL"),
+        conn_max_age=600,
+    )
 }
+if not os.getenv("DATABASE_URL"):
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('ENGINE') or 'django.contrib.gis.db.backends.postgis',
+            'NAME': os.getenv('NAME'),
+            'USER': os.getenv('USER'),
+            'PASSWORD': os.getenv('PASSWORD'),
+            'HOST': os.getenv('HOST'),
+            'PORT': os.getenv('PORT'),
+        }
+    }
 
 
 # DATABASES = {
@@ -154,7 +161,7 @@ DATABASES = {
 #         'PORT': '5432',
 #     }
 # }
-import dj_database_url
+
 
 # DATABASES = {
 #     'default': dj_database_url.config(
