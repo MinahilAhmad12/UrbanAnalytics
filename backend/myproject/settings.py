@@ -123,20 +123,21 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv("DATABASE_URL"),
         conn_max_age=600,
+        # engine='django.contrib.gis.db.backends.postgis'
     )
 }
-if not os.getenv("DATABASE_URL"):
+# if not os.getenv("DATABASE_URL"):
     
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv('ENGINE') or 'django.contrib.gis.db.backends.postgis',
-            'NAME': os.getenv('NAME'),
-            'USER': os.getenv('USER'),
-            'PASSWORD': os.getenv('PASSWORD'),
-            'HOST': os.getenv('HOST'),
-            'PORT': os.getenv('PORT'),
-        }
-    }
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': os.getenv('ENGINE') or 'django.contrib.gis.db.backends.postgis',
+#             'NAME': os.getenv('NAME') or 'urbananalytics',
+#             'USER': os.getenv('USER' or 'postgres'),
+#             'PASSWORD': os.getenv('PASSWORD') or 'urbananalytics',
+#             'HOST': os.getenv('HOST') or 'localhost',
+#             'PORT': os.getenv('PORT') or '5432',
+#         }
+#     }
 
 
 # DATABASES = {
