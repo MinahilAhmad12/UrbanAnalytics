@@ -128,19 +128,27 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 print("settings.py is running...")
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'urbananalytics',
-        'USER': 'urbananalytics_user',
-        'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
-        'HOST': 'dpg-d0jok0q4d50c73fht7fg-a.singapore-postgres.render.com',
-        'PORT': '5432',
+import dj_database_url
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': 'urbananalytics',
+            'USER': 'urbananalytics_user',
+            'PASSWORD': 'TtmnmZxOISXv1Vgl4HUk8cmUxIzLEQc8',
+            'HOST': 'dpg-d0jok0q4d50c73fht7fg-a.singapore-postgres.render.com',
+            'PORT': '5432',
+        }
+    }
 
-
-
+print("DATABASES at startup:", DATABASES)
 
 # DATABASE_URL = os.getenv("DATABASE_URL")
 # print(" DATABASE_URL =", DATABASE_URL)
