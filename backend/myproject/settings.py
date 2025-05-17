@@ -1,6 +1,10 @@
 
+
+print("settings.py is running...")
 import os
-import platform
+print(" DATABASE_URL =", os.environ.get("DATABASE_URL"))
+
+
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.gis.gdal import HAS_GDAL
 if not HAS_GDAL:
@@ -117,13 +121,13 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-import os
+
+#print("DATABASE_URL:", os.getenv("DATABASE_URL"))
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
+        default=os.getenv('DATABASE_URL'),  # Will use this value from Render
         conn_max_age=600,
-        engine='django.contrib.gis.db.backends.postgis'
     )
 }
 # if not os.getenv("DATABASE_URL"):
