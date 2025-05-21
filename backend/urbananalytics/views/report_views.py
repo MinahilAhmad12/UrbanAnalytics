@@ -7,6 +7,9 @@ from rest_framework.response import Response
 from urbananalytics.models import ProjectArea, Report,Project,AreaAnalysis
 from urbananalytics.serializers import ReportCreateSerializer,ReportListSerializer
 from reportlab.pdfgen import canvas
+from django.utils.timezone import localtime
+from django.utils.timezone import now, localtime
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -83,9 +86,13 @@ def generate_report(request, project_id, area_id):
     # 4) Build the PDF in memory
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer)
-
+    created_time = now()
     # Add Report Title
     pdf.drawString(100, 800, f"Report: {report_type}")
+    
+    pdf.drawString(100, 760, f"Generated At: {localtime(created_time).strftime('%Y-%m-%d %H:%M')}")
+
+
     pdf.drawString(100, 780, f"Area ID: {pa.id}")
     
     
@@ -107,10 +114,12 @@ def generate_report(request, project_id, area_id):
     report = Report.objects.create(
         project_area=pa,
         report_type=report_type,
-        parameters=params
+        parameters=params,
+        created_at=created_time
     )
     report.file.save(filename, buffer, save=True)
-
+    
+    
     # 6) Return the report record
     return Response(ReportCreateSerializer(report, context={'request': request}).data, status=status.HTTP_201_CREATED)
 

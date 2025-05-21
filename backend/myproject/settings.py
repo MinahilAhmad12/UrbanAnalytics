@@ -14,8 +14,6 @@ from django.core.exceptions import ImproperlyConfigured
 #     raise ImproperlyConfigured("GDAL is required but not properly configured.")
 
 
-
-
 GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
 
 if not os.path.exists(GDAL_LIBRARY_PATH):
