@@ -6,6 +6,7 @@ from urbananalytics.models import Project,ProjectArea, MapState,AreaAnalysis,Uni
 from rest_framework.response import Response
 from rest_framework import status
 from urbananalytics.serializers import ProjectSerializer,ProjectWithAreasSerializer,ProjectAreaSerializer, MapStateSerializer
+import json
 
 
 
@@ -86,74 +87,116 @@ def save_area_with_analyses(request):
         return Response({'detail': 'Project not found'}, status=404)
 
     area_type = data.get('area_type')
-    name = data.get('name')
+    name = data.get('name', 'Unnamed Area')
     date_range_start = data.get('date_range_start')
     date_range_end = data.get('date_range_end')
 
     if area_type not in ['uc', 'custom', 'kml']:
-        return Response({'detail': 'Invalid area_type'}, status=400)
+        return Response({'detail': 'Invalid area_type.'}, status=400)
 
-    selected_city = None
-    custom_geometry = None
-    kml_file = None
+    created_area_ids = []
 
     if area_type == 'uc':
         selected_city = data.get('selected_city')
         uc_ids_list = data.get('uc_ids', [])
-        if not selected_city:
-            return Response({'detail': 'selected_city is required for area_type "uc".'}, status=400)
-    elif area_type == 'custom':
-        custom_geometry = data.get('custom_geometry')
-        if not custom_geometry:
+        uc_analyses = data.get('analyses', {})
+        map_states = data.get('map_state', {})
+
+        if not selected_city or not uc_ids_list:
+            return Response({'detail': 'selected_city and uc_ids are required for area_type "uc".'}, status=400)
+
+        for uc_id in uc_ids_list:
+            try:
+                uc = UnionCouncil.objects.get(id=uc_id)
+            except UnionCouncil.DoesNotExist:
+                continue
+
+            area = ProjectArea.objects.create(
+                project=project,
+                area_type='uc',
+                name=f"{name} - {uc.uc_name}",
+                date_range_start=date_range_start,
+                date_range_end=date_range_end,
+                selected_city=selected_city
+            )
+            area.uc_ids.set([uc])
+
+            uc_analysis = uc_analyses.get(str(uc_id), [])
+            for analysis in uc_analysis:
+                AreaAnalysis.objects.create(
+                    project_area=area,
+                    analysis_type=analysis['analysis_type'],
+                    tile_url=analysis['tile_url'],
+                    stats=analysis['stats']
+                )
+
+            map_data = map_states.get(str(uc_id))
+            if map_data:
+                MapState.objects.create(
+                    project_area=area,
+                    center_coords=map_data.get('center_coords'),
+                    zoom_level=map_data.get('zoom_level'),
+                    active_layer=map_data.get('active_layer'),
+                    toggle_state=map_data.get('toggle_state', {}),
+                    basemap_style=map_data.get('basemap_style', 'streets')
+                )
+
+            created_area_ids.append(area.id)
+
+    elif area_type in ['custom', 'kml']:
+        custom_geometry = data.get('custom_geometry') if area_type == 'custom' else None
+        kml_file = request.FILES.get('kml_file') if area_type == 'kml' else None
+
+        if area_type == 'custom' and not custom_geometry:
             return Response({'detail': 'custom_geometry is required for area_type "custom".'}, status=400)
-    elif area_type == 'kml':
-        kml_file = request.FILES.get('kml_file')
-        if not kml_file:
+        if area_type == 'kml' and not kml_file:
             return Response({'detail': 'kml_file is required for area_type "kml".'}, status=400)
 
-    area = ProjectArea.objects.create(
-        project=project,
-        area_type=area_type,
-        name=name,
-        date_range_start=date_range_start,
-        date_range_end=date_range_end,
-        selected_city=selected_city,
-        custom_geometry=custom_geometry,
-        kml_file=kml_file,
-    )
+        area = ProjectArea.objects.create(
+            project=project,
+            area_type=area_type,
+            name=name,
+            date_range_start=date_range_start,
+            date_range_end=date_range_end,
+            custom_geometry=custom_geometry,
+            kml_file=kml_file
+        )
+        analyses = data.get('analyses')
+        if isinstance(analyses, str):
+            try:
+                analyses = json.loads(analyses)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format inside analyses list"}, status=400)
 
-    if area_type == 'uc':
-        if uc_ids_list:
-            union_councils = UnionCouncil.objects.filter(id__in=uc_ids_list)
-            area.uc_ids.set(union_councils)
+        map_data = data.get('map_state')
 
-    
-    analyses = data.get('analyses', [])
-    for analysis in analyses:
-        try:
+        if isinstance(map_data, str):
+            try:
+                map_data = json.loads(map_data)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format for 'map_state'"}, status=400)
+        for analysis in analyses:
             AreaAnalysis.objects.create(
-                project_area=area,
-                analysis_type=analysis['analysis_type'],
-                tile_url=analysis['tile_url'],
-                stats=analysis['stats']
-            )
-        except Exception as e:
-            area.delete()  
-            return Response({'detail': f'Error creating analysis: {str(e)}'}, status=400)
+                    project_area=area,
+                    analysis_type=analysis['analysis_type'],
+                    tile_url=analysis['tile_url'],
+                    stats=analysis['stats']
+                )
 
-    map_data = data.get('map_state')
-    if map_data:
-        try:
+        if map_data:
             MapState.objects.create(
                 project_area=area,
-                center_coords=map_data.get('center_coords', None),
-                zoom_level=map_data.get('zoom_level', None),
-                active_layer=map_data.get('active_layer', None),
+                center_coords=map_data.get('center_coords'),
+                zoom_level=map_data.get('zoom_level'),
+                active_layer=map_data.get('active_layer'),
                 toggle_state=map_data.get('toggle_state', {}),
                 basemap_style=map_data.get('basemap_style', 'streets')
             )
-        except Exception as e:
-            area.delete()  
-            return Response({'detail': f'Error creating map state: {str(e)}'}, status=400)
 
-    return Response({'detail': 'Area and analyses saved successfully', 'area_id': area.id})
+        created_area_ids.append(area.id)
+
+
+    return Response({
+        'detail': 'Area(s) and analyses saved successfully.',
+        'created_area_ids': created_area_ids
+    })

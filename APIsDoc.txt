@@ -330,62 +330,177 @@ Response:
  
   15. To save an area
   POST areas/save/
+    For area_type = 'uc'
     Request JSON:
     {
   "project_id": 1,
-  "area_type": "uc",  // or "custom" or "kml"
-  "name": "Greenbelt Sector F",
+  "area_type": "uc",
+  "name": "UC Demo Area",
+  "selected_city": "Lahore",
+  "uc_ids": [12, 13],
   "date_range_start": "2024-01-01",
   "date_range_end": "2024-01-31",
-
-  "selected_city": "Islamabad",  // Only if area_type = "uc"
-  "uc_ids": [1, 3, 5],           // Only if area_type = "uc"
-
-  "custom_geometry": null,      // Only if area_type = "custom"
-  "kml_file": null,             // If you're not using it now
-
-  "analyses": [
-    {
-      "analysis_type": "ndvi",
-      "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-      "stats": {
-        "mean": 0.67,
-        "min": 0.3,
-        "max": 0.9
+  "analyses": {
+    "12": [
+      {
+        "analysis_type": "NDVI",
+        "tile_url": "https://example.com/ndvi12",
+        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
+      },
+      {
+        "analysis_type": "Thermal",
+        "tile_url": "https://example.com/ndvi12",
+        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
       }
-    },
-    {
-      "analysis_type": "thermal",
-      "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-      "stats": {
-        "mean": 32.4,
-        "min": 28.1,
-        "max": 37.6
-      }
-    }
-  ],
 
+    ],
+    "13": [
+      {
+        "analysis_type": "Thermal",
+        "tile_url": "https://example.com/thermal13",
+        "stats": {"mean": 300.5, "min": 0.72, "max":0.12, "std_dev":2.0}
+      }
+    ]
+  },
   "map_state": {
-    "active_layer": "ndvi",
-    "toggle_state": {
-      "ndvi": true,
-      "thermal": false,
-      "aqi": true
+    "12": {
+      "center_coords": [74.34, 31.56],
+      "zoom_level": 12,
+      "active_layer": "NDVI",
+      "toggle_state": {"ndvi": true},
+      "basemap_style": "satellite"
     },
-    "zoom_level": 12.5,
-    "center_coords": {
-      "lat": 33.6844,
-      "lng": 73.0479
-    },
-    "basemap_style": "satellite"
+    "13": {
+      "center_coords": [74.40, 31.60],
+      "zoom_level": 13,
+      "active_layer": "Thermal",
+      "toggle_state": {"thermal": true},
+      "basemap_style": "streets"
+    }
   }
 }
 
+
 Response JSON:
 {
-    "detail": "Area and analyses saved successfully",
-    "area_id": 5
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        12,
+        13
+    ]
 }
+
+For area_type = "cutom"
+
+Request JSON:
+{
+  "project_id": 1,
+  "area_type": "custom",
+  "name": "Custom Drawn Area",
+  "date_range_start": "2024-02-01",
+  "date_range_end": "2024-02-28",
+  "custom_geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [74.34, 31.56],
+        [74.35, 31.56],
+        [74.35, 31.57],
+        [74.34, 31.57],
+        [74.34, 31.56]
+      ]
+    ]
+  },
+  "analyses": [
+    {
+      "analysis_type": "NDVI",
+      "tile_url": "https://example.com/custom/ndvi",
+      "stats": {"mean": 0.41, "max": 0.85}
+    }
+  ],
+  "map_state": {
+    "center_coords": [74.345, 31.565],
+    "zoom_level": 14,
+    "active_layer": "NDVI",
+    "toggle_state": {"ndvi": true},
+    "basemap_style": "satellite"
+  }
+}
+Response JSON:
+{
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        14
+    ]
+}
+
+For area_type = "kml"
+
+
+
+Request: 
+ multipart/form-data Example
+
+
+project_id	3
+area_type	 kml
+name	"some name"
+date_range_start	2025-01-01
+date_range_end	2025-01-31
+analyses	[{"analysis_type": "NDVI", "tile_url": "https://example.com/tiles/ndvi/{z}/{x}/{y}.png", "stats": {"mean": 0.45, "min": 0.1, "max": 0.9}}]
+
+map_state	{"selected_city": "Lahore", "ndvi_visible": true, "thermal_visible": false, "aqi_visible": true, "zoom": 11, "center": [74.3587, 31.5204]}
+
+kml_file	(actual uploaded KML file as file input)
+
+
+
+Response:
+{
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        36
+    ]
+}
+Set the method to POST.
+
+Set the body type to form-data.
+
+Add the following fields:
+
+project_id: e.g. 1
+
+area_type: kml
+
+name: Your area name
+
+date_range_start: 2024-01-01
+
+date_range_end: 2024-01-31
+
+kml_file: (Select the actual .kml file using "Choose File")
+
+analyses: Use the JSON as a string:
+
+[
+  {
+    "analysis_type": "NDVI",
+    "tile_url": "https://example.com/ndvi",
+    "stats": {"mean": 0.65, "max": 0.91}
+  }
+]
+map_state: Use this JSON string:
+
+{
+  "center_coords": [74.30, 31.45],
+  "zoom_level": 13,
+  "active_layer": "NDVI",
+  "toggle_state": {"ndvi": true},
+  "basemap_style": "satellite"
+}
+
+Response:
+
 
 16. To view an area of a project
 
