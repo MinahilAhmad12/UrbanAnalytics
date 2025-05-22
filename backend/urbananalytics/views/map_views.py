@@ -116,7 +116,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             .filterDate(start_date, end_date) \
             .select(['B8', 'B4']) \
             .median()
-        image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI')
+        image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
         vis_params = {'min': 0, 'max': 1, 'palette': ['white', 'green']}
         band_name = 'NDVI'
 
@@ -140,7 +140,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         if 'ST_B10' not in bands:
             raise ValueError(f"Thermal band 'ST_B10' not found in image bands: {bands}")
 
-        image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal')
+        image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
         vis_params = {'min': 290, 'max': 320, 'palette': ['blue', 'green', 'red']}
         band_name = 'Thermal'
         scale = 100
@@ -150,7 +150,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             .filterBounds(polygon) \
             .filterDate(start_date, end_date) \
             .mean()
-        image = collection.select('NO2_column_number_density').rename('AQI')
+        image = collection.select('NO2_column_number_density').rename('AQI').clip(polygon)
         vis_params = {'min': 0, 'max': 0.0003, 'palette': ['green', 'yellow', 'red']}
         band_name = 'AQI'
         scale = 7000
