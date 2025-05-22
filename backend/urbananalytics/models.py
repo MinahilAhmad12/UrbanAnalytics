@@ -34,7 +34,7 @@ class UnionCouncil(models.Model):
         return f"{self.uc_name} ({self.city_name})"
 
 
-# 4. ProjectArea
+
 class ProjectArea(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="areas")
     name = models.CharField(max_length=100, blank=True, null=True)
@@ -54,7 +54,7 @@ class ProjectArea(models.Model):
         return self.name or f"Area {self.id} for Project: {self.project.name}"
 
 
-# 5. MapState
+
 class MapState(models.Model):
     project_area = models.OneToOneField(ProjectArea, on_delete=models.CASCADE, related_name="map_state")
     active_layer = models.CharField(max_length=20, choices=[
@@ -71,7 +71,7 @@ class MapState(models.Model):
         return f"MapState for Area {self.project_area.id}"
 
 
-# 6. AreaAnalysis
+
 class AreaAnalysis(models.Model):
     project_area = models.ForeignKey(ProjectArea, on_delete=models.CASCADE, related_name="analyses")
     analysis_type = models.CharField(max_length=50, choices=[
@@ -97,11 +97,8 @@ class Report(models.Model):
         related_name='reports'
     )
     created_at     = models.DateTimeField(auto_now_add=True)
-    # e.g. "environmental_summary", "planting_recommendation"
     report_type    = models.CharField(max_length=50)  
-    # parameters you used to build the report, if any
     parameters     = models.JSONField(default=dict, blank=True)  
-    # the generated file, e.g. PDF
     file           = models.FileField(upload_to='reports/')  
 
     class Meta:

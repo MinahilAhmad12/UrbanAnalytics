@@ -30,5 +30,6 @@ urlpatterns = [
     path('ucs/<str:city_name>/',get_ucs_by_city, name='get_ucs_by_city'),
     path('analyze/', perform_gee_analysis, name='perform_gee_analysis'),
     
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
+]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -49,7 +49,7 @@ def perform_gee_analysis(request):
     try:
         results = []
 
-        # UC AREA ANALYSIS
+        
         if area_type == "uc":
             if not city_name:
                 return Response({"error": "city_name is required for UC analysis"}, status=400)
@@ -82,7 +82,7 @@ def perform_gee_analysis(request):
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, ucs))
 
-        # CUSTOM OR KML ANALYSIS
+        
         elif area_type in ("custom", "kml"):
             if not geometry_data:
                 return Response({"error": "geometry data is required for custom/kml analysis"}, status=400)
@@ -158,7 +158,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
     else:
         raise ValueError("Invalid analysis type")
 
-    # Compute stats
+    
     stats = image.reduceRegion(
         reducer=ee.Reducer.mean().combine(
             reducer2=ee.Reducer.minMax(), sharedInputs=True
@@ -170,7 +170,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         maxPixels=1e9
     ).getInfo()
 
-    # Generate map layer
+    
     try:
         vis_image = image.visualize(**vis_params)
         map_data = vis_image.getMapId()

@@ -47,21 +47,21 @@ class ProjectAreaSerializer(serializers.ModelSerializer):
         custom_geometry = data.get('custom_geometry')
         kml_file = data.get('kml_file')
 
-        # UC type
+        
         if area_type == 'uc':
             if not selected_city:
                 raise serializers.ValidationError({'selected_city': 'This field is required for UC areas.'})
             if custom_geometry or kml_file:
                 raise serializers.ValidationError('custom_geometry and kml_file must be empty for UC areas.')
 
-        # Custom type
+        
         elif area_type == 'custom':
             if not custom_geometry:
                 raise serializers.ValidationError({'custom_geometry': 'This field is required for custom areas.'})
             if selected_city or kml_file:
                 raise serializers.ValidationError('selected_city and kml_file must be empty for custom areas.')
 
-        # KML type
+        
         elif area_type == 'kml_file':
             if not kml_file:
                 raise serializers.ValidationError({'kml_file': 'This field is required for KML areas.'})
