@@ -9,19 +9,16 @@ from urbananalytics.serializers import ReportCreateSerializer,ReportListSerializ
 from reportlab.pdfgen import canvas
 from django.utils.timezone import localtime
 from django.utils.timezone import now, localtime
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_report(request, project_id, area_id):
-    """
-    POST /api/projects/{project_id}/areas/{area_id}/reports/
-    {
-      "report_type": "environmental_summary",
-      // any extra params
-    }
-    """
-    # 1) Lookup the area and ensure user owns the project
+    
     try:
         pa = ProjectArea.objects.select_related('project__owner') \
             .get(id=area_id, project__id=project_id, project__owner=request.user)
@@ -31,40 +28,38 @@ def generate_report(request, project_id, area_id):
     report_type = request.data.get('report_type', 'environmental_summary')
     params = request.data.get('parameters', {})
 
-    # 2) Fetch analysis data for NDVI, Thermal, AQI
     analysis_data = AreaAnalysis.objects.filter(project_area=pa)
 
-    # Prepare dictionaries to store stats
+    
     ndvi_stats = {}
     thermal_stats = {}
     aqi_stats = {}
 
-    # Extract data for each analysis type (ndvi, thermal, aqi)
     for analysis in analysis_data:
-        stats = analysis.stats
+        stats = analysis.stats  
         if analysis.analysis_type == 'ndvi':
             ndvi_stats = {
-                "mean": stats.get('mean_ndvi'),
-                "max": stats.get('max_ndvi'),
-                "min": stats.get('min_ndvi'),
-                "std_dev": stats.get('stddev_ndvi')
+                "mean": stats.get('mean'),
+                "max": stats.get('max'),
+                "min": stats.get('min'),
+                "std_dev": stats.get('std_dev')
             }
         elif analysis.analysis_type == 'thermal':
             thermal_stats = {
-                "mean": stats.get('mean_temp'),
-                "max": stats.get('max_temp'),
-                "min": stats.get('min_temp'),
-                "std_dev": stats.get('stddev_temp')
+                "mean": stats.get('mean'),
+                "max": stats.get('max'),
+                "min": stats.get('min'),
+                "std_dev": stats.get('std_dev')
             }
         elif analysis.analysis_type == 'aqi':
             aqi_stats = {
-                "mean": stats.get('mean_aqi'),
-                "max": stats.get('max_aqi'),
-                "min": stats.get('min_aqi'),
-                "category": stats.get('aqi_category')
+                "mean": stats.get('mean'),
+                "max": stats.get('max'),
+                "min": stats.get('min'),
+                "std_dev": stats.get('std_dev')
             }
 
-    # 3) Check suitability for tree plantation with partial data logic
+    
     if ndvi_stats.get("mean") is not None and thermal_stats.get("mean") is not None and aqi_stats.get("mean") is not None:
         if ndvi_stats["mean"] < 0.3 and thermal_stats["mean"] > 35.0 and aqi_stats["mean"] > 100:
             plantation_recommendation = "Yes — Suitable for Tree Plantation"
@@ -83,33 +78,61 @@ def generate_report(request, project_id, area_id):
     else:
         plantation_recommendation = "Insufficient data"
 
-    # 4) Build the PDF in memory
+    
     buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer)
+    doc = SimpleDocTemplate(buffer)
+    styles = getSampleStyleSheet()
+    elements = []
+
     created_time = now()
-    # Add Report Title
-    pdf.drawString(100, 800, f"Report: {report_type}")
-    
-    pdf.drawString(100, 760, f"Generated At: {localtime(created_time).strftime('%Y-%m-%d %H:%M')}")
+    elements.append(Paragraph(f"<b>Report:</b> {report_type}", styles['Title']))
+    area_name = ""
+    area_type_display = pa.area_type.upper() if pa.area_type else "Unknown"
 
+    if pa.area_type == 'uc':
+        area_name = pa.selected_city  
+    elif pa.area_type == 'custom':
+        area_name = "Custom Area"
+    elif pa.area_type == 'kml':
+        area_name = "Uploaded KML Area"
+        
+    centered_style = ParagraphStyle(
+        name='CenteredHeading',
+        parent=styles['Heading3'],
+        alignment=TA_CENTER,
+        spaceAfter=12
+    )
+    
+    area_info = f"<b>Area:</b> {area_name}<br/><b>Type:</b> {area_type_display}"
+    elements.append(Paragraph(area_info, centered_style))
+    elements.append(Spacer(1, 12))
 
-    pdf.drawString(100, 780, f"Area ID: {pa.id}")
-    
-    
-    # Add Analysis Data (Stats)
-    pdf.drawString(100, 740, f"NDVI Stats: {ndvi_stats}")
-    pdf.drawString(100, 720, f"Thermal Stats: {thermal_stats}")
-    pdf.drawString(100, 700, f"AQI Stats: {aqi_stats}")
-    
-    
-    pdf.drawString(100, 680, f"Tree Plantation Recommendation: {plantation_recommendation}")
+    elements.append(Paragraph(f"<b>Generated At:</b> {localtime(created_time).strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Area ID:</b> {pa.id}", styles['Normal']))
+    elements.append(Spacer(1, 12))
 
-    # Add more report content as needed...
-    pdf.showPage()
-    pdf.save()
+    elements.append(Paragraph("<b>NDVI Stats</b>", styles['Heading2']))
+    for key, val in ndvi_stats.items():
+        elements.append(Paragraph(f"<font color='gray'>{key.capitalize()}:</font> <b>{val}</b>", styles['Normal']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("<b>Thermal Stats</b>", styles['Heading2']))
+    for key, val in thermal_stats.items():
+        elements.append(Paragraph(f"<font color='gray'>{key.capitalize()}:</font> <b>{val}</b>", styles['Normal']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("<b>AQI Stats</b>", styles['Heading2']))
+    for key, val in aqi_stats.items():
+        elements.append(Paragraph(f"<font color='gray'>{key.capitalize()}:</font> <b>{val}</b>", styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("<b>Tree Plantation Recommendation:</b>", styles['Heading2']))
+    elements.append(Paragraph(f"<b>{plantation_recommendation}</b>", styles['Normal']))
+
+    doc.build(elements)
     buffer.seek(0)
 
-    # 5) Save the file to your Report model
+    
     filename = f"{report_type}_area{pa.id}_{pa.project.id}.pdf"
     report = Report.objects.create(
         project_area=pa,
@@ -118,9 +141,8 @@ def generate_report(request, project_id, area_id):
         created_at=created_time
     )
     report.file.save(filename, buffer, save=True)
+
     
-    
-    # 6) Return the report record
     return Response(ReportCreateSerializer(report, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 

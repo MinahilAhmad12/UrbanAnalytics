@@ -12,13 +12,6 @@ from urbananalytics.serializers import ProjectSerializer,ProjectWithAreasSeriali
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_project(request):
-    """
-    POST /api/projects/
-    {
-      "name": "My New Project"
-    }
-    → creates a Project(owner=request.user) and returns its details.
-    """
     serializer = ProjectSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -39,9 +32,7 @@ def get_user_projects(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def view_project_area(request, project_id, area_id):
-    """
-    GET /api/projects/{project_id}/areas/{area_id}/view/
-    """
+    
     try:
         area = ProjectArea.objects.select_related('project__owner') \
                 .get(id=area_id, project__id=project_id, project__owner=request.user)

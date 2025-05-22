@@ -51,7 +51,7 @@ def signup(request):
                 fail_silently=False,
             )
         except Exception as e:
-            user.delete()  # If sending email fails, delete the user
+            user.delete()  
             return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)
 
         return JsonResponse({'message': 'User created successfully. Verification email sent!'})

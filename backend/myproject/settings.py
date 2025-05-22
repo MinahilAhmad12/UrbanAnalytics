@@ -38,7 +38,6 @@ import dj_database_url
 
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
@@ -60,12 +59,12 @@ import os
 # DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 SECRET_KEY = 'django-insecure-_^8%or0$pixa31h!9749%v_z@024cuq@=_sgs$j#_vxu2*c*v4'
-DEBUG = 'True'
+DEBUG = 'False'
 ALLOWED_HOSTS = []
 
 
 
-# Application definition
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -223,8 +222,7 @@ DATABASES = {
 #     )
 # }
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -242,8 +240,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
+
 
 LANGUAGE_CODE = 'en-us'
 
@@ -254,17 +251,16 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
 
 STATIC_URL = 'static/'
 MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# settings.py
+
 
 EMAIL_BACKEND = config('EMAIL_BACKEND')
 EMAIL_HOST = config('EMAIL_HOST')
@@ -273,11 +269,11 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 
-# settings.py
+
 
 AUTHENTICATION_BACKENDS = (
-    'urbananalytics.authentication.backends.CustomAuthenticationBackend',  # Path to your custom backend
-    'django.contrib.auth.backends.ModelBackend',  # The default backend for fallback
+    'urbananalytics.authentication.backends.CustomAuthenticationBackend',  
+    'django.contrib.auth.backends.ModelBackend',  
 )
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -291,6 +287,6 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    # you can add other options here if you like
+    
 }
 
