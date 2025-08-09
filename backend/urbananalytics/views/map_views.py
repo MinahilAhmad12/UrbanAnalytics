@@ -14,6 +14,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from concurrent.futures import ThreadPoolExecutor
 import json
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import fastkml
+from shapely.geometry import shape, mapping
 
 
 
@@ -193,3 +197,56 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             "std_dev": stats.get(f"{band_name}_stdDev")
         }
     }
+
+
+@api_view(['POST'])
+def yearly_comparison_analysis(request):
+    start_date_str = request.data.get("start_date")
+    end_date_str = request.data.get("end_date")
+    area_type = request.data.get("area_type")
+    city_name = request.data.get("city_name")
+    geometry_data = request.data.get("geometry")
+
+    if not start_date_str or not end_date_str:
+        return Response({"error": "start_date and end_date are required"}, status=400)
+
+    try:
+        
+        start_date = datetime.strptime(start_date_str, "%m/%d/%Y")
+        end_date = datetime.strptime(end_date_str, "%m/%d/%Y")
+    except ValueError:
+        return Response({"error": "Invalid date format. Use MM/DD/YYYY"}, status=400)
+
+    
+    if area_type == "uc":
+        uc = UnionCouncil.objects.filter(city_name=city_name).first()
+        if not uc:
+            return Response({"error": "No UC found"}, status=404)
+        polygon = ee.Geometry(json.loads(uc.geometry.geojson))
+    else:
+        polygon = ee.Geometry(geometry_data)
+
+    analysis_types = ["ndvi", "thermal", "aqi"]
+    results = {atype: [] for atype in analysis_types}
+
+    for atype in analysis_types:
+        for year_offset in range(0, 3):  
+            year_start = (start_date - relativedelta(years=year_offset)).strftime("%Y-%m-%d")
+            year_end = (end_date - relativedelta(years=year_offset)).strftime("%Y-%m-%d")
+            year_val = start_date.year - year_offset
+
+            try:
+                analysis_result = perform_analysis_for_polygon(atype, polygon, year_start, year_end)
+                results[atype].append({
+                    "year": year_val,
+                    "mean": analysis_result["stats"]["mean"],
+                    "min": analysis_result["stats"]["min"],
+                    "max": analysis_result["stats"]["max"]
+                })
+            except Exception as e:
+                results[atype].append({
+                    "year": year_val,
+                    "error": str(e)
+                })
+
+    return Response(results)

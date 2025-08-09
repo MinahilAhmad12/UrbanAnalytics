@@ -1,5 +1,5 @@
 from django.urls import path
-from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs_by_city,save_area_with_analyses,perform_gee_analysis
+from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs_by_city,save_area_with_analyses,perform_gee_analysis, yearly_comparison_analysis
 from django.conf import settings
 from django.conf.urls.static import static
 from urbananalytics.views import MyTokenObtainPairView
@@ -29,6 +29,8 @@ urlpatterns = [
     path('projects/<int:project_id>/reports/', get_project_reports, name='get_project_reports'),
     path('ucs/<str:city_name>/',get_ucs_by_city, name='get_ucs_by_city'),
     path('analyze/', perform_gee_analysis, name='perform_gee_analysis'),
+    path('yearly_comparison_analysis/', yearly_comparison_analysis, name='yearly_comparison_analysis'),
+
     
 ]
 if settings.DEBUG:
