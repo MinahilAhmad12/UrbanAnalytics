@@ -150,14 +150,17 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         scale = 100
 
     elif analysis_type.lower() == "aqi":
+        
         collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
             .filterBounds(polygon) \
             .filterDate(start_date, end_date) \
-            .mean()
-        image = collection.select('NO2_column_number_density').rename('AQI').clip(polygon)
-        vis_params = {'min': 0, 'max': 0.0003, 'palette': ['green', 'yellow', 'red']}
+            .median()
+        image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
+        vis_params = {'min': 0, 'max': 30, 'palette': ['green', 'yellow', 'red']}
         band_name = 'AQI'
         scale = 7000
+       
+
 
     else:
         raise ValueError("Invalid analysis type")
