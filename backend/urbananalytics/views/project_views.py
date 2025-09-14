@@ -7,6 +7,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from urbananalytics.serializers import ProjectSerializer,ProjectWithAreasSerializer,ProjectAreaSerializer, MapStateSerializer
 import json
+from fastkml import kml
+from shapely.geometry import shape
+import os
+from urbananalytics.utils import extract_bounds_from_kml
 
 
 
@@ -18,7 +22,19 @@ def create_project(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     project = serializer.save(owner=request.user)
-    return Response(ProjectSerializer(project).data, status=status.HTTP_201_CREATED)
+
+    if project.kml_file:
+        kml_path = project.kml_file.path
+        bounds = extract_bounds_from_kml(kml_path)
+    else:
+      bounds = None
+
+
+    response_data = ProjectSerializer(project).data
+    response_data["bounds"] = bounds  
+
+    return Response(response_data, status=status.HTTP_201_CREATED)
+
 
 
 
