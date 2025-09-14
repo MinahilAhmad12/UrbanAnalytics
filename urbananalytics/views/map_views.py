@@ -196,7 +196,7 @@ def load_ucs_from_file(city_name):
         return None
 
     with open(file_path, "r") as f:
-        return json.load(f)  # already GeoJSON dict
+        return json.load(f) 
 
 
 @api_view(['POST'])
@@ -215,7 +215,6 @@ def perform_gee_analysis(request):
     try:
         results = []
 
-        # ---- CASE 1: UC (manual entry) ----
         if area_type == "uc":
             if not city_name:
                 return Response({"error": "city_name is required for UC analysis"}, status=400)
@@ -251,7 +250,6 @@ def perform_gee_analysis(request):
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
 
-        # ---- CASE 2: Custom-drawn geometry ----
         elif area_type == "custom":
             if not geometry_data:
                 return Response({"error": "geometry data is required for custom analysis"}, status=400)
@@ -261,8 +259,7 @@ def perform_gee_analysis(request):
             result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
             results.append(result)
 
-        # ---- CASE 3: KML Upload (get bounds → find UCs locally) ----
-       # ---- CASE 3: KML Upload (use city name from file → process all UCs) ----
+        
         elif area_type == "kml":
             if not project_id:
                 return Response({"error": "project_id is required for KML analysis"}, status=400)
@@ -275,11 +272,11 @@ def perform_gee_analysis(request):
             if not project.kml_file:
                 return Response({"error": "No KML file found for this project"}, status=404)
 
-            # Extract city name from KML file name
+            
             file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
             city_name = file_name.split("_")[0].capitalize()
 
-            # Load local UC data for the city
+            
             uc_data = load_ucs_from_file(city_name)
             if not uc_data:
                 return Response({"error": f"No local UC data found for {city_name}"}, status=404)
@@ -288,7 +285,7 @@ def perform_gee_analysis(request):
             if not features:
                 return Response({"error": "No Union Councils found in local file"}, status=404)
 
-            # Perform analysis for each UC
+            
             def process_uc(feature):
                 try:
                     geojson_dict = feature["geometry"]

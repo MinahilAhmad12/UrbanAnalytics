@@ -31,7 +31,7 @@ def create_project(request):
 
 
     response_data = ProjectSerializer(project).data
-    response_data["bounds"] = bounds  # add geometry bounds in response
+    response_data["bounds"] = bounds  
 
     return Response(response_data, status=status.HTTP_201_CREATED)
 
