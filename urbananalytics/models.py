@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.contrib.gis.db import models as geomodels
+from django.core.exceptions import ValidationError
 
 
 class CustomUser(AbstractUser):
@@ -12,16 +13,23 @@ class CustomUser(AbstractUser):
         return self.username
 
 
-
 class Project(models.Model):
-    owner      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projects")
-    name       = models.CharField(max_length=100)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    project_name = models.CharField(max_length=255 , default="Untitled Project")   
+    location_name = models.CharField(max_length=255, null=True, blank=True) 
+    kml_file = models.FileField(upload_to='kml_files/', null=True, blank=True)  
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if not self.location_name and not self.kml_file:
+            raise ValidationError("You must provide either a location name or a KML file.")
+        if self.location_name and self.kml_file:
+            raise ValidationError("Provide only one: location name OR KML file.")
     def __str__(self):
         return f"{self.name} (by {self.owner.username})"
 
 
+    
 class UnionCouncil(models.Model):
     city_name = models.CharField(max_length=100)
     uc_name = models.CharField(max_length=100)
