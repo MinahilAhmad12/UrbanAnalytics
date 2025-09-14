@@ -24,9 +24,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    kml_file = serializers.FileField(required=False, allow_null=True)
+
     class Meta:
         model  = Project
-        fields = ['id', 'name', 'created_at']
+        fields = ['id', 'project_name', 'location_name', 'kml_file', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class AreaAnalysisSerializer(serializers.ModelSerializer):

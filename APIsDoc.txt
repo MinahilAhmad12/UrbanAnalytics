@@ -168,80 +168,222 @@ POST api/projects/
 Creates a new project.
 
 Request Body:
+For manually entering the location(for ucs)
 {
-  "name": "My New Project"
+  "project_name": "Lahore's UCs analysis",
+  "location_name": "Lahore"
+
 }
 Response:
 
 {
-  "id": 1,
-  "name": "My New Project",
-  ...
+    "id": 16,
+    "project_name": "Lahore's UCs analysis",
+    "location_name": "Lahore",
+    "kml_file": null,
+    "created_at": "2025-09-14T08:53:22.624354Z",
+    "bounds": null
 }
-11.  Get User Projects
-GET my-projects/
 
-Returns all projects belonging to the authenticated user.
+For kml file:
+Request:-
+{
+  "project_name": "Lahore's UCs analysis",
+  "kml_file": "lahore.kml"
+
+}
+Response:-
+{
+    "id": 15,
+    "project_name": "Lahore",
+    "location_name": null,
+    "kml_file": "/media/kml_files/lahore_nQvaEru.kml",
+    "created_at": "2025-09-14T07:40:36.191097Z",
+    "bounds": "{ \"type\": \"Polygon\", \"coordinates\": [ [ [ 74.1541829, 31.4056822 ], [ 74.1541829, 31.7256822 ], [ 74.4741829, 31.7256822 ], [ 74.4741829, 31.4056822 ], [ 74.1541829, 31.4056822 ] ] ] }"
+}
+
+11. To get UCs of a particular city
+GET request
+get_ucs/?project_id=12
 
 Response:
-
-[
+{
+  "type": "FeatureCollection",
+  "features": [
     {
-        "id": 1,
-        "name": "Project 1",
-        "created_at": "2025-05-15T14:40:57.865762Z",
-        "areas": [
-            {
-                "id": 5,
-                "area_type": "uc",
-                "name": "Greenbelt Sector F",
-                "date_range_start": "2024-01-01",
-                "date_range_end": "2024-01-31",
-                "selected_city": "Islamabad",
-                "custom_geometry": null,
-                "analyses": [
-                    {
-                        "analysis_type": "ndvi",
-                        "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-                        "stats": {
-                            "max": 0.9,
-                            "min": 0.3,
-                            "mean": 0.67
-                        }
-                    },
-                    {
-                        "analysis_type": "thermal",
-                        "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-                        "stats": {
-                            "max": 37.6,
-                            "min": 28.1,
-                            "mean": 32.4
-                        }
-                    }
-                ]
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [[[...]]]  // coordinates of UC
+      },
+      "properties": {
+        "uc_name": "UC 1",
+        "city_name": "Lahore"
+      }
+    },
+    ...
+  ]
+}
+
+12. Analysis of an area
+    POST analyze/
+    For area_type = "uc"
+
+    Request JSON:
+      {
+  "analysis_type": "aqi",        
+  "start_date": "2024-01-01",
+  "end_date": "2024-03-01",
+  "area_type": "uc",
+  "city_name": "Lahore"
+}
+    Response JSON:
+
+    {
+    "message": "NDVI analysis performed",
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.21453343138065312,
+                "min": -0.025582932124988182,
+                "max": 0.5962898570295225,
+                "std_dev": 0.1596162137808899
             }
-        ]
+        },
+        {
+            "uc_name": "Ameen Pura",
+            "city_name": "Lahore",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.05400271733579196,
+                "min": -0.0346915315103686,
+                "max": 0.5384406528108954,
+                "std_dev": 0.06584619775234565
+            }
+        },
+        {
+            "uc_name": "Wassanpura",
+            "city_name": "Lahore",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.07177660378727886,
+                "min": -0.03322319639930277,
+                "max": 0.5241263757850881,
+                "std_dev": 0.08537145992705203
+            }
+        },
+        {
+            "uc_name": "Darogha Wala",
+            "city_name": "Lahore",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.25616996680031284,
+                "min": -0.03066410782909222,
+                "max": 0.6689206952238446,
+                "std_dev": 0.172226768934241
+            }
+        },
+        ......
+    ]
     }
-]
 
+    for area_type = "custom"
 
-12.  Generate Report
-POST projects/{project_id}/areas/{area_id}/reports/
+    Request JSON:
+      {
+  "area_type": "custom",
+  "analysis_type": "thermal",
+  "start_date": "2023-06-01",
+  "end_date": "2023-06-30",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [74.34, 31.52],
+        [74.36, 31.52],
+        [74.36, 31.54],
+        [74.34, 31.54],
+        [74.34, 31.52]
+      ]
+    ]
+  }
+}
 
-Generates a PDF report based on analysis.
+    Response JSON:
+    {
+    "message": "THERMAL analysis performed",
+    "results": [
+        {
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98",
+                "token": ""
+            },
+            "stats": {
+                "mean": 309.369769013796,
+                "min": 306.64933646,
+                "max": 313.24782407,
+                "std_dev": 1.318196261277901
+            }
+        }
+    ]
+}
+
+  For area_type = "kml"
+
+  Request JSON:
+  {
+  "analysis_type": "aqi",
+  "start_date": "2024-01-01",
+  "end_date": "2024-03-01",
+  "area_type": "kml",
+  "project_id": 9
+}
+
 
 Response JSON:
-{
-    "id": 6,
-    "report_type": "environmental_summary",
-    "created_at": "2025-05-22T06:20:34.159593Z",
-    "parameters": {},
-    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
-    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
-}
 
-Content-Disposition: attachment; filename="report.pdf"
-Content-Type: application/pdf
+{
+    "message": "THERMAL analysis performed",
+    "results": [
+        {
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98",
+                "token": ""
+            },
+            "stats": {
+                "mean": 309.369769013796,
+                "min": 306.64933646,
+                "max": 313.24782407,
+                "std_dev": 1.318196261277901
+            }
+        }
+    ]
+}
 
 
 13. List All Saved Reports
@@ -305,27 +447,52 @@ Response:
 ]
 
 
-14. To get UCs of a particular city
-GET ucs/<str:city_name>/
+14.  Get User Projects
+GET my-projects/
+
+Returns all projects belonging to the authenticated user.
 
 Response:
-{
-  "type": "FeatureCollection",
-  "features": [
+
+[
     {
-      "type": "Feature",
-      "geometry": {
-        "type": "MultiPolygon",
-        "coordinates": [[[...]]]  // coordinates of UC
-      },
-      "properties": {
-        "uc_name": "UC 1",
-        "city_name": "Lahore"
-      }
-    },
-    ...
-  ]
-}
+        "id": 1,
+        "name": "Project 1",
+        "created_at": "2025-05-15T14:40:57.865762Z",
+        "areas": [
+            {
+                "id": 5,
+                "area_type": "uc",
+                "name": "Greenbelt Sector F",
+                "date_range_start": "2024-01-01",
+                "date_range_end": "2024-01-31",
+                "selected_city": "Islamabad",
+                "custom_geometry": null,
+                "analyses": [
+                    {
+                        "analysis_type": "ndvi",
+                        "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
+                        "stats": {
+                            "max": 0.9,
+                            "min": 0.3,
+                            "mean": 0.67
+                        }
+                    },
+                    {
+                        "analysis_type": "thermal",
+                        "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
+                        "stats": {
+                            "max": 37.6,
+                            "min": 28.1,
+                            "mean": 32.4
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]
+
 
  
   15. To save an area
@@ -556,175 +723,24 @@ Response JSON:
 
 DELETE project-area/<int:area_id>/delete/
 
-18. Analysis of an area
-    POST analyze/
-    For area_type = "uc"
+18.  Generate Report
+POST projects/{project_id}/areas/{area_id}/reports/
 
-    Request JSON:
-      {
-    "area_type": "uc",
-    "analysis_type": "ndvi",
-    "start_date": "2022-06-01",
-    "end_date": "2023-06-30",
-    "city_name": "Lahore"
-      }
-    Response JSON:
-
-    {
-    "message": "NDVI analysis performed",
-    "results": [
-        {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.21453343138065312,
-                "min": -0.025582932124988182,
-                "max": 0.5962898570295225,
-                "std_dev": 0.1596162137808899
-            }
-        },
-        {
-            "uc_name": "Ameen Pura",
-            "city_name": "Lahore",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.05400271733579196,
-                "min": -0.0346915315103686,
-                "max": 0.5384406528108954,
-                "std_dev": 0.06584619775234565
-            }
-        },
-        {
-            "uc_name": "Wassanpura",
-            "city_name": "Lahore",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.07177660378727886,
-                "min": -0.03322319639930277,
-                "max": 0.5241263757850881,
-                "std_dev": 0.08537145992705203
-            }
-        },
-        {
-            "uc_name": "Darogha Wala",
-            "city_name": "Lahore",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.25616996680031284,
-                "min": -0.03066410782909222,
-                "max": 0.6689206952238446,
-                "std_dev": 0.172226768934241
-            }
-        },
-        ......
-    ]
-    }
-
-    for area_type = "custom"
-
-    Request JSON:
-      {
-  "area_type": "custom",
-  "analysis_type": "thermal",
-  "start_date": "2023-06-01",
-  "end_date": "2023-06-30",
-  "geometry": {
-    "type": "Polygon",
-    "coordinates": [
-      [
-        [74.34, 31.52],
-        [74.36, 31.52],
-        [74.36, 31.54],
-        [74.34, 31.54],
-        [74.34, 31.52]
-      ]
-    ]
-  }
-}
-
-    Response JSON:
-    {
-    "message": "THERMAL analysis performed",
-    "results": [
-        {
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98",
-                "token": ""
-            },
-            "stats": {
-                "mean": 309.369769013796,
-                "min": 306.64933646,
-                "max": 313.24782407,
-                "std_dev": 1.318196261277901
-            }
-        }
-    ]
-}
-
-  For area_type = "kml"
-
-  Request JSON:
-  {
-  "area_type": "kml",
-  "analysis_type": "thermal",
-  "start_date": "2021-06-01",
-  "end_date": "2022-06-10",
-  "geometry": {
-    "type": "Polygon",
-    "coordinates": [
-      [
-        [74.34, 31.52],
-        [74.36, 31.52],
-        [74.36, 31.54],
-        [74.34, 31.54],
-        [74.34, 31.52]
-      ]
-    ]
-  }
-}
+Generates a PDF report based on analysis.
 
 Response JSON:
-
 {
-    "message": "THERMAL analysis performed",
-    "results": [
-        {
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98",
-                "token": ""
-            },
-            "stats": {
-                "mean": 309.369769013796,
-                "min": 306.64933646,
-                "max": 313.24782407,
-                "std_dev": 1.318196261277901
-            }
-        }
-    ]
+    "id": 6,
+    "report_type": "environmental_summary",
+    "created_at": "2025-05-22T06:20:34.159593Z",
+    "parameters": {},
+    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
+    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
 }
+
+Content-Disposition: attachment; filename="report.pdf"
+Content-Type: application/pdf
+
 
 19. To get the details of a project
 
