@@ -3,6 +3,8 @@ from django.db import models
 from django.conf import settings
 from django.contrib.gis.db import models as geomodels
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+
 
 
 class CustomUser(AbstractUser):
@@ -79,24 +81,25 @@ class MapState(models.Model):
         return f"MapState for Area {self.project_area.id}"
 
 
-
 class AreaAnalysis(models.Model):
-    project_area = models.ForeignKey(ProjectArea, on_delete=models.CASCADE, related_name="analyses")
-    analysis_type = models.CharField(max_length=50, choices=[
-        ('ndvi', 'NDVI'),
-        ('thermal', 'Thermal'),
-        ('aqi', 'AQI'),
-    ])
-    tile_url = models.URLField()
-    stats = models.JSONField(default=dict)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="analyses")
+    analysis_type = models.CharField(max_length=50)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    area_type = models.CharField(max_length=20)
+    geometry = models.JSONField(null=True, blank=True)
+    stats = models.JSONField()
+    map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # use CharField
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    uc_name = models.CharField(max_length=255, null=True, blank=True)
+    city_name = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
-        unique_together = ('project_area', 'analysis_type')
+        unique_together = ("project", "analysis_type", "start_date", "end_date", "area_type", "uc_name")
 
     def __str__(self):
-        return f"{self.analysis_type} analysis for Area {self.project_area.id}"
-
+        return f"{self.analysis_type.upper()} | {self.area_type} | {self.uc_name or 'ALL'}"
 
 class Report(models.Model):
     project_area   = models.ForeignKey(

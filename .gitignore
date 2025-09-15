@@ -13,6 +13,9 @@ backend/db.sqlite3
 
 # Media folder (inside backend folder)
 backend/media/
+backend/data/union_councils
+backend/local_data/
+
 
 # IDE/editor settings
 .vscode/
