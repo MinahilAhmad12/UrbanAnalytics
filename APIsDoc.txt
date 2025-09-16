@@ -399,30 +399,40 @@ Request Examples
 1. Compare 1 year (user provides 1)
 
 {
-  "start_year": 2025,
-  "area_type": "uc",
-  "city_name": "Lahore",
-  "comparison_years": 1
+    "area_type": "uc",
+    "analysis_type": "ndvi",
+    "city_name": "Lahore",
+    "start_year": 2024,
+    "project_id": 2,
+    "comparison_years": 1
 }
+
 
 
 2. Compare 2 years (user provides 2)
 
 {
-  "start_year": 2025,
-  "area_type": "uc",
-  "city_name": "Lahore",
-  "comparison_years": 2
+    "area_type": "uc",
+    "analysis_type": "ndvi",
+    "city_name": "Lahore",
+    "start_year": 2024,
+    "project_id": 2,
+    "comparison_years": 2
 }
+
 
 
 3. Compare 3 years (default, user does not provide)
 
 {
-  "start_year": 2025,
-  "area_type": "uc",
-  "city_name": "Lahore"
+    "area_type": "uc",
+    "analysis_type": "ndvi",
+    "city_name": "Lahore",
+    "start_year": 2024,
+    "project_id": 2,
+    "comparison_years": 3
 }
+
 
 
 4. Custom Polygon Example
