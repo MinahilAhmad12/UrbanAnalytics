@@ -8,7 +8,7 @@ import ee
 from django.contrib.gis.geos import GEOSGeometry, Polygon as GEOSPolygon
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from urbananalytics.models import AreaAnalysis, Project
+from urbananalytics.models import AreaAnalysis, Project, YearlyComparisonAnalysis
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -491,131 +491,1002 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
 
 @api_view(['POST'])
 def yearly_comparison_analysis(request):
-    # Ensure Earth Engine is initialized
+    # Initialize GEE
     init_ee()
 
-    start_year = request.data.get("start_year")     # required (int)
-    area_type = request.data.get("area_type")       # uc/custom/kml
-    city_name = request.data.get("city_name")       # used for uc
-    geometry_data = request.data.get("geometry")    # used for custom
-    project_id = request.data.get("project_id")     # used for kml (optional)
-    comparison_years = request.data.get("comparison_years", 3)  # 1|2|3 (default 3)
+    start_year = request.data.get("start_year")
+    area_type = request.data.get("area_type")
+    city_name = request.data.get("city_name")
+    geometry_data = request.data.get("geometry")
+    project_id = request.data.get("project_id")
+    comparison_years = int(request.data.get("comparison_years", 3))
+    analysis_type = request.data.get("analysis_type")  # NEW
 
     if not start_year:
         return Response({"error": "start_year is required"}, status=400)
+
     try:
         start_year = int(start_year)
     except ValueError:
         return Response({"error": "start_year must be an integer"}, status=400)
 
-    # polygon creation
+    if comparison_years not in (1, 2, 3):
+        return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+
+    if analysis_type not in ("ndvi", "thermal", "aqi"):
+        return Response({"error": "analysis_type must be one of 'ndvi', 'thermal', or 'aqi'"}, status=400)
+
+    prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+    results = []
+
     try:
         if area_type == "uc":
             if not city_name:
                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
-            uc = UnionCouncil.objects.filter(city_name__iexact=city_name).first()
-            if not uc:
-                return Response({"error": "No UC found for given city_name"}, status=404)
-            polygon = ee.Geometry(json.loads(uc.geometry.geojson))
 
-        elif area_type == "custom":
-            if not geometry_data:
-                return Response({"error": "geometry is required for area_type 'custom'."}, status=400)
-            geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
-            polygon = ee.Geometry(geom_json)
+            # ------------------- Step 1: Load UCs from local JSON -------------------
+            ucs_data = load_ucs_from_file(city_name)
+            if not ucs_data:
+                # fallback to DB
+                ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+                if not ucs.exists():
+                    return Response({"error": "No UCs found for given city_name"}, status=404)
 
-        elif area_type == "kml":
-            if not project_id:
-                return Response({"error": "project_id is required for area_type 'kml'."}, status=400)
-            try:
-                project = Project.objects.get(id=project_id)
-            except Project.DoesNotExist:
-                return Response({"error": "Project not found"}, status=404)
-            if not project.kml_file:
-                return Response({"error": "No KML file found for this project"}, status=404)
+                geojson = serialize(
+                    "geojson", ucs,
+                    geometry_field="geometry",
+                    fields=("uc_name", "city_name")
+                )
+                ucs_data = json.loads(geojson)
 
-            file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
-            city_name_from_file = file_name.split("_")[0].capitalize()
-            uc_data = load_ucs_from_file(city_name_from_file)
-            if not uc_data:
-                return Response({"error": f"No local UC data found for {city_name_from_file}"}, status=404)
+                file_path = os.path.join(settings.BASE_DIR, "data", f"{city_name.lower()}_ucs.json")
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "w") as f:
+                    json.dump(ucs_data, f)
 
-            polygon = None  # handled later if multi-feature
+            # ------------------- Step 2: Process each UC -------------------
+            def process_uc(feature):
+                uc_name = feature["properties"]["uc_name"]
+                uc_city = feature["properties"]["city_name"]
+                uc_polygon = ee.Geometry(feature["geometry"])
+                uc_result = {"uc_name": uc_name, "city_name": uc_city}
 
-        else:
-            return Response({"error": "Invalid area_type"}, status=400)
-    except Exception as e:
-        return Response({"error": "Failed to build geometry", "details": str(e)}, status=500)
+                # ------------------- Check yearly comparison cache -------------------
+                cached_qs = YearlyComparisonAnalysis.objects.filter(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    baseline_year=start_year,
+                    area_type="uc",
+                    uc_name=uc_name
+                )
 
-    # validate comparison_years
-    try:
-        comparison_years = int(comparison_years)
-        if comparison_years not in (1, 2, 3):
-            return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
-    except ValueError:
-        return Response({"error": "comparison_years must be integer 1/2/3"}, status=400)
+                if cached_qs.exists():
+                    cached = cached_qs.first()
+                    map_layer = None
+                    if cached.map_layer_path and os.path.exists(cached.map_layer_path):
+                        with open(cached.map_layer_path, "r") as f:
+                            map_layer = json.load(f)
 
-    prev_years = [start_year - i for i in range(1, comparison_years + 1)]
-    analysis_types = ["ndvi", "thermal", "aqi"]
+                    uc_result["analysis"] = {
+                        "baseline_year": cached.baseline_year,
+                        "comparison_years": cached.comparison_years,
+                        "baseline_mean": cached.baseline_mean,
+                        "avg_prev_mean": cached.avg_prev_mean,
+                        "map_layer": map_layer,
+                        "status": cached.status
+                    }
+                    return uc_result
 
-    results = {}
-    layers = {}
+                # ------------------- Run GEE analysis if not cached -------------------
+                baseline_start = f"{start_year}-01-01"
+                baseline_end = f"{start_year+1}-01-01"
+                res = perform_analysis_for_polygon(analysis_type, uc_polygon, baseline_start, baseline_end)
+                baseline_stats = res.get("stats")
+                baseline_mean = baseline_stats.get("mean") if baseline_stats else None
+                map_layer = res.get("map_layer")
 
-    try:
-        baseline_start = f"{start_year}-01-01"
-        baseline_end = f"{start_year + 1}-01-01"
+                # Previous years
+                prev_means = []
+                for year in prev_years:
+                    year_start = f"{year}-01-01"
+                    year_end = f"{year+1}-01-01"
+                    prev_res = perform_analysis_for_polygon(analysis_type, uc_polygon, year_start, year_end)
+                    prev_mean = prev_res.get("stats", {}).get("mean")
+                    if prev_mean is not None:
+                        prev_means.append(prev_mean)
 
-        for atype in analysis_types:
-            # baseline stats
-            baseline_res = perform_analysis_for_polygon(atype, polygon, baseline_start, baseline_end)
-            baseline_mean = baseline_res["stats"].get("mean")
+                avg_prev_mean = sum(prev_means)/len(prev_means) if prev_means else None
 
-            # collect previous year means
-            prev_means = []
-            for year in prev_years:
-                year_start = f"{year}-01-01"
-                year_end = f"{year + 1}-01-01"
-                res = perform_analysis_for_polygon(atype, polygon, year_start, year_end)
-                if res["stats"].get("mean") is not None:
-                    prev_means.append(res["stats"]["mean"])
+                # Decide status
+                if avg_prev_mean is None or baseline_mean is None:
+                    status = "no_data"
+                elif baseline_mean > avg_prev_mean:
+                    status = "increase"
+                elif baseline_mean < avg_prev_mean:
+                    status = "decrease"
+                else:
+                    status = "no_change"
 
-            avg_prev_mean = sum(prev_means) / len(prev_means) if prev_means else None
+                # ------------------- Save yearly comparison cache -------------------
+                if project_id:
+                    file_name = f"{project_id}_{analysis_type}_{start_year}_uc_{uc_name}.json"
+                    file_path = os.path.join(settings.MEDIA_ROOT, "yearly_comparison_layers", file_name)
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    with open(file_path, "w") as f:
+                        json.dump(map_layer, f)
 
-            # decide change status
-            if avg_prev_mean is None or baseline_mean is None:
-                status = "no_data"
-            elif baseline_mean > avg_prev_mean:
-                status = "increase"
-            elif baseline_mean < avg_prev_mean:
-                status = "decrease"
-            else:
-                status = "no_change"
+                    YearlyComparisonAnalysis.objects.update_or_create(
+                        project=Project.objects.get(id=project_id),
+                        analysis_type=analysis_type,
+                        baseline_year=start_year,
+                        area_type="uc",
+                        uc_name=uc_name,
+                        defaults={
+                            "city_name": uc_city,
+                            "comparison_years": prev_years,
+                            "baseline_mean": baseline_mean,
+                            "avg_prev_mean": avg_prev_mean,
+                            "status": status,
+                            "stats": baseline_stats,
+                            "map_layer_path": file_path
+                        }
+                    )
 
-            results[atype] = {
-                "baseline_year": start_year,
-                "comparison_years": prev_years,
-                "baseline_mean": baseline_mean,
-                "avg_prev_mean": avg_prev_mean,
-                "map_layer": baseline_res["map_layer"]
-            }
+                uc_result["analysis"] = {
+                    "baseline_year": start_year,
+                    "comparison_years": prev_years,
+                    "baseline_mean": baseline_mean,
+                    "avg_prev_mean": avg_prev_mean,
+                    "map_layer": map_layer,
+                    "status": status
+                }
 
-            # return 3 layers for frontend (toggle handled there)
-            layers[atype] = {
-                "increase": {"visible": status == "increase", "color": "green"},
-                "decrease": {"visible": status == "decrease", "color": "red"},
-                "no_change": {"visible": status == "no_change", "color": "gray"}
-            }
+                return uc_result
+
+            # ------------------- Step 3: Use ThreadPoolExecutor -------------------
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                results = list(executor.map(process_uc, ucs_data.get("features", [])))
 
         return Response({
-            "mode": "comparison",
+            "mode": "yearly_comparison",
+            "analysis_type": analysis_type,
             "baseline_year": start_year,
             "compared_years": prev_years,
-            "results": results,
-            "layers": layers
+            "results": results
         })
 
     except Exception as e:
         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
+
+
+# @api_view(['POST'])
+# def yearly_comparison_analysis(request):
+#     # Initialize GEE
+#     init_ee()
+
+#     start_year = request.data.get("start_year")
+#     area_type = request.data.get("area_type")
+#     city_name = request.data.get("city_name")
+#     geometry_data = request.data.get("geometry")
+#     project_id = request.data.get("project_id")
+#     comparison_years = int(request.data.get("comparison_years", 3))
+
+#     if not start_year:
+#         return Response({"error": "start_year is required"}, status=400)
+
+#     try:
+#         start_year = int(start_year)
+#     except ValueError:
+#         return Response({"error": "start_year must be an integer"}, status=400)
+
+#     if comparison_years not in (1, 2, 3):
+#         return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+
+#     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+#     analysis_types = ["ndvi", "thermal", "aqi"]
+#     results = []
+
+#     try:
+#         if area_type == "uc":
+#             if not city_name:
+#                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
+
+#             # ------------------- Step 1: Load UCs from local JSON -------------------
+#             ucs_data = load_ucs_from_file(city_name)
+#             if not ucs_data:
+#                 # fallback to DB
+#                 ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+#                 if not ucs.exists():
+#                     return Response({"error": "No UCs found for given city_name"}, status=404)
+
+#                 geojson = serialize(
+#                     "geojson", ucs,
+#                     geometry_field="geometry",
+#                     fields=("uc_name", "city_name")
+#                 )
+#                 ucs_data = json.loads(geojson)
+
+#                 file_path = os.path.join(settings.BASE_DIR, "data", f"{city_name.lower()}_ucs.json")
+#                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                 with open(file_path, "w") as f:
+#                     json.dump(ucs_data, f)
+
+#             # ------------------- Step 2: Process each UC -------------------
+#             def process_uc(feature):
+#                 uc_name = feature["properties"]["uc_name"]
+#                 uc_city = feature["properties"]["city_name"]
+#                 uc_polygon = ee.Geometry(feature["geometry"])
+#                 uc_result = {"uc_name": uc_name, "city_name": uc_city, "analysis": {}}
+
+#                 for atype in analysis_types:
+#                     # ------------------- Check yearly comparison cache -------------------
+#                     cached = None
+#                     if project_id:
+#                         cached_qs = YearlyComparisonAnalysis.objects.filter(
+#                         project_id=project_id,
+#                         analysis_type=atype,
+#                         baseline_year=start_year,
+#                         area_type="uc",
+#                         uc_name=uc_name
+#                     )
+
+#                     if cached_qs.exists():
+#                         uc_result["analysis"][atype] = []
+#                         for cached in cached_qs:
+#                             map_layer = None
+#                             if cached.map_layer_path and os.path.exists(cached.map_layer_path):
+#                                 with open(cached.map_layer_path, "r") as f:
+#                                     map_layer = json.load(f)
+
+#                             uc_result["analysis"][atype].append({
+#                                 "baseline_year": cached.baseline_year,
+#                                 "comparison_years": cached.comparison_years,
+#                                 "baseline_mean": cached.baseline_mean,
+#                                 "avg_prev_mean": cached.avg_prev_mean,
+#                                 "map_layer": map_layer,
+#                                 "status": cached.status
+#                             })
+#                         continue  # don’t recompute if all cached
+
+
+#                     # ------------------- Run GEE analysis if not cached -------------------
+#                     baseline_start = f"{start_year}-01-01"
+#                     baseline_end = f"{start_year+1}-01-01"
+#                     res = perform_analysis_for_polygon(atype, uc_polygon, baseline_start, baseline_end)
+#                     baseline_stats = res.get("stats")
+#                     baseline_mean = baseline_stats.get("mean") if baseline_stats else None
+#                     map_layer = res.get("map_layer")
+
+#                     # Previous years
+#                     prev_means = []
+#                     for year in prev_years:
+#                         year_start = f"{year}-01-01"
+#                         year_end = f"{year+1}-01-01"
+#                         prev_res = perform_analysis_for_polygon(atype, uc_polygon, year_start, year_end)
+#                         prev_mean = prev_res.get("stats", {}).get("mean")
+#                         if prev_mean is not None:
+#                             prev_means.append(prev_mean)
+
+#                     avg_prev_mean = sum(prev_means)/len(prev_means) if prev_means else None
+
+#                     # Decide status
+#                     if avg_prev_mean is None or baseline_mean is None:
+#                         status = "no_data"
+#                     elif baseline_mean > avg_prev_mean:
+#                         status = "increase"
+#                     elif baseline_mean < avg_prev_mean:
+#                         status = "decrease"
+#                     else:
+#                         status = "no_change"
+
+#                     # ------------------- Save yearly comparison cache -------------------
+#                     if project_id:
+#                         file_name = f"{project_id}_{atype}_{start_year}_uc_{uc_name}.json"
+#                         file_path = os.path.join(settings.MEDIA_ROOT, "yearly_comparison_layers", file_name)
+#                         os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                         with open(file_path, "w") as f:
+#                             json.dump(map_layer, f)
+
+#                         YearlyComparisonAnalysis.objects.update_or_create(
+#                             project=Project.objects.get(id=project_id),
+#                             analysis_type=atype,
+#                             baseline_year=start_year,
+#                             area_type="uc",
+#                             uc_name=uc_name,
+#                             defaults={
+#                                 "city_name": uc_city,
+#                                 "comparison_years": prev_years,
+#                                 "baseline_mean": baseline_mean,
+#                                 "avg_prev_mean": avg_prev_mean,
+#                                 "status": status,
+#                                 "stats": baseline_stats,
+#                                 "map_layer_path": file_path
+#                             }
+#                         )
+
+#                     uc_result["analysis"][atype] = {
+#                         "baseline_year": start_year,
+#                         "comparison_years": prev_years,
+#                         "baseline_mean": baseline_mean,
+#                         "avg_prev_mean": avg_prev_mean,
+#                         "map_layer": map_layer,
+#                         "status": status
+#                     }
+
+#                 return uc_result
+
+#             # ------------------- Step 3: Use ThreadPoolExecutor -------------------
+#             with ThreadPoolExecutor(max_workers=5) as executor:
+#                 results = list(executor.map(process_uc, ucs_data.get("features", [])))
+
+#         # Can handle custom/kml similarly if needed
+
+#         return Response({
+#             "mode": "yearly_comparison",
+#             "baseline_year": start_year,
+#             "compared_years": prev_years,
+#             "results": results
+#         })
+
+#     except Exception as e:
+#         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
+
+
+
+# @api_view(['POST'])
+# def yearly_comparison_analysis(request):
+#     # Initialize GEE
+#     init_ee()
+
+#     start_year = request.data.get("start_year")
+#     area_type = request.data.get("area_type")
+#     city_name = request.data.get("city_name")
+#     geometry_data = request.data.get("geometry")
+#     project_id = request.data.get("project_id")
+#     comparison_years = int(request.data.get("comparison_years", 3))
+
+#     if not start_year:
+#         return Response({"error": "start_year is required"}, status=400)
+
+#     try:
+#         start_year = int(start_year)
+#     except ValueError:
+#         return Response({"error": "start_year must be an integer"}, status=400)
+
+#     if comparison_years not in (1, 2, 3):
+#         return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+
+#     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+#     analysis_types = ["ndvi", "thermal", "aqi"]
+#     results = []
+
+#     try:
+#         if area_type == "uc":
+#             if not city_name:
+#                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
+
+#             # ------------------- Step 1: Load UCs from local JSON -------------------
+#             ucs_data = load_ucs_from_file(city_name)
+#             if not ucs_data:
+#                 # fallback to DB
+#                 ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+#                 if not ucs.exists():
+#                     return Response({"error": "No UCs found for given city_name"}, status=404)
+
+#                 geojson = serialize(
+#                     "geojson", ucs,
+#                     geometry_field="geometry",
+#                     fields=("uc_name", "city_name")
+#                 )
+#                 ucs_data = json.loads(geojson)
+
+#                 file_path = os.path.join(settings.BASE_DIR, "data", f"{city_name.lower()}_ucs.json")
+#                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                 with open(file_path, "w") as f:
+#                     json.dump(ucs_data, f)
+
+#             # ------------------- Step 2: Process each UC -------------------
+#             def process_uc(feature):
+#                 uc_name = feature["properties"]["uc_name"]
+#                 uc_city = feature["properties"]["city_name"]
+#                 uc_polygon = ee.Geometry(feature["geometry"])
+
+#                 uc_result = {"uc_name": uc_name, "city_name": uc_city, "analysis": {}}
+
+#                 for atype in analysis_types:
+#                     # Check cache in DB first
+#                     cached = None
+#                     if project_id:
+#                         cached = AreaAnalysis.objects.filter(
+#                             project_id=project_id,
+#                             analysis_type=atype,
+#                             start_date=f"{start_year}-01-01",
+#                             end_date=f"{start_year+1}-01-01",
+#                             area_type="uc",
+#                             uc_name=uc_name
+#                         ).first()
+
+#                     if cached and cached.stats and cached.map_layer_path and os.path.exists(cached.map_layer_path):
+#                         # Load cached map layer
+#                         with open(cached.map_layer_path, "r") as f:
+#                             map_layer = json.load(f)
+#                         stats = cached.stats
+#                     else:
+#                         # Run GEE analysis
+#                         baseline_start = f"{start_year}-01-01"
+#                         baseline_end = f"{start_year+1}-01-01"
+#                         res = perform_analysis_for_polygon(atype, uc_polygon, baseline_start, baseline_end)
+#                         map_layer = res.get("map_layer")
+#                         stats = res.get("stats")
+
+#                         # Save cache if project_id
+#                         if project_id:
+#                             file_name = f"{project_id}_{atype}_{start_year}_{start_year+1}_uc_{uc_name}.json"
+#                             file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
+#                             os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                             with open(file_path, "w") as f:
+#                                 json.dump(map_layer, f)
+
+#                             AreaAnalysis.objects.update_or_create(
+#                                 project_id=project_id,
+#                                 analysis_type=atype,
+#                                 start_date=baseline_start,
+#                                 end_date=baseline_end,
+#                                 area_type="uc",
+#                                 uc_name=uc_name,
+#                                 defaults={
+#                                     "city_name": uc_city,
+#                                     "stats": stats,
+#                                     "map_layer_path": file_path
+#                                 }
+#                             )
+
+#                     # ------------------- Previous years -------------------
+#                     prev_means = []
+#                     for year in prev_years:
+#                         year_start = f"{year}-01-01"
+#                         year_end = f"{year+1}-01-01"
+#                         prev_cached = None
+#                         if project_id:
+#                             prev_cached = AreaAnalysis.objects.filter(
+#                                 project_id=project_id,
+#                                 analysis_type=atype,
+#                                 start_date=year_start,
+#                                 end_date=year_end,
+#                                 area_type="uc",
+#                                 uc_name=uc_name
+#                             ).first()
+#                         if prev_cached and prev_cached.stats:
+#                             mean_val = prev_cached.stats.get("mean")
+#                         else:
+#                             prev_res = perform_analysis_for_polygon(atype, uc_polygon, year_start, year_end)
+#                             mean_val = prev_res.get("stats", {}).get("mean")
+#                             if project_id and prev_res.get("stats"):
+#                                 # cache previous year
+#                                 file_name = f"{project_id}_{atype}_{year}_{year+1}_uc_{uc_name}.json"
+#                                 file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
+#                                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                                 with open(file_path, "w") as f:
+#                                     json.dump(prev_res.get("map_layer"), f)
+
+#                                 AreaAnalysis.objects.update_or_create(
+#                                     project_id=project_id,
+#                                     analysis_type=atype,
+#                                     start_date=year_start,
+#                                     end_date=year_end,
+#                                     area_type="uc",
+#                                     uc_name=uc_name,
+#                                     defaults={
+#                                         "city_name": uc_city,
+#                                         "stats": prev_res.get("stats"),
+#                                         "map_layer_path": file_path
+#                                     }
+#                                 )
+#                         if mean_val is not None:
+#                             prev_means.append(mean_val)
+
+#                     avg_prev_mean = sum(prev_means)/len(prev_means) if prev_means else None
+
+#                     # Decide status
+#                     if avg_prev_mean is None or stats.get("mean") is None:
+#                         status = "no_data"
+#                     elif stats.get("mean") > avg_prev_mean:
+#                         status = "increase"
+#                     elif stats.get("mean") < avg_prev_mean:
+#                         status = "decrease"
+#                     else:
+#                         status = "no_change"
+
+#                     uc_result["analysis"][atype] = {
+#                         "baseline_year": start_year,
+#                         "comparison_years": prev_years,
+#                         "baseline_mean": stats.get("mean"),
+#                         "avg_prev_mean": avg_prev_mean,
+#                         "map_layer": map_layer,
+#                         "status": status
+#                     }
+
+#                 return uc_result
+
+#             # ------------------- Step 3: Use ThreadPoolExecutor -------------------
+#             with ThreadPoolExecutor(max_workers=5) as executor:
+#                 results = list(executor.map(process_uc, ucs_data.get("features", [])))
+
+#         # Can handle custom/kml similarly if needed
+
+#         return Response({
+#             "mode": "yearly_comparison",
+#             "baseline_year": start_year,
+#             "compared_years": prev_years,
+#             "results": results
+#         })
+
+#     except Exception as e:
+#         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
+
+
+# @api_view(['POST'])
+# def yearly_comparison_analysis(request):
+#     # Ensure Earth Engine is initialized
+#     init_ee()
+
+#     start_year = request.data.get("start_year")
+#     area_type = request.data.get("area_type")       # uc/custom/kml
+#     city_name = request.data.get("city_name")       # used for uc
+#     geometry_data = request.data.get("geometry")    # used for custom
+#     project_id = request.data.get("project_id")     # optional
+#     comparison_years = request.data.get("comparison_years", 3)  # 1|2|3
+
+#     if not start_year:
+#         return Response({"error": "start_year is required"}, status=400)
+
+#     try:
+#         start_year = int(start_year)
+#     except ValueError:
+#         return Response({"error": "start_year must be an integer"}, status=400)
+
+#     # validate comparison_years
+#     try:
+#         comparison_years = int(comparison_years)
+#         if comparison_years not in (1, 2, 3):
+#             return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+#     except ValueError:
+#         return Response({"error": "comparison_years must be integer 1/2/3"}, status=400)
+
+#     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+#     analysis_types = ["ndvi", "thermal", "aqi"]
+#     results = []
+
+#     try:
+#         if area_type == "uc":
+#             if not city_name:
+#                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
+
+#             # Load UC data from local file
+#             ucs_data = load_ucs_from_file(city_name)
+#             if not ucs_data:
+#                 # If file not exists, fetch from DB and save locally
+#                 ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+#                 if not ucs.exists():
+#                     return Response({"error": "No UCs found for given city_name"}, status=404)
+
+#                 geojson = serialize(
+#                     "geojson", ucs,
+#                     geometry_field="geometry",
+#                     fields=("uc_name", "city_name")
+#                 )
+#                 ucs_data = json.loads(geojson)
+
+#                 file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
+#                 os.makedirs(DATA_DIR, exist_ok=True)
+#                 with open(file_path, "w") as f:
+#                     json.dump(ucs_data, f)
+
+#             # Run GEE analysis per UC
+#             for feature in ucs_data.get("features", []):
+#                 uc_name = feature["properties"]["uc_name"]
+#                 uc_city = feature["properties"]["city_name"]
+#                 uc_polygon = ee.Geometry(feature["geometry"])  # directly from GeoJSON
+
+#                 uc_result = {"uc_name": uc_name, "city_name": uc_city, "analysis": {}}
+
+#                 for atype in analysis_types:
+#                     # baseline stats for current year
+#                     baseline_start = f"{start_year}-01-01"
+#                     baseline_end = f"{start_year+1}-01-01"
+
+#                     # Check if cached result exists
+#                     cached = None
+#                     if project_id:
+#                         cached = AreaAnalysis.objects.filter(
+#                             project_id=project_id,
+#                             analysis_type=atype,
+#                             start_date=baseline_start,
+#                             end_date=baseline_end,
+#                             area_type="uc",
+#                             uc_name=uc_name
+#                         ).first()
+
+#                     if cached and cached.stats and cached.map_layer_path and os.path.exists(cached.map_layer_path):
+#                         # Load from cache
+#                         with open(cached.map_layer_path, "r") as f:
+#                             map_layer = json.load(f)
+#                         stats = cached.stats
+#                     else:
+#                         # Run new analysis
+#                         res = perform_analysis_for_polygon(atype, uc_polygon, baseline_start, baseline_end)
+#                         stats = res.get("stats")
+#                         map_layer = res.get("map_layer")
+
+#                         # Save cache if project_id
+#                         if project_id:
+#                             file_name = f"{project_id}_{atype}_{start_year}_{start_year+1}_uc_{uc_name}.json"
+#                             file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
+#                             os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                             with open(file_path, "w") as f:
+#                                 json.dump(map_layer, f)
+
+#                             AreaAnalysis.objects.update_or_create(
+#                                 project_id=project_id,
+#                                 analysis_type=atype,
+#                                 start_date=baseline_start,
+#                                 end_date=baseline_end,
+#                                 area_type="uc",
+#                                 uc_name=uc_name,
+#                                 defaults={
+#                                     "city_name": uc_city,
+#                                     "stats": stats,
+#                                     "map_layer_path": file_path
+#                                 }
+#                             )
+
+#                     # previous years comparison
+#                     prev_means = []
+#                     for year in prev_years:
+#                         year_start = f"{year}-01-01"
+#                         year_end = f"{year+1}-01-01"
+#                         # Check cache for previous years
+#                         prev_cached = None
+#                         if project_id:
+#                             prev_cached = AreaAnalysis.objects.filter(
+#                                 project_id=project_id,
+#                                 analysis_type=atype,
+#                                 start_date=year_start,
+#                                 end_date=year_end,
+#                                 area_type="uc",
+#                                 uc_name=uc_name
+#                             ).first()
+
+#                         if prev_cached and prev_cached.stats:
+#                             prev_mean = prev_cached.stats.get("mean")
+#                         else:
+#                             prev_res = perform_analysis_for_polygon(atype, uc_polygon, year_start, year_end)
+#                             prev_mean = prev_res["stats"].get("mean") if prev_res.get("stats") else None
+
+#                         if prev_mean is not None:
+#                             prev_means.append(prev_mean)
+
+#                     avg_prev_mean = sum(prev_means)/len(prev_means) if prev_means else None
+
+#                     # decide status
+#                     if avg_prev_mean is None or stats.get("mean") is None:
+#                         status = "no_data"
+#                     elif stats["mean"] > avg_prev_mean:
+#                         status = "increase"
+#                     elif stats["mean"] < avg_prev_mean:
+#                         status = "decrease"
+#                     else:
+#                         status = "no_change"
+
+#                     uc_result["analysis"][atype] = {
+#                         "baseline_year": start_year,
+#                         "comparison_years": prev_years,
+#                         "baseline_mean": stats.get("mean") if stats else None,
+#                         "avg_prev_mean": avg_prev_mean,
+#                         "map_layer": map_layer,
+#                         "status": status
+#                     }
+
+#                 results.append(uc_result)
+
+#         # Similarly, you can handle 'custom' and 'kml' if required
+
+#         return Response({
+#             "mode": "yearly_comparison",
+#             "baseline_year": start_year,
+#             "compared_years": prev_years,
+#             "results": results
+#         })
+
+#     except Exception as e:
+#         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
+
+
+# @api_view(['POST'])
+# def yearly_comparison_analysis(request):
+#     init_ee()  # Ensure EE initialized
+
+#     start_year = request.data.get("start_year")
+#     area_type = request.data.get("area_type")
+#     city_name = request.data.get("city_name")
+#     geometry_data = request.data.get("geometry")
+#     project_id = request.data.get("project_id")
+#     comparison_years = request.data.get("comparison_years", 3)
+
+#     # ------------------- Validate inputs -------------------
+#     if not start_year:
+#         return Response({"error": "start_year is required"}, status=400)
+#     try:
+#         start_year = int(start_year)
+#     except ValueError:
+#         return Response({"error": "start_year must be integer"}, status=400)
+
+#     try:
+#         comparison_years = int(comparison_years)
+#         if comparison_years not in (1, 2, 3):
+#             return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+#     except ValueError:
+#         return Response({"error": "comparison_years must be integer 1/2/3"}, status=400)
+
+#     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+#     analysis_types = ["ndvi", "thermal", "aqi"]
+#     results = []
+
+#     try:
+#         if area_type == "uc":
+#             if not city_name:
+#                 return Response({"error": "city_name required for UC analysis"}, status=400)
+
+#             # ------------------- Step 1: Check cache -------------------
+#             if project_id:
+#                 cached_results = YearlyComparisonAnalysis.objects.filter(
+#                     project_id=project_id,
+#                     start_year=start_year,
+#                     comparison_years=comparison_years,
+#                     area_type="uc",
+#                     city_name__iexact=city_name
+#                 ).order_by("uc_name")
+
+#                 if cached_results.exists():
+#                     results = []
+#                     for cached in cached_results:
+#                         map_layer = None
+#                         if cached.map_layer_path and os.path.exists(cached.map_layer_path):
+#                             with open(cached.map_layer_path, "r") as f:
+#                                 map_layer = json.load(f)
+
+#                         results.append({
+#                             "uc_name": cached.uc_name,
+#                             "city_name": cached.city_name,
+#                             "analysis_type": cached.analysis_type,
+#                             "baseline_year": cached.start_year,
+#                             "comparison_years": cached.comparison_years,
+#                             "baseline_mean": cached.baseline_mean,
+#                             "avg_prev_mean": cached.avg_prev_mean,
+#                             "status": cached.status,
+#                             "map_layer": map_layer
+#                         })
+#                     return Response({
+#                         "message": "Cached yearly comparison returned",
+#                         "baseline_year": start_year,
+#                         "compared_years": prev_years,
+#                         "results": results
+#                     })
+
+#             # ------------------- Step 2: Fresh analysis -------------------
+#             ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+#             if not ucs.exists():
+#                 return Response({"error": "No UCs found for given city_name"}, status=404)
+
+#             for uc in ucs:
+#                 uc_polygon = ee.Geometry(json.loads(uc.geometry.geojson))
+#                 uc_result = {"uc_name": uc.uc_name, "city_name": uc.city_name, "analysis": {}}
+
+#                 for atype in analysis_types:
+#                     baseline_start = f"{start_year}-01-01"
+#                     baseline_end = f"{start_year + 1}-01-01"
+#                     baseline_res = perform_analysis_for_polygon(atype, uc_polygon, baseline_start, baseline_end)
+#                     baseline_mean = baseline_res["stats"].get("mean")
+
+#                     prev_means = []
+#                     for year in prev_years:
+#                         year_start = f"{year}-01-01"
+#                         year_end = f"{year + 1}-01-01"
+#                         res = perform_analysis_for_polygon(atype, uc_polygon, year_start, year_end)
+#                         if res["stats"].get("mean") is not None:
+#                             prev_means.append(res["stats"]["mean"])
+
+#                     avg_prev_mean = sum(prev_means) / len(prev_means) if prev_means else None
+
+#                     if avg_prev_mean is None or baseline_mean is None:
+#                         status = "no_data"
+#                     elif baseline_mean > avg_prev_mean:
+#                         status = "increase"
+#                     elif baseline_mean < avg_prev_mean:
+#                         status = "decrease"
+#                     else:
+#                         status = "no_change"
+
+#                     uc_result["analysis"][atype] = {
+#                         "baseline_year": start_year,
+#                         "comparison_years": prev_years,
+#                         "baseline_mean": baseline_mean,
+#                         "avg_prev_mean": avg_prev_mean,
+#                         "map_layer": baseline_res["map_layer"],
+#                         "status": status
+#                     }
+
+#                     # ------------------- Save results -------------------
+#                     if project_id:
+#                         layer_content = baseline_res.get("map_layer")
+#                         stats = baseline_res.get("stats")
+#                         uc_name = uc.uc_name
+#                         city_name = uc.city_name
+
+#                         # Save map_layer JSON
+#                         file_name = f"{project_id}_{atype}_{start_year}_{comparison_years}yrs_uc_{uc_name}.json"
+#                         file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
+#                         os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                         with open(file_path, "w") as f:
+#                             json.dump(layer_content, f)
+
+#                         # Save in YearlyComparisonAnalysis table
+#                         YearlyComparisonAnalysis.objects.update_or_create(
+#                             project_id=project_id,
+#                             analysis_type=atype,
+#                             start_year=start_year,
+#                             comparison_years=comparison_years,
+#                             area_type="uc",
+#                             uc_name=uc_name,
+#                             defaults={
+#                                 "city_name": city_name,
+#                                 "baseline_mean": baseline_mean,
+#                                 "avg_prev_mean": avg_prev_mean,
+#                                 "status": status,
+#                                 "map_layer_path": file_path
+#                             }
+#                         )
+
+#                 results.append(uc_result)
+
+#         return Response({
+#             "message": "Yearly comparison completed",
+#             "baseline_year": start_year,
+#             "compared_years": prev_years,
+#             "results": results
+#         })
+
+#     except Exception as e:
+#         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
+
+
+# @api_view(['POST'])
+# def yearly_comparison_analysis(request):
+#     # Ensure Earth Engine is initialized
+#     init_ee()
+
+#     start_year = request.data.get("start_year")     # required (int)
+#     area_type = request.data.get("area_type")       # uc/custom/kml
+#     city_name = request.data.get("city_name")       # used for uc
+#     geometry_data = request.data.get("geometry")    # used for custom
+#     project_id = request.data.get("project_id")     # used for kml (optional)
+#     comparison_years = request.data.get("comparison_years", 3)  # 1|2|3 (default 3)
+
+#     if not start_year:
+#         return Response({"error": "start_year is required"}, status=400)
+#     try:
+#         start_year = int(start_year)
+#     except ValueError:
+#         return Response({"error": "start_year must be an integer"}, status=400)
+
+#     # polygon creation
+#     try:
+#         if area_type == "uc":
+#             if not city_name:
+#                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
+#             uc = UnionCouncil.objects.filter(city_name__iexact=city_name).first()
+#             if not uc:
+#                 return Response({"error": "No UC found for given city_name"}, status=404)
+#             polygon = ee.Geometry(json.loads(uc.geometry.geojson))
+
+#         elif area_type == "custom":
+#             if not geometry_data:
+#                 return Response({"error": "geometry is required for area_type 'custom'."}, status=400)
+#             geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
+#             polygon = ee.Geometry(geom_json)
+
+#         elif area_type == "kml":
+#             if not project_id:
+#                 return Response({"error": "project_id is required for area_type 'kml'."}, status=400)
+#             try:
+#                 project = Project.objects.get(id=project_id)
+#             except Project.DoesNotExist:
+#                 return Response({"error": "Project not found"}, status=404)
+#             if not project.kml_file:
+#                 return Response({"error": "No KML file found for this project"}, status=404)
+
+#             file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
+#             city_name_from_file = file_name.split("_")[0].capitalize()
+#             uc_data = load_ucs_from_file(city_name_from_file)
+#             if not uc_data:
+#                 return Response({"error": f"No local UC data found for {city_name_from_file}"}, status=404)
+
+#             polygon = None  # handled later if multi-feature
+
+#         else:
+#             return Response({"error": "Invalid area_type"}, status=400)
+#     except Exception as e:
+#         return Response({"error": "Failed to build geometry", "details": str(e)}, status=500)
+
+#     # validate comparison_years
+#     try:
+#         comparison_years = int(comparison_years)
+#         if comparison_years not in (1, 2, 3):
+#             return Response({"error": "comparison_years must be 1, 2, or 3"}, status=400)
+#     except ValueError:
+#         return Response({"error": "comparison_years must be integer 1/2/3"}, status=400)
+
+#     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+#     analysis_types = ["ndvi", "thermal", "aqi"]
+
+#     results = {}
+#     layers = {}
+
+#     try:
+#         baseline_start = f"{start_year}-01-01"
+#         baseline_end = f"{start_year + 1}-01-01"
+
+#         for atype in analysis_types:
+#             # baseline stats
+#             baseline_res = perform_analysis_for_polygon(atype, polygon, baseline_start, baseline_end)
+#             baseline_mean = baseline_res["stats"].get("mean")
+
+#             # collect previous year means
+#             prev_means = []
+#             for year in prev_years:
+#                 year_start = f"{year}-01-01"
+#                 year_end = f"{year + 1}-01-01"
+#                 res = perform_analysis_for_polygon(atype, polygon, year_start, year_end)
+#                 if res["stats"].get("mean") is not None:
+#                     prev_means.append(res["stats"]["mean"])
+
+#             avg_prev_mean = sum(prev_means) / len(prev_means) if prev_means else None
+
+#             # decide change status
+#             if avg_prev_mean is None or baseline_mean is None:
+#                 status = "no_data"
+#             elif baseline_mean > avg_prev_mean:
+#                 status = "increase"
+#             elif baseline_mean < avg_prev_mean:
+#                 status = "decrease"
+#             else:
+#                 status = "no_change"
+
+#             results[atype] = {
+#                 "baseline_year": start_year,
+#                 "comparison_years": prev_years,
+#                 "baseline_mean": baseline_mean,
+#                 "avg_prev_mean": avg_prev_mean,
+#                 "map_layer": baseline_res["map_layer"]
+#             }
+
+#             # return 3 layers for frontend (toggle handled there)
+#             layers[atype] = {
+#                 "increase": {"visible": status == "increase", "color": "green"},
+#                 "decrease": {"visible": status == "decrease", "color": "red"},
+#                 "no_change": {"visible": status == "no_change", "color": "gray"}
+#             }
+
+#         return Response({
+#             "mode": "comparison",
+#             "baseline_year": start_year,
+#             "compared_years": prev_years,
+#             "results": results,
+#             "layers": layers
+#         })
+
+#     except Exception as e:
+#         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
 
 # @api_view(['POST'])
 # def yearly_comparison_analysis(request):
