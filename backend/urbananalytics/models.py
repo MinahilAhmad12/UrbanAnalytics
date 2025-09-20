@@ -106,17 +106,21 @@ class YearlyComparisonAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_comparisons")
     analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
     area_type = models.CharField(max_length=20)  # uc/custom/kml
-    city_name = models.CharField(max_length=255, null=True, blank=True)  
-    uc_name = models.CharField(max_length=255, null=True, blank=True)  
+    city_name = models.CharField(max_length=255, null=True, blank=True)
+    uc_name = models.CharField(max_length=255, null=True, blank=True)
 
     baseline_year = models.IntegerField()
-    comparison_years = models.JSONField()  # [2024], [2024, 2023], etc.
+    comparison_years = models.JSONField()  # [2024], [2023, 2022], etc.
     baseline_mean = models.FloatField(null=True, blank=True)
     avg_prev_mean = models.FloatField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[("increase","Increase"),("decrease","Decrease"),("no_change","No Change"),("no_data","No Data")])
+    status = models.CharField(max_length=20, choices=[
+        ("increase", "Increase"),
+        ("decrease", "Decrease"),
+        ("no_change", "No Change"),
+        ("no_data", "No Data"),
+    ])
 
-    stats = models.JSONField(null=True, blank=True)   # if you want to keep raw stats too
-    map_layer_path = models.FilePathField(path="media/yearly_comparison_layers/",max_length=500, null=True, blank=True)
+    stats = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -126,6 +130,7 @@ class YearlyComparisonAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.analysis_type.upper()} | {self.baseline_year} vs {self.comparison_years} | {self.uc_name or 'ALL'}"
+
 
 class Report(models.Model):
     project_area   = models.ForeignKey(
