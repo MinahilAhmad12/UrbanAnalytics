@@ -21,6 +21,9 @@ from shapely.geometry import shape, mapping
 import os
 from django.conf import settings
 from urbananalytics.utils import extract_bounds_from_kml
+from fastkml import kml
+from django.contrib.gis.geos import Polygon
+
 
 
 
@@ -28,65 +31,153 @@ from urbananalytics.utils import extract_bounds_from_kml
 DATA_DIR = os.path.join(settings.BASE_DIR, "local_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+
+from django.contrib.gis.geos import GEOSGeometry
+from shapely.geometry import Polygon as ShapelyPolygon
+import xml.etree.ElementTree as ET
+
+def kml_to_geosgeometry(kml_content: str) -> GEOSGeometry:
+    ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+    root = ET.fromstring(kml_content)
+
+    polygon_elem = root.find('.//kml:Polygon', ns)
+    if polygon_elem is None:
+        raise ValueError("No Polygon found in KML")
+
+    coords_text = polygon_elem.find('.//kml:coordinates', ns)
+    if coords_text is None or not coords_text.text.strip():
+        raise ValueError("Polygon has no coordinates")
+
+    coords = []
+    for coord_pair in coords_text.text.strip().split():
+        lon, lat = map(float, coord_pair.split(',')[:2])
+        coords.append((lon, lat))
+
+    # Convert Shapely Polygon to WKT
+    shapely_poly = ShapelyPolygon(coords)
+    wkt = shapely_poly.wkt  # "POLYGON((...))"
+    
+    return GEOSGeometry(wkt)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_ucs(request):
     project_id = request.query_params.get("project_id")
-
     if not project_id:
         return Response({"error": "project_id required"}, status=400)
 
     try:
         project = Project.objects.get(id=project_id)
 
-        
+        # -------------------- UCS type --------------------
         if project.location_name:
             city_name = project.location_name
+            file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
+
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    return Response(json.load(f))
+
+            ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+            if not ucs.exists():
+                return Response({"error": "No UCs found for this city"}, status=404)
+
+            geojson = serialize(
+                "geojson", ucs,
+                geometry_field="geometry",
+                fields=("uc_name", "city_name")
+            )
+            geojson_data = json.loads(geojson)
+
+            with open(file_path, "w") as f:
+                json.dump(geojson_data, f)
+
+            return Response(geojson_data)
+
+        # -------------------- KML type --------------------
         elif project.kml_file:
-            file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
-            city_name = file_name.split("_")[0].capitalize()
+            kml_path = project.kml_file.path
+            cache_file_path = os.path.join(DATA_DIR, f"project_{project.id}_kml_ucs.json")
+
+            # If cached file exists, return it
+            if os.path.exists(cache_file_path):
+                with open(cache_file_path, "r") as f:
+                    return Response(json.load(f))
+
+            # Otherwise, parse KML
+            with open(kml_path, "r") as f:
+                kml_content = f.read()
+
+            polygon = kml_to_geosgeometry(kml_content)
+
+
+            # Query UCs intersecting the polygon
+            ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
+            if not ucs.exists():
+                return Response({"error": "No UCs found in this area"}, status=404)
+
+            geojson = serialize(
+                "geojson", ucs,
+                geometry_field="geometry",
+                fields=("uc_name", "city_name")
+            )
+            geojson_data = json.loads(geojson)
+
+            # Save GeoJSON locally for caching
+            with open(cache_file_path, "w") as f:
+                json.dump(geojson_data, f)
+
+            return Response(geojson_data)
+
         else:
-            return Response({"error": "Project has no location_name or kml_file"}, status=400)
-
-        
-        file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
-
-    
-        if os.path.exists(file_path):
-            with open(file_path, "r") as f:
-                return Response(json.load(f))
-
-        
-        ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
-        if not ucs.exists():
-            return Response({"error": "No UCs found for this city"}, status=404)
-
-        geojson = serialize(
-            "geojson", ucs,
-            geometry_field="geometry",
-            fields=("uc_name", "city_name")
-        )
-        geojson_data = json.loads(geojson)
-
-        
-        with open(file_path, "w") as f:
-            json.dump(geojson_data, f)
-
-        return Response(geojson_data)
+            return Response({"error": "Project has neither location_name nor KML file"}, status=400)
 
     except Project.DoesNotExist:
         return Response({"error": "Project not found"}, status=404)
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def get_ucs_by_city(request, city_name):
-#     ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
 
-#     geojson = serialize('geojson', ucs, geometry_field='geometry', fields=('uc_name', 'city_name'))
 
-#     return Response(json.loads(geojson))
+# import ee
 
+# def init_ee():
+#     """Initialize Earth Engine lazily when needed."""
+#     service_account_key_path = r'C:\Users\User\Documents\urbananalytics-460415-f557e7903d83.json'
+#     credentials = ee.ServiceAccountCredentials(
+#         email='gee-service-account@urbananalytics-460415.iam.gserviceaccount.com',
+#         key_file=service_account_key_path
+#     )
+#     try:
+#         ee.Initialize(credentials, project='urbananalytics-460415')
+#     except Exception as e:
+#         print("Error initializing Earth Engine:", e)
+        
 import ee
+
+# def init_ee():
+#     """Initialize Earth Engine lazily using service account."""
+#     service_account_key_path = r'C:\Users\User\Documents\urbananalytics-460415-f557e7903d83.json'
+#     credentials = ee.ServiceAccountCredentials(
+#         email='gee-service-account@urbananalytics-460415.iam.gserviceaccount.com',
+#         key_file=service_account_key_path
+#     )
+#     try:
+#         # Check if already initialized
+#         ee.Initialize()
+#     except Exception:
+#         try:
+#             ee.Initialize(credentials, project='urbananalytics-460415')
+#             print("Earth Engine initialized with service account.")
+#         except Exception as e:
+#             print("Failed to initialize Earth Engine:", e)
+#             raise RuntimeError("Earth Engine initialization failed. Check credentials.")
+import os
+import certifi
+import ee
+
+# Force requests / Google API to use certifi CA bundle
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+os.environ['SSL_CERT_FILE'] = certifi.where()
 
 def init_ee():
     """Initialize Earth Engine lazily when needed."""
@@ -97,74 +188,208 @@ def init_ee():
     )
     try:
         ee.Initialize(credentials, project='urbananalytics-460415')
+        print("Earth Engine initialized successfully!")
     except Exception as e:
-        print("Error initializing Earth Engine:", e)
-        
+        print("Failed to initialize Earth Engine:", e)
+        raise RuntimeError("Earth Engine initialization failed. Check credentials.")
 
+
+
+def load_ucs_for_uc(city_name):
+    """Load UC data for a city from local JSON file."""
+    file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
+    if not os.path.exists(file_path):
+        return None
+
+    with open(file_path, "r") as f:
+        return json.load(f) 
+def load_ucs_for_kml(project_id):
+    """Load UC and KML data for a project from a local JSON file."""
+    file_path = os.path.join(DATA_DIR, f"project_{project_id}_kml_ucs.json")
+    if not os.path.exists(file_path):
+        return None
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)  
 
 # @api_view(['POST'])
 # def perform_gee_analysis(request):
+#     init_ee()
+
 #     analysis_type = request.data.get("analysis_type")
 #     start_date = request.data.get("start_date")
 #     end_date = request.data.get("end_date")
 #     area_type = request.data.get("area_type")
 #     city_name = request.data.get("city_name")
 #     geometry_data = request.data.get("geometry")
+#     project_id = request.data.get("project_id")
 
 #     if not analysis_type or not start_date or not end_date or not area_type:
 #         return Response({"error": "Missing required parameters"}, status=400)
 
 #     try:
+        
+#         if project_id and area_type in ["uc", "kml"]:
+#             cached_results = AreaAnalysis.objects.filter(
+#                 project_id=project_id,
+#                 analysis_type=analysis_type,
+#                 start_date=start_date,
+#                 end_date=end_date,
+#                 area_type=area_type
+#             ).order_by('uc_name')  
+
+#             if cached_results.exists():
+#                 results = []
+#                 for cached in cached_results:
+#                     map_layer = None
+#                     if cached.map_layer_path and os.path.exists(cached.map_layer_path):
+#                         with open(cached.map_layer_path, "r") as f:
+#                             map_layer = json.load(f)
+
+#                     results.append({
+#                         "uc_name": cached.uc_name,
+#                         "city_name": cached.city_name,
+#                         "map_layer": map_layer,
+#                         "stats": cached.stats,
+#                         "area_type": cached.area_type
+#                     })
+
+#                 return Response({
+#                     "message": f"Cached {analysis_type.upper()} analysis returned",
+#                     "results": results
+#                 })
+
 #         results = []
 
-        
 #         if area_type == "uc":
 #             if not city_name:
 #                 return Response({"error": "city_name is required for UC analysis"}, status=400)
 
-#             ucs = UnionCouncil.objects.filter(city_name=city_name)
-#             if not ucs.exists():
-#                 return Response({"error": "No Union Councils found for the selected city"}, status=404)
+#             uc_data = load_ucs_for_uc(city_name)
+#             if not uc_data:
+#                 return Response({"error": f"No local UC data found for {city_name}"}, status=404)
 
-#             def process_uc(uc):
+#             features = uc_data.get("features", [])
+#             if not features:
+#                 return Response({"error": "No Union Councils found in local file"}, status=404)
+            
+#             def process_uc(feature):
 #                 try:
-#                     geojson_dict = json.loads(uc.geometry.geojson)
+#                     geojson_dict = feature["geometry"]
 #                     polygon = ee.Geometry(geojson_dict)
 #                     result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
-
 #                     return {
-#                         "uc_name": uc.uc_name,
-#                         "city_name": uc.city_name,
+#                         "uc_name": feature["properties"]["uc_name"],
+#                         "city_name": feature["properties"]["city_name"],
+#                         "error": "0",
+#                         "map_layer": result.get("map_layer"),
+#                         "stats": result.get("stats") or {}   
+#                     }
+#                 except Exception as e:
+#                     return {
+#                         "uc_name": feature["properties"]["uc_name"],
+#                         "city_name": feature["properties"]["city_name"],
+#                         "error": "1",
+#                         "error_msg": str(e),
+#                         "map_layer": None,
+#                         "stats": {}   
+#                     }
+
+
+#             with ThreadPoolExecutor(max_workers=5) as executor:
+#                 results = list(executor.map(process_uc, features))
+
+#         elif area_type == "kml":
+#             if not project_id:
+#                 return Response({"error": "project_id is required for KML analysis"}, status=400)
+
+#             try:
+#                 project = Project.objects.get(id=project_id)
+#             except Project.DoesNotExist:
+#                 return Response({"error": "Project not found"}, status=404)
+
+#             if not project.kml_file:
+#                 return Response({"error": "No KML file found for this project"}, status=404)
+
+#             file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
+#             city_name = file_name.split("_")[0].capitalize()
+
+#             uc_data = load_ucs_for_uc(city_name)
+#             if not uc_data:
+#                 return Response({"error": f"No local UC data found for {city_name}"}, status=404)
+
+#             features = uc_data.get("features", [])
+#             if not features:
+#                 return Response({"error": "No Union Councils found in local file"}, status=404)
+
+#             def process_uc(feature):
+#                 try:
+#                     geojson_dict = feature["geometry"]
+#                     polygon = ee.Geometry(geojson_dict)
+#                     result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
+#                     return {
+#                         "uc_name": feature["properties"]["uc_name"],
+#                         "city_name": feature["properties"]["city_name"],
 #                         "error": "0",
 #                         "map_layer": result.get("map_layer"),
 #                         "stats": result.get("stats")
 #                     }
 #                 except Exception as e:
 #                     return {
-#                         "uc_name": uc.uc_name,
-#                         "city_name": uc.city_name,
+#                         "uc_name": feature["properties"]["uc_name"],
+#                         "city_name": feature["properties"]["city_name"],
 #                         "error": "1",
 #                         "error_msg": str(e)
 #                     }
 
 #             with ThreadPoolExecutor(max_workers=5) as executor:
-#                 results = list(executor.map(process_uc, ucs))
+#                 results = list(executor.map(process_uc, features))
 
-        
-#         elif area_type in ("custom", "kml"):
+#         elif area_type == "custom":
 #             if not geometry_data:
-#                 return Response({"error": "geometry data is required for custom/kml analysis"}, status=400)
+#                 return Response({"error": "geometry data is required for custom analysis"}, status=400)
 
-#             try:
-#                 geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
-#                 polygon = ee.Geometry(geom_json)
-#                 result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
-#                 results.append(result)
-#             except Exception as e:
-#                 return Response({"error": "Invalid geometry data", "details": str(e)}, status=400)
+#             geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
+#             polygon = ee.Geometry(geom_json)
+#             result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
+#             results.append({
+#                 "uc_name": None,
+#                 "city_name": None,
+#                 "map_layer": result.get("map_layer"),
+#                 "stats": result.get("stats"),
+#                 "area_type": "custom"
+#             })
 
 #         else:
 #             return Response({"error": "Invalid area_type"}, status=400)
+
+#         if project_id and results and area_type in ["uc", "kml"]:
+#             for res in results:
+#                 layer_content = res.get("map_layer")
+#                 stats = res.get("stats")
+#                 uc_name = res.get("uc_name")
+#                 city_name = res.get("city_name")
+
+                
+#                 file_name = f"{project_id}_{analysis_type}_{start_date}_{end_date}_{area_type}_{uc_name}.json"
+#                 file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
+#                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#                 with open(file_path, "w") as f:
+#                     json.dump(layer_content, f)
+
+                
+#                 AreaAnalysis.objects.update_or_create(
+#                     project_id=project_id,
+#                     analysis_type=analysis_type,
+#                     start_date=start_date,
+#                     end_date=end_date,
+#                     area_type=area_type,
+#                     uc_name=uc_name,
+#                     defaults={
+#                         "city_name": city_name,
+#                         "stats": stats,
+#                         "map_layer_path": file_path
+#                     }
+#                 )
 
 #         return Response({
 #             "message": f"{analysis_type.upper()} analysis performed",
@@ -173,42 +398,6 @@ def init_ee():
 
 #     except Exception as e:
 #         return Response({"error": "Failed to perform analysis", "details": str(e)}, status=500)
-
-
-# def load_ucs_from_file(city_name, bounds_polygon=None):
-#     """Load UC data for a city from local JSON file, optionally filtering by bounds."""
-#     file_path = os.path.join(DATA_DIR, "ucs.json")
-#     if not os.path.exists(file_path):
-#         return None
-
-#     with open(file_path, "r") as f:
-#         all_ucs = json.load(f)
-
-#     # If no bounds provided, return all UCs for that city
-#     if not bounds_polygon:
-#         return [uc for uc in all_ucs if uc["properties"]["city_name"].lower() == city_name.lower()]
-
-#     # Otherwise, filter only UCs intersecting bounds
-#     matching_ucs = []
-#     for uc in all_ucs:
-#         try:
-#             uc_geom = GEOSGeometry(json.dumps(uc["geometry"]))
-#             if uc_geom.intersects(bounds_polygon):
-#                 matching_ucs.append(uc)
-#         except Exception:
-#             continue
-
-#     return matching_ucs
-def load_ucs_from_file(city_name):
-    """Load UC data for a city from local JSON file."""
-    file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
-    if not os.path.exists(file_path):
-        return None
-
-    with open(file_path, "r") as f:
-        return json.load(f) 
-    
-
 @api_view(['POST'])
 def perform_gee_analysis(request):
     init_ee()
@@ -221,11 +410,14 @@ def perform_gee_analysis(request):
     geometry_data = request.data.get("geometry")
     project_id = request.data.get("project_id")
 
+
     if not analysis_type or not start_date or not end_date or not area_type:
         return Response({"error": "Missing required parameters"}, status=400)
 
     try:
-        
+        results = []
+
+        # Check cache first if project_id exists
         if project_id and area_type in ["uc", "kml"]:
             cached_results = AreaAnalysis.objects.filter(
                 project_id=project_id,
@@ -236,7 +428,6 @@ def perform_gee_analysis(request):
             ).order_by('uc_name')  
 
             if cached_results.exists():
-                results = []
                 for cached in cached_results:
                     map_layer = None
                     if cached.map_layer_path and os.path.exists(cached.map_layer_path):
@@ -256,20 +447,30 @@ def perform_gee_analysis(request):
                     "results": results
                 })
 
-        results = []
-
+        # ---------------- UC Analysis (local only, unchanged) ----------------
         if area_type == "uc":
             if not city_name:
                 return Response({"error": "city_name is required for UC analysis"}, status=400)
 
-            uc_data = load_ucs_from_file(city_name)
-            if not uc_data:
-                return Response({"error": f"No local UC data found for {city_name}"}, status=404)
+            uc_data = load_ucs_for_uc(city_name)
 
-            features = uc_data.get("features", [])
+            # If local UC not found, fall back to database
+            if not uc_data:
+                db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+                if not db_ucs.exists():
+                    return Response({"error": f"No UC data found for {city_name}"}, status=404)
+                features = [
+                    {
+                        "geometry": json.loads(uc.geometry.geojson),
+                        "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
+                    } for uc in db_ucs
+                ]
+            else:
+                features = uc_data.get("features", [])
+
             if not features:
-                return Response({"error": "No Union Councils found in local file"}, status=404)
-            
+                return Response({"error": "No Union Councils found"}, status=404)
+
             def process_uc(feature):
                 try:
                     geojson_dict = feature["geometry"]
@@ -292,32 +493,41 @@ def perform_gee_analysis(request):
                         "stats": {}   
                     }
 
-
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
 
+        # ---------------- KML Analysis (local → DB fallback) ----------------
         elif area_type == "kml":
             if not project_id:
                 return Response({"error": "project_id is required for KML analysis"}, status=400)
 
-            try:
-                project = Project.objects.get(id=project_id)
-            except Project.DoesNotExist:
-                return Response({"error": "Project not found"}, status=404)
+            # First try to load local JSON for KML
+            local_kml_file = os.path.join(
+                DATA_DIR, f"project_{project_id}_kml_ucs.json"
+            )
+            if os.path.exists(local_kml_file):
+                with open(local_kml_file, "r") as f:
+                    kml_data = json.load(f)
+                features = kml_data.get("features", [])
+            else:
+                # Fall back to database
+                project = Project.objects.filter(id=project_id).first()
+                if not project:
+                    return Response({"error": "Project not found"}, status=404)
 
-            if not project.kml_file:
-                return Response({"error": "No KML file found for this project"}, status=404)
+                db_ucs = UnionCouncil.objects.all()
+                if not db_ucs.exists():
+                    return Response({"error": "No UC data in database"}, status=404)
 
-            file_name = os.path.splitext(os.path.basename(project.kml_file.name))[0]
-            city_name = file_name.split("_")[0].capitalize()
+                features = [
+                    {
+                        "geometry": json.loads(uc.geometry.geojson),
+                        "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
+                    } for uc in db_ucs
+                ]
 
-            uc_data = load_ucs_from_file(city_name)
-            if not uc_data:
-                return Response({"error": f"No local UC data found for {city_name}"}, status=404)
-
-            features = uc_data.get("features", [])
             if not features:
-                return Response({"error": "No Union Councils found in local file"}, status=404)
+                return Response({"error": "No Union Councils found"}, status=404)
 
             def process_uc(feature):
                 try:
@@ -342,6 +552,7 @@ def perform_gee_analysis(request):
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
 
+        # ---------------- Custom Polygon Analysis ----------------
         elif area_type == "custom":
             if not geometry_data:
                 return Response({"error": "geometry data is required for custom analysis"}, status=400)
@@ -360,6 +571,7 @@ def perform_gee_analysis(request):
         else:
             return Response({"error": "Invalid area_type"}, status=400)
 
+        # ---------------- Save results to DB if project_id ----------------
         if project_id and results and area_type in ["uc", "kml"]:
             for res in results:
                 layer_content = res.get("map_layer")
@@ -367,14 +579,12 @@ def perform_gee_analysis(request):
                 uc_name = res.get("uc_name")
                 city_name = res.get("city_name")
 
-                
                 file_name = f"{project_id}_{analysis_type}_{start_date}_{end_date}_{area_type}_{uc_name}.json"
                 file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 with open(file_path, "w") as f:
                     json.dump(layer_content, f)
 
-                
                 AreaAnalysis.objects.update_or_create(
                     project_id=project_id,
                     analysis_type=analysis_type,
@@ -400,7 +610,7 @@ def perform_gee_analysis(request):
 
 def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
     init_ee()
-    scale = 30
+    scale = 10
 
     if analysis_type.lower() == "ndvi":
         collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
@@ -446,7 +656,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
         vis_params = {'min': 0, 'max': 30, 'palette': ['green', 'yellow', 'red']}
         band_name = 'AQI'
-        scale = 7000
+        scale = 1000
        
 
 
@@ -489,6 +699,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         }
     }
 
+
 @api_view(['POST'])
 def yearly_comparison_analysis(request):
     # Initialize GEE
@@ -497,14 +708,13 @@ def yearly_comparison_analysis(request):
     start_year = request.data.get("start_year")
     area_type = request.data.get("area_type")
     city_name = request.data.get("city_name")
-    geometry_data = request.data.get("geometry")
     project_id = request.data.get("project_id")
     comparison_years = int(request.data.get("comparison_years", 3))
-    analysis_type = request.data.get("analysis_type")  # NEW
+    analysis_type = request.data.get("analysis_type")  # ndvi, thermal, aqi
 
+    # Validate inputs
     if not start_year:
         return Response({"error": "start_year is required"}, status=400)
-
     try:
         start_year = int(start_year)
     except ValueError:
@@ -517,6 +727,38 @@ def yearly_comparison_analysis(request):
         return Response({"error": "analysis_type must be one of 'ndvi', 'thermal', or 'aqi'"}, status=400)
 
     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
+
+    # Check for cached results first
+    if project_id:
+        cached = YearlyComparisonAnalysis.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            baseline_year=start_year,
+            area_type=area_type
+        )
+        if cached.exists():
+            results = []
+            for c in cached:
+                results.append({
+                    "uc_name": c.uc_name,
+                    "city_name": c.city_name,
+                    "analysis": {
+                        "baseline_year": c.baseline_year,
+                        "comparison_years": c.comparison_years,
+                        "baseline_mean": c.baseline_mean,
+                        "avg_prev_mean": c.avg_prev_mean,
+                        "status": c.status
+                    }
+                })
+            return Response({
+                "mode": "yearly_comparison",
+                "analysis_type": analysis_type,
+                "baseline_year": start_year,
+                "compared_years": prev_years,
+                "results": results,
+                "cached": True
+            })
+
     results = []
 
     try:
@@ -524,66 +766,26 @@ def yearly_comparison_analysis(request):
             if not city_name:
                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
 
-            # ------------------- Step 1: Load UCs from local JSON -------------------
-            ucs_data = load_ucs_from_file(city_name)
+            # Load UCs from local JSON
+            ucs_data = load_ucs_for_uc(city_name)
             if not ucs_data:
-                # fallback to DB
-                ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
-                if not ucs.exists():
-                    return Response({"error": "No UCs found for given city_name"}, status=404)
+                return Response({"error": f"No UC data found for city {city_name}"}, status=404)
 
-                geojson = serialize(
-                    "geojson", ucs,
-                    geometry_field="geometry",
-                    fields=("uc_name", "city_name")
-                )
-                ucs_data = json.loads(geojson)
+            features = ucs_data.get("features", [])
+            if not features:
+                return Response({"error": "No Union Councils found in local file"}, status=404)
 
-                file_path = os.path.join(settings.BASE_DIR, "data", f"{city_name.lower()}_ucs.json")
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "w") as f:
-                    json.dump(ucs_data, f)
-
-            # ------------------- Step 2: Process each UC -------------------
             def process_uc(feature):
-                uc_name = feature["properties"]["uc_name"]
-                uc_city = feature["properties"]["city_name"]
+                uc_name = feature["properties"].get("uc_name") or "UNKNOWN_UC"
+                uc_city = feature["properties"].get("city_name") or city_name
                 uc_polygon = ee.Geometry(feature["geometry"])
-                uc_result = {"uc_name": uc_name, "city_name": uc_city}
+                uc_result = {"uc_name": uc_name, "city_name": uc_city, "area_type": "uc"}
 
-                # ------------------- Check yearly comparison cache -------------------
-                cached_qs = YearlyComparisonAnalysis.objects.filter(
-                    project_id=project_id,
-                    analysis_type=analysis_type,
-                    baseline_year=start_year,
-                    area_type="uc",
-                    uc_name=uc_name
-                )
-
-                if cached_qs.exists():
-                    cached = cached_qs.first()
-                    map_layer = None
-                    if cached.map_layer_path and os.path.exists(cached.map_layer_path):
-                        with open(cached.map_layer_path, "r") as f:
-                            map_layer = json.load(f)
-
-                    uc_result["analysis"] = {
-                        "baseline_year": cached.baseline_year,
-                        "comparison_years": cached.comparison_years,
-                        "baseline_mean": cached.baseline_mean,
-                        "avg_prev_mean": cached.avg_prev_mean,
-                        "map_layer": map_layer,
-                        "status": cached.status
-                    }
-                    return uc_result
-
-                # ------------------- Run GEE analysis if not cached -------------------
+                # Baseline year
                 baseline_start = f"{start_year}-01-01"
                 baseline_end = f"{start_year+1}-01-01"
                 res = perform_analysis_for_polygon(analysis_type, uc_polygon, baseline_start, baseline_end)
-                baseline_stats = res.get("stats")
-                baseline_mean = baseline_stats.get("mean") if baseline_stats else None
-                map_layer = res.get("map_layer")
+                baseline_mean = res.get("stats", {}).get("mean")
 
                 # Previous years
                 prev_means = []
@@ -594,10 +796,9 @@ def yearly_comparison_analysis(request):
                     prev_mean = prev_res.get("stats", {}).get("mean")
                     if prev_mean is not None:
                         prev_means.append(prev_mean)
+                avg_prev_mean = sum(prev_means) / len(prev_means) if prev_means else None
 
-                avg_prev_mean = sum(prev_means)/len(prev_means) if prev_means else None
-
-                # Decide status
+                # Status logic
                 if avg_prev_mean is None or baseline_mean is None:
                     status = "no_data"
                 elif baseline_mean > avg_prev_mean:
@@ -607,16 +808,18 @@ def yearly_comparison_analysis(request):
                 else:
                     status = "no_change"
 
-                # ------------------- Save yearly comparison cache -------------------
-                if project_id:
-                    file_name = f"{project_id}_{analysis_type}_{start_year}_uc_{uc_name}.json"
-                    file_path = os.path.join(settings.MEDIA_ROOT, "yearly_comparison_layers", file_name)
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    with open(file_path, "w") as f:
-                        json.dump(map_layer, f)
+                uc_result["analysis"] = {
+                    "baseline_year": start_year,
+                    "comparison_years": prev_years,
+                    "baseline_mean": baseline_mean,
+                    "avg_prev_mean": avg_prev_mean,
+                    "status": status
+                }
 
+                # Save to DB for caching
+                if project_id:
                     YearlyComparisonAnalysis.objects.update_or_create(
-                        project=Project.objects.get(id=project_id),
+                        project_id=project_id,
                         analysis_type=analysis_type,
                         baseline_year=start_year,
                         area_type="uc",
@@ -626,33 +829,27 @@ def yearly_comparison_analysis(request):
                             "comparison_years": prev_years,
                             "baseline_mean": baseline_mean,
                             "avg_prev_mean": avg_prev_mean,
-                            "status": status,
-                            "stats": baseline_stats,
-                            "map_layer_path": file_path
+                            "status": status
                         }
                     )
 
-                uc_result["analysis"] = {
-                    "baseline_year": start_year,
-                    "comparison_years": prev_years,
-                    "baseline_mean": baseline_mean,
-                    "avg_prev_mean": avg_prev_mean,
-                    "map_layer": map_layer,
-                    "status": status
-                }
-
                 return uc_result
 
-            # ------------------- Step 3: Use ThreadPoolExecutor -------------------
+            # Threaded processing
             with ThreadPoolExecutor(max_workers=5) as executor:
-                results = list(executor.map(process_uc, ucs_data.get("features", [])))
+                results = list(executor.map(process_uc, features))
+
+        # Add similar logic for "custom" or "kml" if needed
+        else:
+            results.append({"area_type": area_type, "analysis": "Not implemented"})
 
         return Response({
             "mode": "yearly_comparison",
             "analysis_type": analysis_type,
             "baseline_year": start_year,
             "compared_years": prev_years,
-            "results": results
+            "results": results,
+            "cached": False
         })
 
     except Exception as e:

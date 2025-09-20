@@ -205,7 +205,7 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'urbananalytics',
+        'NAME': 'urbananalytics-db',
         'USER': 'postgres',
         'PASSWORD': 'urbananalytics',
         'HOST': 'localhost',
