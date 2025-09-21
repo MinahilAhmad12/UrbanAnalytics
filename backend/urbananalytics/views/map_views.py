@@ -103,7 +103,7 @@ def get_ucs(request):
                 with open(cache_file_path, "r") as f:
                     return Response(json.load(f))
 
-            with open(kml_path, "r") as f:
+            with open(kml_path, "r", encoding="utf-8") as f:
                 kml_content = f.read()
 
             polygon = kml_to_geosgeometry(kml_content)
@@ -304,14 +304,16 @@ def perform_gee_analysis(request):
                         "city_name": feature["properties"]["city_name"],
                         "error": "0",
                         "map_layer": result.get("map_layer"),
-                        "stats": result.get("stats")
+                        "stats": result.get("stats") or {}
                     }
                 except Exception as e:
                     return {
                         "uc_name": feature["properties"]["uc_name"],
                         "city_name": feature["properties"]["city_name"],
                         "error": "1",
-                        "error_msg": str(e)
+                        "error_msg": str(e),
+                        "map_layer": None,
+                        "stats": {}
                     }
 
             with ThreadPoolExecutor(max_workers=5) as executor:
