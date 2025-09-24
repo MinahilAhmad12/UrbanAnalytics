@@ -14,11 +14,17 @@ from django.core.exceptions import ImproperlyConfigured
 #     raise ImproperlyConfigured("GDAL is required but not properly configured.")
 
 
-GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
+# GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
+
+# if not os.path.exists(GDAL_LIBRARY_PATH):
+#     raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
+# Set Google Earth Engine credentials explicitly (for local development)
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json"
+
+GDAL_LIBRARY_PATH = r"C:\Users\Maryam Afzal\miniconda3\envs\geo_env\Library\bin\gdal.dll"
 
 if not os.path.exists(GDAL_LIBRARY_PATH):
     raise ImproperlyConfigured(f"GDAL library not found at {GDAL_LIBRARY_PATH}")
-
 """
 Django settings for myproject project.
 
@@ -205,9 +211,9 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'urbananalytics-db',
+        'NAME': 'urban_analytics',
         'USER': 'postgres',
-        'PASSWORD': 'urbananalytics',
+        'PASSWORD': 'urban_analytics',
         'HOST': 'localhost',
         'PORT': '5432',
     }

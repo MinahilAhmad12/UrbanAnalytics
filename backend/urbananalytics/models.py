@@ -88,7 +88,7 @@ class AreaAnalysis(models.Model):
     end_date = models.DateField()
     area_type = models.CharField(max_length=20)
     geometry = models.JSONField(null=True, blank=True)
-    stats = models.JSONField()
+    stats = models.JSONField(null=True,blank=True)
     map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # use CharField
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -103,7 +103,7 @@ def get_ucs(request):
                 with open(cache_file_path, "r") as f:
                     return Response(json.load(f))
 
-            with open(kml_path, "r") as f:
+            with open(kml_path, "r", encoding="utf-8") as f:
                 kml_content = f.read()
 
             polygon = kml_to_geosgeometry(kml_content)
@@ -137,7 +137,9 @@ os.environ['SSL_CERT_FILE'] = certifi.where()
 
 def init_ee():
     """Initialize Earth Engine lazily when needed."""
-    service_account_key_path = r'C:\Users\User\Documents\urbananalytics-460415-f557e7903d83.json'
+    # service_account_key_path = r'C:\Users\User\Documents\urbananalytics-460415-f557e7903d83.json'
+    service_account_key_path = r'C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json'
+
     credentials = ee.ServiceAccountCredentials(
         email='gee-service-account@urbananalytics-460415.iam.gserviceaccount.com',
         key_file=service_account_key_path
@@ -304,14 +306,16 @@ def perform_gee_analysis(request):
                         "city_name": feature["properties"]["city_name"],
                         "error": "0",
                         "map_layer": result.get("map_layer"),
-                        "stats": result.get("stats")
+                        "stats": result.get("stats") or {}
                     }
                 except Exception as e:
                     return {
                         "uc_name": feature["properties"]["uc_name"],
                         "city_name": feature["properties"]["city_name"],
                         "error": "1",
-                        "error_msg": str(e)
+                        "error_msg": str(e),
+                        "map_layer" : None,
+                        "stats":{}
                     }
 
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -472,7 +476,7 @@ def yearly_comparison_analysis(request):
     city_name = request.data.get("city_name")
     project_id = request.data.get("project_id")
     comparison_years = int(request.data.get("comparison_years", 3))
-    analysis_type = request.data.get("analysis_type")  
+    analysis_type = request.data.get("analysis_type")
 
     if not start_year:
         return Response({"error": "start_year is required"}, status=400)
@@ -489,6 +493,7 @@ def yearly_comparison_analysis(request):
 
     prev_years = [start_year - i for i in range(1, comparison_years + 1)]
 
+    # ✅ Return cached results if available
     if project_id:
         cached = YearlyComparisonAnalysis.objects.filter(
             project_id=project_id,
@@ -523,6 +528,7 @@ def yearly_comparison_analysis(request):
 
     try:
         if area_type == "uc":
+            # ✅ existing UC logic (unchanged)
             if not city_name:
                 return Response({"error": "city_name is required for area_type 'uc'."}, status=400)
 
@@ -587,11 +593,99 @@ def yearly_comparison_analysis(request):
                             "status": status
                         }
                     )
-
                 return uc_result
 
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
+
+        elif area_type == "kml":
+            # ✅ updated KML logic → works like get_ucs
+            if not project_id:
+                return Response({"error": "project_id is required for area_type 'kml'."}, status=400)
+
+            try:
+                project = Project.objects.get(id=project_id)
+            except Project.DoesNotExist:
+                return Response({"error": f"Project {project_id} not found"}, status=404)
+
+            if not project.kml_file:
+                return Response({"error": "No KML file uploaded for this project"}, status=404)
+
+            from django.contrib.gis.gdal import DataSource
+            ds = DataSource(project.kml_file.path)
+            layer = ds[0]
+
+            # ✅ merge KML features into one geometry
+            kml_geom = None
+            for feat in layer:
+                geom = feat.geom.geos
+                kml_geom = geom if kml_geom is None else kml_geom.union(geom)
+
+            if not kml_geom:
+                return Response({"error": "No valid geometry found in KML"}, status=404)
+
+            # ✅ find all intersecting UCs
+            ucs = UnionCouncil.objects.filter(geometry__intersects=kml_geom)
+            if not ucs.exists():
+                return Response({"error": "No Union Councils intersect with this KML area"}, status=404)
+
+            def process_uc(uc):
+                uc_name = uc.uc_name
+                uc_city = uc.city_name
+                uc_polygon = ee.Geometry(json.loads(uc.geometry.geojson))
+                uc_result = {"uc_name": uc_name, "city_name": uc_city, "area_type": "kml"}
+
+                baseline_start = f"{start_year}-01-01"
+                baseline_end = f"{start_year+1}-01-01"
+                res = perform_analysis_for_polygon(analysis_type, uc_polygon, baseline_start, baseline_end)
+                baseline_mean = res.get("stats", {}).get("mean")
+
+                prev_means = []
+                for year in prev_years:
+                    year_start = f"{year}-01-01"
+                    year_end = f"{year+1}-01-01"
+                    prev_res = perform_analysis_for_polygon(analysis_type, uc_polygon, year_start, year_end)
+                    prev_mean = prev_res.get("stats", {}).get("mean")
+                    if prev_mean is not None:
+                        prev_means.append(prev_mean)
+                avg_prev_mean = sum(prev_means) / len(prev_means) if prev_means else None
+
+                if avg_prev_mean is None or baseline_mean is None:
+                    status = "no_data"
+                elif baseline_mean > avg_prev_mean:
+                    status = "increase"
+                elif baseline_mean < avg_prev_mean:
+                    status = "decrease"
+                else:
+                    status = "no_change"
+
+                uc_result["analysis"] = {
+                    "baseline_year": start_year,
+                    "comparison_years": prev_years,
+                    "baseline_mean": baseline_mean,
+                    "avg_prev_mean": avg_prev_mean,
+                    "status": status
+                }
+
+                if project_id:
+                    YearlyComparisonAnalysis.objects.update_or_create(
+                        project=project,
+                        analysis_type=analysis_type,
+                        baseline_year=start_year,
+                        area_type="kml",
+                        uc_name=uc_name,
+                        defaults={
+                            "city_name": uc_city,
+                            "comparison_years": prev_years,
+                            "baseline_mean": baseline_mean,
+                            "avg_prev_mean": avg_prev_mean,
+                            "status": status
+                        }
+                    )
+                return uc_result
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                results = list(executor.map(process_uc, ucs))
 
         else:
             results.append({"area_type": area_type, "analysis": "Not implemented"})
@@ -607,5 +701,3 @@ def yearly_comparison_analysis(request):
 
     except Exception as e:
         return Response({"error": "Failed comparison analysis", "details": str(e)}, status=500)
-
-
