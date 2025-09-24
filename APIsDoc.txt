@@ -226,7 +226,7 @@ Response:
 }
 
 12. Analysis of an area
-    POST analyze/
+    POST http://127.0.0.1:8000/api/analyze/
     For area_type = "uc"
 
     Request JSON:
@@ -387,7 +387,7 @@ Response JSON:
     ]
 }
 13. For pixelwise analysis
-Request: POST
+Request: POST http://127.0.0.1:8000/api/pixelwiseanalysis/
 for area_type == "uc"
 {
     "analysis_type": "aqi",  
@@ -576,7 +576,7 @@ AQI Value	 Color	    Air Quality Level
 14. To get the pixel value for any analysis when you hover over the pixel
 
 
-Request: POST
+Request: POST http://127.0.0.1:8000/api/getpixelvalue/
 
 {
     "analysis_type": "aqi",  
@@ -596,7 +596,127 @@ Response:
     }
 }
 
+15. Per Year Analysis API
 
+Endpoint:
+POST http://127.0.0.1:8000/api/per_year_analysis/
+
+Request Body:
+
+{
+    "analysis_type": "ndvi",        // Options: "ndvi", "thermal", "aqi"
+    "year": 2024,                   // Year of analysis
+    "area_type": "uc",              // Options: "uc", "kml", "custom"
+    "project_id": 1,                // Required for "uc" or "kml"
+    "mode": "pixelwise"             // Options: "pixelwise", "annual_stats"
+}
+
+
+Response (Pixelwise Mode Example):
+
+{
+    "message": "NDVI pixelwise analysis for 2024 performed",
+    "year": 2024,
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/.../tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/...",
+                "token": "",
+                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
+            }
+        },
+        {
+            "uc_name": "Ameen Pura",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": { ... }
+        }
+    ]
+}
+
+
+Response (Annual Stats Mode Example):
+
+{
+    "message": "NDVI annual_stats analysis for 2024 performed",
+    "year": 2024,
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "mode": "annual_stats",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/.../tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/...",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.2051,
+                "min": -0.0362,
+                "max": 0.6105,
+                "std_dev": 0.1542
+            }
+        },
+        { ... }
+    ]
+}
+
+16. Get Yearly Pixel Value API
+
+Endpoint:
+POST http://127.0.0.1:8000/api/get_yearly_pixel_value/
+
+Request Body:
+
+{
+    "analysis_type": "aqi",    // Options: "ndvi", "thermal", "aqi"
+    "year": 2023,
+    "lat": 31.5203,            // Latitude
+    "lng": 74.3597             // Longitude
+}
+
+
+Response Example (AQI):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "aqi",
+    "year": 2023,
+    "pixel_value": {
+        "AQI": 15.1093
+    }
+}
+
+
+Response Example (Thermal):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "thermal",
+    "year": 2023,
+    "pixel_value": {
+        "THERMAL": 307.1689
+    }
+}
+
+
+Response Example (NDVI):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "ndvi",
+    "year": 2023,
+    "pixel_value": {
+        "NDVI": 0.1637
+    }
+}
 
 
 15. To show the differences between ndvi,thermal, and AQI aanlyses over the last 3 years
