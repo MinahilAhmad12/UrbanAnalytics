@@ -235,8 +235,7 @@ Response:
     "analysis_type": "thermal",  
     "start_date": "2024-09-01",
     "end_date": "2024-09-10",
-    "area_type": "uc",
-    "city_name": "lahore",        
+    "area_type": "uc",       
     "project_id": 3            
 }
 
@@ -387,8 +386,220 @@ Response JSON:
         }
     ]
 }
+13. For pixelwise analysis
+Request: POST
+for area_type == "uc"
+{
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
+    "area_type": "uc",
+    "project_id": 1
+    
+}
+Response:
+{
+    "message": "AQI pixelwise analysis performed",
+    "results": [
+        {
+            "uc_name": "Hanna (H-65)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Nawa Killi (H-50)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Kotwal (H-49)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },]}
+        
+for area_type == "kml"
+{
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
+    "area_type": "kml",
+    "project_id": 1
+    
+}
+Response:
 
-13. To show the differences between ndvi,thermal, and AQI aanlyses over the last 3 years
+{
+    "message": "AQI pixelwise analysis performed",
+    "results": [
+        {
+            "uc_name": "Hanna (H-65)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Nawa Killi (H-50)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Kotwal (H-49)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+    ] }
+
+Value ranges and color palettes for the legends: 
+1-NDVI:
+Range: -0.5 → 1.0
+Palette:
+['#654321', '#FFA07A', '#FFFF66', '#ADFF2F', '#008000', '#004B23']
+
+NDVI Value 
+Range	                  Color            	Meaning
+-0.5 → 0.0	 #654321 (Dark Brown)	  Bare soil, built-up
+0.0 → 0.2	  #FFA07A (Light Salmon)	  Sparse / stressed vegetation
+0.2 → 0.4 	#FFFF66 (Bright Yellow)	Grassland, dry crops
+0.4 → 0.6 	#ADFF2F (Green-Yellow)	  Moderate vegetation
+0.6 → 0.8 	#008000 (Green)	        Healthy crops, forests
+0.8 → 1.0 	#004B23 (Dark Green)	    Very dense, healthy vegetation
+
+2-Thermal
+
+Range: 290 → 320
+Palette:
+['#0000FF', '#00BFFF', '#7FFFD4', '#FFFF66', '#FF8C00', '#B22222']
+
+Temp Range 
+(K)	         Color	Meaning
+290 – 295	#0000FF (Blue)	Coldest areas, water
+295 – 300	#00BFFF (Deep Sky Blue)	Cool vegetation
+300 – 305	#7FFFD4 (Aquamarine)	Mild warm
+305 – 310	#FFFF66 (Yellow)	Warm zones
+310 – 315	#FF8C00 (Dark Orange)	Hot bare soil / concrete
+315 – 320	#B22222 (Firebrick Red)	Extremely hot urban zones
+
+3-AQI
+
+Range: 0 → 50
+Palette:
+['#00E400', '#FFFF00', '#FF7E00', '#FF0000', '#8F3F97', '#7E0023']
+
+
+
+AQI Value	 Color	    Air Quality Level
+0 – 8	    #00E400 (Bright Green)	Good
+8 – 16  	#FFFF00 (Yellow)	Moderate
+16 – 24 	#FF7E00 (Orange)	Unhealthy for sensitive groups
+24 – 32 	#FF0000 (Red)	Unhealthy
+32 – 40 	#8F3F97 (Purple)	Very Unhealthy
+40 – 50+	#7E0023 (Maroon)	Hazardous
+
+
+14. To get the pixel value for any analysis when you hover over the pixel
+
+
+Request: POST
+
+{
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
+    "lat": 31.582045,
+    "lng": 74.329376
+    
+}
+Response:
+{
+    "lat": 31.582045,
+    "lng": 74.329376,
+    "analysis_type": "aqi",
+    "pixel_value": {
+        "AQI": 12.27115446880105
+    }
+}
+
+
+
+
+15. To show the differences between ndvi,thermal, and AQI aanlyses over the last 3 years
 
  POST request
 
@@ -556,227 +767,10 @@ Note: The 3-year example uses the default behavior;
 no need for the user to provide comparison_years = 3.
 
 
-14.  Get User Projects
-GET my-projects/
-
-Returns all projects belonging to the authenticated user.
-
-Response:
-
-[
-    {
-        "id": 1,
-        "name": "Project 1",
-        "created_at": "2025-05-15T14:40:57.865762Z",
-        "areas": [
-            {
-                "id": 5,
-                "area_type": "uc",
-                "name": "Greenbelt Sector F",
-                "date_range_start": "2024-01-01",
-                "date_range_end": "2024-01-31",
-                "selected_city": "Islamabad",
-                "custom_geometry": null,
-                "analyses": [
-                    {
-                        "analysis_type": "ndvi",
-                        "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-                        "stats": {
-                            "max": 0.9,
-                            "min": 0.3,
-                            "mean": 0.67
-                        }
-                    },
-                    {
-                        "analysis_type": "thermal",
-                        "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-                        "stats": {
-                            "max": 37.6,
-                            "min": 28.1,
-                            "mean": 32.4
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-]
 
 
  
-  15. To save an area
-  POST areas/save/
-    For area_type = 'uc'
-    Request JSON:
-    {
-  "project_id": 1,
-  "area_type": "uc",
-  "name": "UC Demo Area",
-  "selected_city": "Lahore",
-  "uc_ids": [12, 13],
-  "date_range_start": "2024-01-01",
-  "date_range_end": "2024-01-31",
-  "analyses": {
-    "12": [
-      {
-        "analysis_type": "NDVI",
-        "tile_url": "https://example.com/ndvi12",
-        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
-      },
-      {
-        "analysis_type": "Thermal",
-        "tile_url": "https://example.com/ndvi12",
-        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
-      }
-
-    ],
-    "13": [
-      {
-        "analysis_type": "Thermal",
-        "tile_url": "https://example.com/thermal13",
-        "stats": {"mean": 300.5, "min": 0.72, "max":0.12, "std_dev":2.0}
-      }
-    ]
-  },
-  "map_state": {
-    "12": {
-      "center_coords": [74.34, 31.56],
-      "zoom_level": 12,
-      "active_layer": "NDVI",
-      "toggle_state": {"ndvi": true},
-      "basemap_style": "satellite"
-    },
-    "13": {
-      "center_coords": [74.40, 31.60],
-      "zoom_level": 13,
-      "active_layer": "Thermal",
-      "toggle_state": {"thermal": true},
-      "basemap_style": "streets"
-    }
-  }
-}
-
-
-Response JSON:
-{
-    "detail": "Area(s) and analyses saved successfully.",
-    "created_area_ids": [
-        12,
-        13
-    ]
-}
-
-For area_type = "cutom"
-
-Request JSON:
-{
-  "project_id": 1,
-  "area_type": "custom",
-  "name": "Custom Drawn Area",
-  "date_range_start": "2024-02-01",
-  "date_range_end": "2024-02-28",
-  "custom_geometry": {
-    "type": "Polygon",
-    "coordinates": [
-      [
-        [74.34, 31.56],
-        [74.35, 31.56],
-        [74.35, 31.57],
-        [74.34, 31.57],
-        [74.34, 31.56]
-      ]
-    ]
-  },
-  "analyses": [
-    {
-      "analysis_type": "NDVI",
-      "tile_url": "https://example.com/custom/ndvi",
-      "stats": {"mean": 0.41, "max": 0.85}
-    }
-  ],
-  "map_state": {
-    "center_coords": [74.345, 31.565],
-    "zoom_level": 14,
-    "active_layer": "NDVI",
-    "toggle_state": {"ndvi": true},
-    "basemap_style": "satellite"
-  }
-}
-Response JSON:
-{
-    "detail": "Area(s) and analyses saved successfully.",
-    "created_area_ids": [
-        14
-    ]
-}
-
-For area_type = "kml"
-
-
-
-Request: 
- multipart/form-data Example
-
-
-project_id	3
-area_type	 kml
-name	"some name"
-date_range_start	2025-01-01
-date_range_end	2025-01-31
-analyses	[{"analysis_type": "NDVI", "tile_url": "https://example.com/tiles/ndvi/{z}/{x}/{y}.png", "stats": {"mean": 0.45, "min": 0.1, "max": 0.9}}]
-
-map_state	{"selected_city": "Lahore", "ndvi_visible": true, "thermal_visible": false, "aqi_visible": true, "zoom": 11, "center": [74.3587, 31.5204]}
-
-kml_file	(actual uploaded KML file as file input)
-
-
-
-Response:
-{
-    "detail": "Area(s) and analyses saved successfully.",
-    "created_area_ids": [
-        36
-    ]
-}
-Set the method to POST.
-
-Set the body type to form-data.
-
-Add the following fields:
-
-project_id: e.g. 1
-
-area_type: kml
-
-name: Your area name
-
-date_range_start: 2024-01-01
-
-date_range_end: 2024-01-31
-
-kml_file: (Select the actual .kml file using "Choose File")
-
-analyses: Use the JSON as a string:
-
-[
-  {
-    "analysis_type": "NDVI",
-    "tile_url": "https://example.com/ndvi",
-    "stats": {"mean": 0.65, "max": 0.91}
-  }
-]
-map_state: Use this JSON string:
-
-{
-  "center_coords": [74.30, 31.45],
-  "zoom_level": 13,
-  "active_layer": "NDVI",
-  "toggle_state": {"ndvi": true},
-  "basemap_style": "satellite"
-}
-
-Response:
-
+  
 
 16. To view an area of a project
 
@@ -953,3 +947,223 @@ Response:
         "date_range": "2024-01-01 to 2024-01-31"
     }
 ]
+
+21.  Get User Projects
+GET my-projects/
+
+Returns all projects belonging to the authenticated user.
+
+Response:
+
+[
+    {
+        "id": 1,
+        "name": "Project 1",
+        "created_at": "2025-05-15T14:40:57.865762Z",
+        "areas": [
+            {
+                "id": 5,
+                "area_type": "uc",
+                "name": "Greenbelt Sector F",
+                "date_range_start": "2024-01-01",
+                "date_range_end": "2024-01-31",
+                "selected_city": "Islamabad",
+                "custom_geometry": null,
+                "analyses": [
+                    {
+                        "analysis_type": "ndvi",
+                        "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
+                        "stats": {
+                            "max": 0.9,
+                            "min": 0.3,
+                            "mean": 0.67
+                        }
+                    },
+                    {
+                        "analysis_type": "thermal",
+                        "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
+                        "stats": {
+                            "max": 37.6,
+                            "min": 28.1,
+                            "mean": 32.4
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]
+
+
+22. To save an area
+  POST areas/save/
+    For area_type = 'uc'
+    Request JSON:
+    {
+  "project_id": 1,
+  "area_type": "uc",
+  "name": "UC Demo Area",
+  "selected_city": "Lahore",
+  "uc_ids": [12, 13],
+  "date_range_start": "2024-01-01",
+  "date_range_end": "2024-01-31",
+  "analyses": {
+    "12": [
+      {
+        "analysis_type": "NDVI",
+        "tile_url": "https://example.com/ndvi12",
+        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
+      },
+      {
+        "analysis_type": "Thermal",
+        "tile_url": "https://example.com/ndvi12",
+        "stats": {"mean": 0.34, "min": 0.72, "max":0.12, "std_dev":2.0}
+      }
+
+    ],
+    "13": [
+      {
+        "analysis_type": "Thermal",
+        "tile_url": "https://example.com/thermal13",
+        "stats": {"mean": 300.5, "min": 0.72, "max":0.12, "std_dev":2.0}
+      }
+    ]
+  },
+  "map_state": {
+    "12": {
+      "center_coords": [74.34, 31.56],
+      "zoom_level": 12,
+      "active_layer": "NDVI",
+      "toggle_state": {"ndvi": true},
+      "basemap_style": "satellite"
+    },
+    "13": {
+      "center_coords": [74.40, 31.60],
+      "zoom_level": 13,
+      "active_layer": "Thermal",
+      "toggle_state": {"thermal": true},
+      "basemap_style": "streets"
+    }
+  }
+}
+
+
+Response JSON:
+{
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        12,
+        13
+    ]
+}
+
+For area_type = "cutom"
+
+Request JSON:
+{
+  "project_id": 1,
+  "area_type": "custom",
+  "name": "Custom Drawn Area",
+  "date_range_start": "2024-02-01",
+  "date_range_end": "2024-02-28",
+  "custom_geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [74.34, 31.56],
+        [74.35, 31.56],
+        [74.35, 31.57],
+        [74.34, 31.57],
+        [74.34, 31.56]
+      ]
+    ]
+  },
+  "analyses": [
+    {
+      "analysis_type": "NDVI",
+      "tile_url": "https://example.com/custom/ndvi",
+      "stats": {"mean": 0.41, "max": 0.85}
+    }
+  ],
+  "map_state": {
+    "center_coords": [74.345, 31.565],
+    "zoom_level": 14,
+    "active_layer": "NDVI",
+    "toggle_state": {"ndvi": true},
+    "basemap_style": "satellite"
+  }
+}
+Response JSON:
+{
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        14
+    ]
+}
+
+For area_type = "kml"
+
+
+
+Request: 
+ multipart/form-data Example
+
+
+project_id	3
+area_type	 kml
+name	"some name"
+date_range_start	2025-01-01
+date_range_end	2025-01-31
+analyses	[{"analysis_type": "NDVI", "tile_url": "https://example.com/tiles/ndvi/{z}/{x}/{y}.png", "stats": {"mean": 0.45, "min": 0.1, "max": 0.9}}]
+
+map_state	{"selected_city": "Lahore", "ndvi_visible": true, "thermal_visible": false, "aqi_visible": true, "zoom": 11, "center": [74.3587, 31.5204]}
+
+kml_file	(actual uploaded KML file as file input)
+
+
+
+Response:
+{
+    "detail": "Area(s) and analyses saved successfully.",
+    "created_area_ids": [
+        36
+    ]
+}
+Set the method to POST.
+
+Set the body type to form-data.
+
+Add the following fields:
+
+project_id: e.g. 1
+
+area_type: kml
+
+name: Your area name
+
+date_range_start: 2024-01-01
+
+date_range_end: 2024-01-31
+
+kml_file: (Select the actual .kml file using "Choose File")
+
+analyses: Use the JSON as a string:
+
+[
+  {
+    "analysis_type": "NDVI",
+    "tile_url": "https://example.com/ndvi",
+    "stats": {"mean": 0.65, "max": 0.91}
+  }
+]
+map_state: Use this JSON string:
+
+{
+  "center_coords": [74.30, 31.45],
+  "zoom_level": 13,
+  "active_layer": "NDVI",
+  "toggle_state": {"ndvi": true},
+  "basemap_style": "satellite"
+}
+
+Response:

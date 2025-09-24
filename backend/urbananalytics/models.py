@@ -92,6 +92,7 @@ class AreaAnalysis(models.Model):
     map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # use CharField
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_pixelwise = models.BooleanField(default=False)
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
