@@ -101,37 +101,78 @@ class AreaAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.analysis_type.upper()} | {self.area_type} | {self.uc_name or 'ALL'}"
-
-
-class YearlyComparisonAnalysis(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_comparisons")
+    
+class YearlyAnalysis(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")
     analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
-    area_type = models.CharField(max_length=20)  # uc/custom/kml
-    city_name = models.CharField(max_length=255, null=True, blank=True)
+    year = models.IntegerField()                      # the selected year
+    area_type = models.CharField(max_length=20)      # uc/custom/kml
     uc_name = models.CharField(max_length=255, null=True, blank=True)
+    city_name = models.CharField(max_length=255, null=True, blank=True)
 
-    baseline_year = models.IntegerField()
-    comparison_years = models.JSONField()  # [2024], [2023, 2022], etc.
-    baseline_mean = models.FloatField(null=True, blank=True)
-    avg_prev_mean = models.FloatField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[
-        ("increase", "Increase"),
-        ("decrease", "Decrease"),
-        ("no_change", "No Change"),
-        ("no_data", "No Data"),
-    ])
+    # For summary statistics
+    stats = models.JSONField(null=True, blank=True)  # {mean, min, max, std_dev}
 
-    stats = models.JSONField(null=True, blank=True)
+    # For pixelwise analysis
+    is_pixelwise = models.BooleanField(default=False)
+    map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # saved tile/map URL JSON
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("project", "analysis_type", "baseline_year", "area_type", "uc_name")
+        # include is_pixelwise to allow separate rows
+        unique_together = ("project", "analysis_type", "year", "area_type", "uc_name", "is_pixelwise")
 
     def __str__(self):
-        return f"{self.analysis_type.upper()} | {self.baseline_year} vs {self.comparison_years} | {self.uc_name or 'ALL'}"
+        return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
 
+
+class YearlyPixelValue(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
+    analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
+    year = models.IntegerField()
+    lat = models.FloatField()
+    lng = models.FloatField()
+    pixel_value = models.JSONField()  # store value like {"NDVI": 0.23} or {"AQI": 12.3}
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("project", "analysis_type", "year", "lat", "lng")
+
+    def __str__(self):
+        return f"{self.analysis_type.upper()} | {self.year} | ({self.lat}, {self.lng})"
+
+
+# class YearlyComparisonAnalysis(models.Model):
+#     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_comparisons")
+#     analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
+#     area_type = models.CharField(max_length=20)  # uc/custom/kml
+#     city_name = models.CharField(max_length=255, null=True, blank=True)
+#     uc_name = models.CharField(max_length=255, null=True, blank=True)
+
+#     baseline_year = models.IntegerField()
+#     comparison_years = models.JSONField()  # [2024], [2023, 2022], etc.
+
+#     # ❌ remove baseline_mean, avg_prev_mean (not needed)
+#     # Instead we use stats to store pairwise differences
+
+#     stats = models.JSONField(null=True, blank=True)
+#     # Example:
+#     # {
+#     #   "2025_vs_2024": {"baseline_mean": 0.56, "comparison_mean": 0.48, "status": "increase"},
+#     #   "2025_vs_2023": {"baseline_mean": 0.56, "comparison_mean": 0.62, "status": "decrease"}
+#     # }
+
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+
+#     class Meta:
+#         unique_together = ("project", "analysis_type", "baseline_year", "area_type", "uc_name")
+
+#     def __str__(self):
+#         return f"{self.analysis_type.upper()} | {self.baseline_year} vs {self.comparison_years} | {self.uc_name or 'ALL'}"
 
 class Report(models.Model):
     project_area   = models.ForeignKey(
