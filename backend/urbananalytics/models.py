@@ -11,7 +11,7 @@ class CustomUser(AbstractUser):
     is_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
 
-    def __str__(self):
+    def _str_(self):
         return self.username
 
 
@@ -27,7 +27,7 @@ class Project(models.Model):
             raise ValidationError("You must provide either a location name or a KML file.")
         if self.location_name and self.kml_file:
             raise ValidationError("Provide only one: location name OR KML file.")
-    def __str__(self):
+    def _str_(self):
         return f"{self.name} (by {self.owner.username})"
 
 
@@ -40,7 +40,7 @@ class UnionCouncil(models.Model):
     class Meta:
         unique_together = ('city_name', 'uc_name')
 
-    def __str__(self):
+    def _str_(self):
         return f"{self.uc_name} ({self.city_name})"
 
 
@@ -60,7 +60,7 @@ class ProjectArea(models.Model):
     date_range_start = models.DateField(blank=True, null=True)
     date_range_end = models.DateField(blank=True, null=True)
 
-    def __str__(self):
+    def _str_(self):
         return self.name or f"Area {self.id} for Project: {self.project.name}"
 
 
@@ -77,7 +77,7 @@ class MapState(models.Model):
     center_coords = models.JSONField(blank=True, null=True)
     basemap_style = models.CharField(max_length=50, default='streets')
 
-    def __str__(self):
+    def _str_(self):
         return f"MapState for Area {self.project_area.id}"
 
 
@@ -88,19 +88,61 @@ class AreaAnalysis(models.Model):
     end_date = models.DateField()
     area_type = models.CharField(max_length=20)
     geometry = models.JSONField(null=True, blank=True)
-    stats = models.JSONField(null=True,blank=True)
+    stats = models.JSONField(null=True, blank=True)
     map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # use CharField
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_pixelwise = models.BooleanField(default=False)
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         unique_together = ("project", "analysis_type", "start_date", "end_date", "area_type", "uc_name")
 
-    def __str__(self):
+    def _str_(self):
         return f"{self.analysis_type.upper()} | {self.area_type} | {self.uc_name or 'ALL'}"
+    
+class YearlyAnalysis(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")
+    analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
+    year = models.IntegerField()                      # the selected year
+    area_type = models.CharField(max_length=20)      # uc/custom/kml
+    uc_name = models.CharField(max_length=255, null=True, blank=True)
+    city_name = models.CharField(max_length=255, null=True, blank=True)
 
+    # For summary statistics
+    stats = models.JSONField(null=True, blank=True)  # {mean, min, max, std_dev}
+
+    # For pixelwise analysis
+    is_pixelwise = models.BooleanField(default=False)
+    map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # saved tile/map URL JSON
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # include is_pixelwise to allow separate rows
+        unique_together = ("project", "analysis_type", "year", "area_type", "uc_name", "is_pixelwise")
+
+    def _str_(self):
+        return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
+
+
+class YearlyPixelValue(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
+    analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
+    year = models.IntegerField()
+    lat = models.FloatField()
+    lng = models.FloatField()
+    pixel_value = models.JSONField()  # store value like {"NDVI": 0.23} or {"AQI": 12.3}
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("project", "analysis_type", "year", "lat", "lng")
+
+    def _str_(self):
+        return f"{self.analysis_type.upper()} | {self.year} | ({self.lat}, {self.lng})"
 
 class YearlyComparisonAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_comparisons")
@@ -111,14 +153,6 @@ class YearlyComparisonAnalysis(models.Model):
 
     baseline_year = models.IntegerField()
     comparison_years = models.JSONField()  # [2024], [2023, 2022], etc.
-    baseline_mean = models.FloatField(null=True, blank=True)
-    avg_prev_mean = models.FloatField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[
-        ("increase", "Increase"),
-        ("decrease", "Decrease"),
-        ("no_change", "No Change"),
-        ("no_data", "No Data"),
-    ])
 
     stats = models.JSONField(null=True, blank=True)
 
@@ -127,9 +161,6 @@ class YearlyComparisonAnalysis(models.Model):
 
     class Meta:
         unique_together = ("project", "analysis_type", "baseline_year", "area_type", "uc_name")
-
-    def __str__(self):
-        return f"{self.analysis_type.upper()} | {self.baseline_year} vs {self.comparison_years} | {self.uc_name or 'ALL'}"
 
 
 class Report(models.Model):
@@ -146,5 +177,5 @@ class Report(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-    def __str__(self):
+    def _str_(self):
         return f"Report[{self.report_type}] for Area {self.project_area.id}"

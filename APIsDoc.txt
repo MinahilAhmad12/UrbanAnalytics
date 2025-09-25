@@ -235,8 +235,7 @@ Response:
     "analysis_type": "thermal",  
     "start_date": "2024-09-01",
     "end_date": "2024-09-10",
-    "area_type": "uc",
-    "city_name": "lahore",        
+    "area_type": "uc",       
     "project_id": 3            
 }
 
@@ -387,176 +386,651 @@ Response JSON:
         }
     ]
 }
-
-13. To show the differences between ndvi,thermal, and AQI aanlyses over the last 3 years
-
- POST request
-
- API endpoint: yearly_comparison_analysis/
-
-Request Examples
-
-1. Compare 1 year (user provides 1)
-
+13. For pixelwise analysis
+Request: POST
+for area_type == "uc"
 {
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
     "area_type": "uc",
-    "analysis_type": "ndvi",
-    "city_name": "Lahore",
-    "start_year": 2024,
-    "project_id": 2,
-    "comparison_years": 1
+    "project_id": 1
+    
 }
-
-
-
-2. Compare 2 years (user provides 2)
+Response:
+{
+    "message": "AQI pixelwise analysis performed",
+    "results": [
+        {
+            "uc_name": "Hanna (H-65)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Nawa Killi (H-50)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Kotwal (H-49)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },]}
+        
+for area_type == "kml"
+{
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
+    "area_type": "kml",
+    "project_id": 1
+    
+}
+Response:
 
 {
-    "area_type": "uc",
-    "analysis_type": "ndvi",
-    "city_name": "Lahore",
-    "start_year": 2024,
-    "project_id": 2,
-    "comparison_years": 2
-}
+    "message": "AQI pixelwise analysis performed",
+    "results": [
+        {
+            "uc_name": "Hanna (H-65)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Nawa Killi (H-50)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+        {
+            "uc_name": "Kotwal (H-49)",
+            "city_name": "Quetta",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
+                "token": "",
+                "palette": [
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023"
+                ]
+            }
+        },
+    ] }
+
+Value ranges and color palettes for the legends: 
+1-NDVI:
+Range: -0.5 → 1.0
+Palette:
+['#654321', '#FFA07A', '#FFFF66', '#ADFF2F', '#008000', '#004B23']
+
+NDVI Value 
+Range	                  Color            	Meaning
+-0.5 → 0.0	 #654321 (Dark Brown)	  Bare soil, built-up
+0.0 → 0.2	  #FFA07A (Light Salmon)	  Sparse / stressed vegetation
+0.2 → 0.4 	#FFFF66 (Bright Yellow)	Grassland, dry crops
+0.4 → 0.6 	#ADFF2F (Green-Yellow)	  Moderate vegetation
+0.6 → 0.8 	#008000 (Green)	        Healthy crops, forests
+0.8 → 1.0 	#004B23 (Dark Green)	    Very dense, healthy vegetation
+
+2-Thermal
+
+Range: 290 → 320
+Palette:
+['#0000FF', '#00BFFF', '#7FFFD4', '#FFFF66', '#FF8C00', '#B22222']
+
+Temp Range 
+(K)	         Color	Meaning
+290 – 295	#0000FF (Blue)	Coldest areas, water
+295 – 300	#00BFFF (Deep Sky Blue)	Cool vegetation
+300 – 305	#7FFFD4 (Aquamarine)	Mild warm
+305 – 310	#FFFF66 (Yellow)	Warm zones
+310 – 315	#FF8C00 (Dark Orange)	Hot bare soil / concrete
+315 – 320	#B22222 (Firebrick Red)	Extremely hot urban zones
+
+3-AQI
+
+Range: 0 → 50
+Palette:
+['#00E400', '#FFFF00', '#FF7E00', '#FF0000', '#8F3F97', '#7E0023']
 
 
 
-3. Compare 3 years (default, user does not provide)
+AQI Value	 Color	    Air Quality Level
+0 – 8	    #00E400 (Bright Green)	Good
+8 – 16  	#FFFF00 (Yellow)	Moderate
+16 – 24 	#FF7E00 (Orange)	Unhealthy for sensitive groups
+24 – 32 	#FF0000 (Red)	Unhealthy
+32 – 40 	#8F3F97 (Purple)	Very Unhealthy
+40 – 50+	#7E0023 (Maroon)	Hazardous
+
+
+14. To get the pixel value for any analysis when you hover over the pixel
+
+
+Request: POST
 
 {
-    "area_type": "uc",
-    "analysis_type": "ndvi",
-    "city_name": "Lahore",
-    "start_year": 2024,
-    "project_id": 2,
-    "comparison_years": 3
+    "analysis_type": "aqi",  
+    "start_date": "2023-9-01",
+    "end_date": "2023-9-10",
+    "lat": 31.582045,
+    "lng": 74.329376
+    
 }
-
-
-
-4. Custom Polygon Example
-
+Response:
 {
-  "start_year": 2025,
-  "area_type": "custom",
-  "geometry": {
-      "type": "Polygon",
-      "coordinates": [
-          [
-              [67.001, 24.861],
-              [67.002, 24.861],
-              [67.002, 24.862],
-              [67.001, 24.862],
-              [67.001, 24.861]
-          ]
-      ]
-  },
-  "comparison_years": 2
-}
-
-
-5. KML Project Example
-
-{
-  "start_year": 2025,
-  "area_type": "kml",
-  "project_id": 12,
-  "comparison_years": 2
-}
-
-Response Examples
-
-1️⃣ Comparison with 1 year
-
-{
-  "mode": "comparison",
-  "baseline_year": 2025,
-  "compared_years": [2024],
-  "results": {
-    "ndvi": {
-      "baseline_year": 2025,
-      "comparison_years": [2024],
-      "baseline_mean": 0.207,
-      "avg_prev_mean": 0.242,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
-    },
-    "thermal": {
-      "baseline_year": 2025,
-      "comparison_years": [2024],
-      "baseline_mean": 315.4,
-      "avg_prev_mean": 308.1,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
-    },
-    "aqi": {
-      "baseline_year": 2025,
-      "comparison_years": [2024],
-      "baseline_mean": 11.3,
-      "avg_prev_mean": 11.5,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
+    "lat": 31.582045,
+    "lng": 74.329376,
+    "analysis_type": "aqi",
+    "pixel_value": {
+        "AQI": 12.27115446880105
     }
-  },
-  "layers": {
-    "ndvi": {"increase": {"visible": false,"color": "green"}, "decrease": {"visible": true,"color": "red"}, "no_change": {"visible": false,"color": "gray"}},
-    "thermal": {"increase": {"visible": true,"color": "green"}, "decrease": {"visible": false,"color": "red"}, "no_change": {"visible": false,"color": "gray"}},
-    "aqi": {"increase": {"visible": false,"color": "green"}, "decrease": {"visible": true,"color": "red"}, "no_change": {"visible": false,"color": "gray"}}
-  }
+}
+15. Per Year Analysis API
+
+Endpoint:
+POST http://127.0.0.1:8000/api/per_year_analysis/
+
+Request Body:
+
+{
+    "analysis_type": "ndvi",        // Options: "ndvi", "thermal", "aqi"
+    "year": 2024,                   // Year of analysis
+    "area_type": "uc",              // Options: "uc", "kml", "custom"
+    "project_id": 1,                // Required for "uc" or "kml"
+    "mode": "pixelwise"             // Options: "pixelwise", "annual_stats"
 }
 
 
-2️⃣ Comparison with 2 years
+Response (Pixelwise Mode):
 
 {
-  "mode": "comparison",
-  "baseline_year": 2025,
-  "compared_years": [2024, 2023],
-  "results": {
-    "ndvi": {
-      "baseline_year": 2025,
-      "comparison_years": [2024, 2023],
-      "baseline_mean": 0.207,
-      "avg_prev_mean": 0.248,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
+    "message": "NDVI pixelwise analysis for 2024 performed",
+    "year": 2024,
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0",
+                "token": "",
+                "palette": [
+                    "#654321",
+                    "#FFA07A",
+                    "#FFFF66",
+                    "#ADFF2F",
+                    "#008000",
+                    "#004B23"
+                ]
+            }
+        },
+        {
+            "uc_name": "Ameen Pura",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2",
+                "token": "",
+                "palette": [
+                    "#654321",
+                    "#FFA07A",
+                    "#FFFF66",
+                    "#ADFF2F",
+                    "#008000",
+                    "#004B23"
+                ]
+            }
+        },
+        {
+            "uc_name": "Wassanpura",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814",
+                "token": "",
+                "palette": [
+                    "#654321",
+                    "#FFA07A",
+                    "#FFFF66",
+                    "#ADFF2F",
+                    "#008000",
+                    "#004B23"
+                ]
+            }
+        },
+        {
+            "uc_name": "Shahdara",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1",
+                "token": "",
+                "palette": [
+                    "#654321",
+                    "#FFA07A",
+                    "#FFFF66",
+                    "#ADFF2F",
+                    "#008000",
+                    "#004B23"
+                ]
+            }
+        },
+        {
+            "uc_name": "Mozang",
+            "city_name": "Lahore",
+            "mode": "pixelwise",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004",
+                "token": "",
+                "palette": [
+                    "#654321",
+                    "#FFA07A",
+                    "#FFFF66",
+                    "#ADFF2F",
+                    "#008000",
+                    "#004B23"
+                ]
+            }
+        }
+    ]
+}
+
+
+
+Response (Annual Stats Mode):
+
+{
+    "message": "NDVI annual_stats analysis for 2024 performed",
+    "year": 2024,
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "mode": "annual_stats",
+            "map_layer": { ... },
+            "stats": {
+                "mean": 0.2051,
+                "min": -0.0362,
+                "max": 0.6105,
+                "std_dev": 0.1542
+            }
+        },
+        { ... }
+    ]
+}
+
+16. Get Yearly Pixel Value API
+
+Endpoint:
+POST http://127.0.0.1:8000/api/get_yearly_pixel_value/
+
+Request Body:
+
+{
+    "analysis_type": "aqi",   // Options: "ndvi", "thermal", "aqi"
+    "year": 2023,
+    "lat": 31.5203,
+    "lng": 74.3597
+}
+
+
+Response Example (AQI):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "aqi",
+    "year": 2023,
+    "pixel_value": { "AQI": 15.1093 }
+}
+
+
+Response Example (Thermal):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "thermal",
+    "year": 2023,
+    "pixel_value": { "THERMAL": 307.1689 }
+}
+
+
+Response Example (NDVI):
+
+{
+    "lat": 31.5203,
+    "lng": 74.3597,
+    "analysis_type": "ndvi",
+    "year": 2023,
+    "pixel_value": { "NDVI": 0.1637 }
+}
+
+17. Yearly Comparison API
+
+Endpoint:
+POST http://127.0.0.1:8000/api/yearly_comparison/
+
+Request Body:
+
+{
+    "start_year": 2025,         // Baseline year
+    "comparison_years": 3,      // Number of past years to compare with
+    "analysis_type": "ndvi",    // Options: "ndvi", "thermal", "aqi"
+    "area_type": "uc",          // Options: "uc", "kml", "custom"
+    "project_id": 1
+}
+
+
+Response Example:
+
+{
+    "mode": "yearly_comparison",
+    "analysis_type": "ndvi",
+    "baseline_year": 2025,
+    "compared_years": [2024, 2023, 2022],
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "stats": {
+                "2025_vs_2022": {
+                    "status": "decrease",
+                    "baseline_mean": 0.2002,
+                    "comparison_mean": 0.2074
+                },
+                "2025_vs_2023": {
+                    "status": "decrease",
+                    "baseline_mean": 0.2002,
+                    "comparison_mean": 0.2312
+                },
+                "2025_vs_2024": {
+                    "status": "decrease",
+                    "baseline_mean": 0.2002,
+                    "comparison_mean": 0.2051
+                }
+            },
+            "cached": true
+        },
+        {
+            "uc_name": "Ameen Pura",
+            "city_name": "Lahore",
+            "stats": {
+                "2025_vs_2022": {
+                    "status": "decrease",
+                    "baseline_mean": 0.0415,
+                    "comparison_mean": 0.0582
+                },
+                "2025_vs_2023": {
+                    "status": "decrease",
+                    "baseline_mean": 0.0415,
+                    "comparison_mean": 0.0528
+                },
+                "2025_vs_2024": {
+                    "status": "decrease",
+                    "baseline_mean": 0.0415,
+                    "comparison_mean": 0.0467
+                }
+            },
+            "cached": true
+        }
+    ]
+}
+ 
+  
+
+18. To view an area of a project
+
+GET projects/<int:project_id>/areas/<int:area_id>/view/
+
+Response JSON:
+{
+    "area": {
+        "id": 4,
+        "area_type": "uc",
+        "name": "Greenbelt Sector F",
+        "date_range_start": "2024-01-01",
+        "date_range_end": "2024-01-31",
+        "selected_city": "Islamabad",
+        "custom_geometry": null,
+        "analyses": [
+            {
+                "analysis_type": "ndvi",
+                "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
+                "stats": {
+                    "max": 0.9,
+                    "min": 0.3,
+                    "mean": 0.67
+                }
+            },
+            {
+                "analysis_type": "thermal",
+                "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
+                "stats": {
+                    "max": 37.6,
+                    "min": 28.1,
+                    "mean": 32.4
+                }
+            }
+        ]
     },
-    "thermal": {
-      "baseline_year": 2025,
-      "comparison_years": [2024, 2023],
-      "baseline_mean": 315.4,
-      "avg_prev_mean": 307.4,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
-    },
-    "aqi": {
-      "baseline_year": 2025,
-      "comparison_years": [2024, 2023],
-      "baseline_mean": 11.3,
-      "avg_prev_mean": 12.0,
-      "map_layer": {"urlFormat": "...", "mapid": "...", "token": ""}
+    "map_state": {
+        "center_coords": {
+            "lat": 33.6844,
+            "lng": 73.0479
+        },
+        "zoom_level": 12.5,
+        "active_layer": "ndvi",
+        "toggle_state": {
+            "aqi": true,
+            "ndvi": true,
+            "thermal": false
+        }
     }
-  },
-  "layers": {
-    "ndvi": {"increase": {"visible": false,"color": "green"}, "decrease": {"visible": true,"color": "red"}, "no_change": {"visible": false,"color": "gray"}},
-    "thermal": {"increase": {"visible": true,"color": "green"}, "decrease": {"visible": false,"color": "red"}, "no_change": {"visible": false,"color": "gray"}},
-    "aqi": {"increase": {"visible": false,"color": "green"}, "decrease": {"visible": true,"color": "red"}, "no_change": {"visible": false,"color": "gray"}}
-  }
 }
 
+19. To delete an area 
 
-3️⃣ Comparison with 3 years (default)
+DELETE project-area/<int:area_id>/delete/
+
+20.  Generate Report
+POST projects/{project_id}/areas/{area_id}/reports/
+
+Generates a PDF report based on analysis.
+
+Response JSON:
+{
+    "id": 6,
+    "report_type": "environmental_summary",
+    "created_at": "2025-05-22T06:20:34.159593Z",
+    "parameters": {},
+    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
+    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
+}
+
+Content-Disposition: attachment; filename="report.pdf"
+Content-Type: application/pdf
+
+
+21. To get the details of a project
+
+GET projects/1/with-areas/
+
+Response JSON:
 
 {
-  "mode": "comparison",
-  "baseline_year": 2025,
-  "compared_years": [2024, 2023, 2022],
-  "results": { ... }, 
-  "layers": { ... }
+    "id": 1,
+    "name": "Project 1",
+    "created_at": "2025-05-15T14:40:57.865762Z",
+    "areas": [
+        {
+            "id": 5,
+            "area_type": "uc",
+            "name": "Greenbelt Sector F",
+            "date_range_start": "2024-01-01",
+            "date_range_end": "2024-01-31",
+            "selected_city": "Islamabad",
+            "custom_geometry": null,
+            "analyses": [
+                {
+                    "analysis_type": "ndvi",
+                    "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
+                    "stats": {
+                        "max": 0.9,
+                        "min": 0.3,
+                        "mean": 0.67
+                    }
+                },
+                {
+                    "analysis_type": "thermal",
+                    "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
+                    "stats": {
+                        "max": 37.6,
+                        "min": 28.1,
+                        "mean": 32.4
+                    }
+                }
+            ]
+        }
+    ]
 }
 
+22. List All Saved Reports
+GET projects/<int:project_id>/reports/
 
-Note: The 3-year example uses the default behavior; 
-no need for the user to provide comparison_years = 3.
+Fetch a list of all saved reports for the authenticated user.
 
+Response:
 
-14.  Get User Projects
+[
+    {
+        "id": 6,
+        "report_type": "environmental_summary",
+        "created_at": "2025-05-22T06:20:34.159593Z",
+        "parameters": {},
+        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
+        "area_name": "Greenbelt Sector F",
+        "area_type": "uc",
+        "date_range": "2024-01-01 to 2024-01-31"
+    },
+    {
+        "id": 5,
+        "report_type": "environmental_summary",
+        "created_at": "2025-05-22T06:09:57.429867Z",
+        "parameters": {},
+        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_05aKY1l.pdf",
+        "area_name": "Greenbelt Sector F",
+        "area_type": "uc",
+        "date_range": "2024-01-01 to 2024-01-31"
+    },
+    {
+        "id": 4,
+        "report_type": "environmental_summary",
+        "created_at": "2025-05-22T05:53:22.206346Z",
+        "parameters": {},
+        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_b6QmOg0.pdf",
+        "area_name": "Greenbelt Sector F",
+        "area_type": "uc",
+        "date_range": "2024-01-01 to 2024-01-31"
+    },
+    {
+        "id": 3,
+        "report_type": "environmental_summary",
+        "created_at": "2025-05-22T05:52:22.578570Z",
+        "parameters": {},
+        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1.pdf",
+        "area_name": "Greenbelt Sector F",
+        "area_type": "uc",
+        "date_range": "2024-01-01 to 2024-01-31"
+    },
+    {
+        "id": 2,
+        "report_type": "environmental_summary",
+        "created_at": "2025-05-22T05:43:55.713837Z",
+        "parameters": {},
+        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area7_1.pdf",
+        "area_name": "Greenbelt Sector F",
+        "area_type": "uc",
+        "date_range": "2024-01-01 to 2024-01-31"
+    }
+]
+
+23.  Get User Projects
 GET my-projects/
 
 Returns all projects belonging to the authenticated user.
@@ -603,8 +1077,7 @@ Response:
 ]
 
 
- 
-  15. To save an area
+24. To save an area
   POST areas/save/
     For area_type = 'uc'
     Request JSON:
@@ -776,180 +1249,3 @@ map_state: Use this JSON string:
 }
 
 Response:
-
-
-16. To view an area of a project
-
-GET projects/<int:project_id>/areas/<int:area_id>/view/
-
-Response JSON:
-{
-    "area": {
-        "id": 4,
-        "area_type": "uc",
-        "name": "Greenbelt Sector F",
-        "date_range_start": "2024-01-01",
-        "date_range_end": "2024-01-31",
-        "selected_city": "Islamabad",
-        "custom_geometry": null,
-        "analyses": [
-            {
-                "analysis_type": "ndvi",
-                "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-                "stats": {
-                    "max": 0.9,
-                    "min": 0.3,
-                    "mean": 0.67
-                }
-            },
-            {
-                "analysis_type": "thermal",
-                "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-                "stats": {
-                    "max": 37.6,
-                    "min": 28.1,
-                    "mean": 32.4
-                }
-            }
-        ]
-    },
-    "map_state": {
-        "center_coords": {
-            "lat": 33.6844,
-            "lng": 73.0479
-        },
-        "zoom_level": 12.5,
-        "active_layer": "ndvi",
-        "toggle_state": {
-            "aqi": true,
-            "ndvi": true,
-            "thermal": false
-        }
-    }
-}
-
-17. To delete an area 
-
-DELETE project-area/<int:area_id>/delete/
-
-18.  Generate Report
-POST projects/{project_id}/areas/{area_id}/reports/
-
-Generates a PDF report based on analysis.
-
-Response JSON:
-{
-    "id": 6,
-    "report_type": "environmental_summary",
-    "created_at": "2025-05-22T06:20:34.159593Z",
-    "parameters": {},
-    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
-    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
-}
-
-Content-Disposition: attachment; filename="report.pdf"
-Content-Type: application/pdf
-
-
-19. To get the details of a project
-
-GET projects/1/with-areas/
-
-Response JSON:
-
-{
-    "id": 1,
-    "name": "Project 1",
-    "created_at": "2025-05-15T14:40:57.865762Z",
-    "areas": [
-        {
-            "id": 5,
-            "area_type": "uc",
-            "name": "Greenbelt Sector F",
-            "date_range_start": "2024-01-01",
-            "date_range_end": "2024-01-31",
-            "selected_city": "Islamabad",
-            "custom_geometry": null,
-            "analyses": [
-                {
-                    "analysis_type": "ndvi",
-                    "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-                    "stats": {
-                        "max": 0.9,
-                        "min": 0.3,
-                        "mean": 0.67
-                    }
-                },
-                {
-                    "analysis_type": "thermal",
-                    "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-                    "stats": {
-                        "max": 37.6,
-                        "min": 28.1,
-                        "mean": 32.4
-                    }
-                }
-            ]
-        }
-    ]
-}
-
-20. List All Saved Reports
-GET projects/<int:project_id>/reports/
-
-Fetch a list of all saved reports for the authenticated user.
-
-Response:
-
-[
-    {
-        "id": 6,
-        "report_type": "environmental_summary",
-        "created_at": "2025-05-22T06:20:34.159593Z",
-        "parameters": {},
-        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
-        "area_name": "Greenbelt Sector F",
-        "area_type": "uc",
-        "date_range": "2024-01-01 to 2024-01-31"
-    },
-    {
-        "id": 5,
-        "report_type": "environmental_summary",
-        "created_at": "2025-05-22T06:09:57.429867Z",
-        "parameters": {},
-        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_05aKY1l.pdf",
-        "area_name": "Greenbelt Sector F",
-        "area_type": "uc",
-        "date_range": "2024-01-01 to 2024-01-31"
-    },
-    {
-        "id": 4,
-        "report_type": "environmental_summary",
-        "created_at": "2025-05-22T05:53:22.206346Z",
-        "parameters": {},
-        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_b6QmOg0.pdf",
-        "area_name": "Greenbelt Sector F",
-        "area_type": "uc",
-        "date_range": "2024-01-01 to 2024-01-31"
-    },
-    {
-        "id": 3,
-        "report_type": "environmental_summary",
-        "created_at": "2025-05-22T05:52:22.578570Z",
-        "parameters": {},
-        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1.pdf",
-        "area_name": "Greenbelt Sector F",
-        "area_type": "uc",
-        "date_range": "2024-01-01 to 2024-01-31"
-    },
-    {
-        "id": 2,
-        "report_type": "environmental_summary",
-        "created_at": "2025-05-22T05:43:55.713837Z",
-        "parameters": {},
-        "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area7_1.pdf",
-        "area_name": "Greenbelt Sector F",
-        "area_type": "uc",
-        "date_range": "2024-01-01 to 2024-01-31"
-    }
-]
