@@ -718,9 +718,16 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
         
         vis_params = {
-            'min': -1, 'max': 1,
-            'palette': ['#654321', '#FFA07A', '#FFFF66', '#ADFF2F', '#008000', '#004B23']
-        }
+        'min': 0, 'max': 1,
+        'palette': [
+            '#FFFFFF', 
+            '#FFFF66',  
+            '#ADFF2F',  
+            '#32CD32',  
+            '#008000',  
+            '#004B23'   
+        ]
+    }
 
     elif analysis_type.lower() == "thermal":
         collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \

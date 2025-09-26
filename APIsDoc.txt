@@ -234,8 +234,7 @@ Response:
   "start_date": "2025-06-01",
   "end_date": "2025-06-15",
   "area_type": "uc",
-  "project_id": 12,
-  "is_pixelwise": false
+  "project_id": 12
 }
 
 
@@ -335,8 +334,7 @@ Response:
   "start_date": "2025-06-01",
   "end_date": "2025-06-15",
   "area_type": "kml",
-  "project_id": 12,
-  "is_pixelwise": false
+  "project_id": 12
 }
 
 
@@ -568,18 +566,19 @@ Response:
 
 Value ranges and color palettes for the legends: 
 1-NDVI:
-Range: -0.5 → 1.0
+Range: 0 → 1.0
 Palette:
-['#654321', '#FFA07A', '#FFFF66', '#ADFF2F', '#008000', '#004B23']
+['#FFFFFF', '#FFFF66','#ADFF2F ', '#32CD32', '#008000', '#004B23']
 
 NDVI Value 
 Range	                  Color            	Meaning
--0.5 → 0.0	 #654321 (Dark Brown)	  Bare soil, built-up
-0.0 → 0.2	  #FFA07A (Light Salmon)	  Sparse / stressed vegetation
-0.2 → 0.4 	#FFFF66 (Bright Yellow)	Grassland, dry crops
-0.4 → 0.6 	#ADFF2F (Green-Yellow)	  Moderate vegetation
-0.6 → 0.8 	#008000 (Green)	        Healthy crops, forests
-0.8 → 1.0 	#004B23 (Dark Green)	    Very dense, healthy vegetation
+
+0.00 – 0.19     	#FFFFFF (white)	Bare soil, no vegetation
+0.20 – 0.39	      #FFFF66 (yellow)	Sparse/weak vegetation
+0.40 – 0.59     	#ADFF2F (light green)	Moderate vegetation
+0.60 – 0.79     	#32CD32 (medium green)	Healthy vegetation
+0.80 – 0.99     	#008000 (dark green)	Dense vegetation
+1.00	            #004B23 (very dark green)	Very dense vegetation
 
 2-Thermal
 
