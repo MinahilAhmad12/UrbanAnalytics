@@ -719,7 +719,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
         
         vis_params = {
-            'min': -0.5, 'max': 1,
+            'min': -1, 'max': 1,
             'palette': ['#654321', '#FFA07A', '#FFFF66', '#ADFF2F', '#008000', '#004B23']
         }
 
