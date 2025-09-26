@@ -230,86 +230,61 @@ Response:
     Request JSON:
       
 {
-    "analysis_type": "thermal",  
-    "start_date": "2024-09-01",
-    "end_date": "2024-09-10",
-    "area_type": "uc",       
-    "project_id": 3            
+  "analysis_type": "ndvi",
+  "start_date": "2025-06-01",
+  "end_date": "2025-06-15",
+  "area_type": "uc",
+  "project_id": 12,
+  "is_pixelwise": false
 }
+
 
     Response JSON:
 
-    {
     "message": "NDVI analysis performed",
     "results": [
         {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 454",
+            "city_name": "Faisalabad",
             "error": "0",
             "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/21419b68dab76fdab699fa0e8edb9343-761a46cd201ff7ca7d01ef623ec2f76b",
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7",
                 "token": ""
             },
             "stats": {
-                "mean": 0.21453343138065312,
-                "min": -0.025582932124988182,
-                "max": 0.5962898570295225,
-                "std_dev": 0.1596162137808899
+                "mean": 0.30041502565097,
+                "status": "success"
             }
         },
         {
-            "uc_name": "Ameen Pura",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 452",
+            "city_name": "Faisalabad",
             "error": "0",
             "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/a76934a73326a11e1b45e36dad37fcff-ac00693e83ceec8946c46e8b64df1e6a",
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872",
                 "token": ""
             },
             "stats": {
-                "mean": 0.05400271733579196,
-                "min": -0.0346915315103686,
-                "max": 0.5384406528108954,
-                "std_dev": 0.06584619775234565
+                "mean": 0.2287976527707333,
+                "status": "success"
             }
         },
         {
-            "uc_name": "Wassanpura",
-            "city_name": "Lahore",
+            "uc_name": "Langowal",
+            "city_name": "Sheikhupura",
             "error": "0",
             "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/90194ef490a61a05db001981377169a9-85fe4755c05904f8cee264ade9c4ea10",
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c",
                 "token": ""
             },
             "stats": {
-                "mean": 0.07177660378727886,
-                "min": -0.03322319639930277,
-                "max": 0.5241263757850881,
-                "std_dev": 0.08537145992705203
+                "mean": 0.21005446723629206,
+                "status": "success"
             }
-        },
-        {
-            "uc_name": "Darogha Wala",
-            "city_name": "Lahore",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/9a82dec3bf01f95029bbf2e16616821a-87519fe5daf2f1b9a8bc828365f671e3",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.25616996680031284,
-                "min": -0.03066410782909222,
-                "max": 0.6689206952238446,
-                "std_dev": 0.172226768934241
-            }
-        },
-        ......
-    ]
-    }
-
+        }]
     for area_type = "custom"
 
     Request JSON:
@@ -356,34 +331,101 @@ Response:
 
   Request JSON:
   {
-  "analysis_type": "aqi",
-  "start_date": "2024-01-01",
-  "end_date": "2024-03-01",
+  "analysis_type": "ndvi",
+  "start_date": "2025-06-01",
+  "end_date": "2025-06-15",
   "area_type": "kml",
-  "project_id": 9
+  "project_id": 12,
+  "is_pixelwise": false
 }
+
 
 
 Response JSON:
 
-{
-    "message": "THERMAL analysis performed",
+"message": "NDVI analysis performed",
     "results": [
         {
+            "uc_name": "Chak No. 454",
+            "city_name": "Faisalabad",
+            "error": "0",
             "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/018c451eb56d325c10c565781fe0092f-a246c833be08584c392279373a756f98",
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7",
                 "token": ""
             },
             "stats": {
-                "mean": 309.369769013796,
-                "min": 306.64933646,
-                "max": 313.24782407,
-                "std_dev": 1.318196261277901
+                "mean": 0.30041502565097,
+                "status": "success"
             }
-        }
-    ]
-}
+        },
+        {
+            "uc_name": "Chak No. 452",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.2287976527707333,
+                "status": "success"
+            }
+        },
+        {
+            "uc_name": "Langowal",
+            "city_name": "Sheikhupura",
+            "error": "0",
+            "map_layer": {
+                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c/tiles/{z}/{x}/{y}",
+                "mapid": "projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c",
+                "token": ""
+            },
+            "stats": {
+                "mean": 0.21005446723629206,
+                "status": "success"
+            }
+        }]
+
+    Value Ranges and Color Palettes for the legends:
+    NDVI (0 → 1)
+
+      0.0 – 0.2 → white → yellow (no vegetation / bare soil)
+
+      0.2 – 0.4 → yellow → lightgreen (sparse vegetation / stressed crops)
+
+      0.4 – 0.6 → lightgreen → green (moderately healthy vegetation)
+
+      0.6 – 0.8 → green → darkgreen (dense healthy vegetation)
+
+      0.8 – 1.0 → darkgreen (very dense & healthy vegetation like forests)
+
+
+    Thermal (Kelvin, 290 → 320)
+
+      290 – 295 → blue (cool areas: water bodies, shaded regions)
+
+      295 – 300 → cyan (slightly cool, vegetated zones)
+
+      300 – 305 → yellow (moderate temperature: mixed land use)
+
+      305 – 310 → orange (hot zones: built-up areas, roads)
+
+      310 – 320 → red (very hot: urban heat islands, deserts, bare soil)
+
+
+    AQI (0 → 50, scaled from NO₂ density × 1e5)
+
+      0 – 10 → green (Good air quality)
+
+      10 – 20 → yellow (Moderate, acceptable but some pollutants)
+
+      20 – 30 → orange (Unhealthy for sensitive groups)
+
+      30 – 40 → red (Unhealthy)
+
+      40 – 50 → purple → maroon (Very unhealthy to hazardous)
 13. For pixel-wise analysis
 Request: POST
 for area_type == "uc"

@@ -21,3 +21,6 @@ backend/local_data/
 .vscode/
 .idea/
 *.swp
+
+backend/service_account.json
+

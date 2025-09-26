@@ -139,11 +139,9 @@ def init_ee():
     if ee.data._initialized:  # Skip if already initialized
         return
 
-    service_account_key_path = r'C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json'
-    credentials = ee.ServiceAccountCredentials(
-        email='gee-service-account@urbananalytics-460415.iam.gserviceaccount.com',
-        key_file=service_account_key_path
-    )
+    service_account = 'gee-service-account@urbananalytics-460415.iam.gserviceaccount.com'
+    credentials = ee.ServiceAccountCredentials(service_account, settings.SERVICE_ACCOUNT_PATH)
+
     try:
         ee.Initialize(credentials, project='urbananalytics-460415')
         print("Earth Engine initialized successfully!")
@@ -410,7 +408,8 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             .select(['B8', 'B4']) \
             .median()
         image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
-        vis_params = {'min': 0, 'max': 1, 'palette': ['white', 'green']}
+        vis_params = {'min': 0, 'max': 1, "palette": ["white", "yellow", "lightgreen", "green", "darkgreen"]
+}
         band_name = 'NDVI'
 
     elif analysis_type.lower() == "thermal":
@@ -434,7 +433,8 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             raise ValueError(f"Thermal band 'ST_B10' not found in image bands: {bands}")
 
         image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-        vis_params = {'min': 290, 'max': 320, 'palette': ['blue', 'green', 'red']}
+        vis_params = {'min': 290, 'max': 320, "palette": ["blue", "cyan", "yellow", "orange", "red"]
+}
         band_name = 'Thermal'
         scale = 100
 
@@ -445,7 +445,8 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             .filterDate(start_date, end_date) \
             .median()
         image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
-        vis_params = {'min': 0, 'max': 30, 'palette': ['green', 'yellow', 'red']}
+        vis_params = {'min': 0, 'max': 30, "palette": ["green", "yellow", "orange", "red", "purple", "maroon"]
+}
         band_name = 'AQI'
         scale = 1000
        
@@ -456,37 +457,35 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
 
     
     stats = image.reduceRegion(
-        reducer=ee.Reducer.mean().combine(
-            reducer2=ee.Reducer.minMax(), sharedInputs=True
-        ).combine(
-            reducer2=ee.Reducer.stdDev(), sharedInputs=True
-        ),
+        reducer=ee.Reducer.mean(),
         geometry=polygon,
         scale=scale,
         maxPixels=1e9
     ).getInfo()
 
-    
-    try:
-        vis_image = image.visualize(**vis_params)
-        map_data = vis_image.getMapId()
-        url_format = map_data["tile_fetcher"].url_format
-        mapid = map_data["mapid"]
-        token = map_data["token"]
-    except Exception as e:
-        raise ValueError(f"Failed to generate map layer: {str(e)}")
+    mean_value = stats.get(band_name)
 
+    if mean_value is not None:
+        flat_image = ee.Image.constant(mean_value).clip(polygon).rename(band_name)
+        vis_image = flat_image.visualize(**vis_params)
+        status = "success"
+    else:
+        black_image = ee.Image.constant(0).clip(polygon).rename("NoData")
+        vis_image = black_image.visualize(min=0, max=1, palette=["black"]) 
+        status = "nodata"
+
+
+    map_data = vis_image.getMapId()
     return {
         "map_layer": {
-            "urlFormat": url_format,
-            "mapid": mapid,
-            "token": token
+            "urlFormat": map_data["tile_fetcher"].url_format,
+            "mapid": map_data["mapid"],
+            "token": map_data["token"]
         },
         "stats": {
-            "mean": stats.get(f"{band_name}_mean"),
-            "min": stats.get(f"{band_name}_min"),
-            "max": stats.get(f"{band_name}_max"),
-            "std_dev": stats.get(f"{band_name}_stdDev")
+            "mean": mean_value,
+            "status": status
+ 
         }
     }
 
