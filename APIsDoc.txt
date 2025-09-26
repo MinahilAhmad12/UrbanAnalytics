@@ -384,7 +384,7 @@ Response JSON:
         }
     ]
 }
-13. For pixelwise analysis
+13. For pixel-wise analysis
 Request: POST
 for area_type == "uc"
 {
