@@ -144,25 +144,6 @@ class YearlyPixelValue(models.Model):
     def str(self):
         return f"{self.analysis_type.upper()} | {self.year} | ({self.lat}, {self.lng})"
 
-class YearlyComparisonAnalysis(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_comparisons")
-    analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
-    area_type = models.CharField(max_length=20)  # uc/custom/kml
-    city_name = models.CharField(max_length=255, null=True, blank=True)
-    uc_name = models.CharField(max_length=255, null=True, blank=True)
-
-    baseline_year = models.IntegerField()
-    comparison_years = models.JSONField()  # [2024], [2023, 2022], etc.
-
-    stats = models.JSONField(null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ("project", "analysis_type", "baseline_year", "area_type", "uc_name")
-
-
 class Report(models.Model):
     project_area   = models.ForeignKey(
         'ProjectArea',

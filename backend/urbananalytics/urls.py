@@ -1,9 +1,9 @@
 from django.urls import path
-from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs,save_area_with_analyses,perform_gee_analysis, pixelwise_analysis,get_pixel_value,per_year_analysis,get_yearly_pixel_value,yearly_comparison
-from django.conf import settings
+from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs,save_area_with_analyses,perform_gee_analysis, pixelwise_analysis,get_pixel_value,per_year_analysis,get_yearly_pixel_value,before_after_comparison_stats,before_after_comparison_pixelwise,before_after_comparison_summary
 from django.conf.urls.static import static
 from urbananalytics.views import MyTokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
+from django.conf import settings
 
 urlpatterns = [
     path('signup/', signup),
@@ -33,7 +33,10 @@ urlpatterns = [
     path('getpixelvalue/', get_pixel_value, name='get_pixel_value'),
     path('per_year_analysis/', per_year_analysis, name='per_year_analysis'),
     path('get_yearly_pixel_value/', get_yearly_pixel_value, name='get_yearly_pixel_value'),
-    path('yearly_comparison/', yearly_comparison, name='yearly_comparison'),
+    path('before_after_comparison_stats/', before_after_comparison_stats, name='before_after_comparison_stats'),
+    path('before_after_comparison_pixelwise/', before_after_comparison_pixelwise, name='before_after_comparison_pixelwise'),
+    path('before_after_comparison_summary/', before_after_comparison_summary, name='before_after_comparison_summary'),
+
 
 ]
 if settings.DEBUG:

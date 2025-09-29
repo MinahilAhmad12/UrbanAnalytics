@@ -820,78 +820,164 @@ Response Example (NDVI):
     "pixel_value": { "NDVI": 0.1637 }
 }
 
-17. Yearly Comparison API
+17.Aggregated Summary API: Before–After Comparison
+ Endpoint:
+POST http://127.0.0.1:8000/api/before_after_comparison_summary/
 
-Endpoint:
-POST http://127.0.0.1:8000/api/yearly_comparison/
-
-Request Body:
+📤 Request Body:
 
 {
-    "start_year": 2025,         // Baseline year
-    "comparison_years": 3,      // Number of past years to compare with
-    "analysis_type": "ndvi",    // Options: "ndvi", "thermal", "aqi"
-    "area_type": "uc",          // Options: "uc", "kml", "custom"
-    "project_id": 1
+  "project_id": 1,
+  "analysis_type": "ndvi",
+  "area_type": "uc",
+  "before_year": 2018,
+  "after_year": 2022
 }
 
 
-Response Example:
+📥 Response Example:
 
 {
-    "mode": "yearly_comparison",
+  "mode": "before_after_summary",
+  "analysis_type": "ndvi",
+  "before_year": 2018,
+  "after_year": 2022,
+  "summary_stats": {
+    "before": {
+      "mean": 0.1561,
+      "min": 0.0385,
+      "max": 0.4618
+    },
+    "after": {
+      "mean": 0.1825,
+      "min": 0.0387,
+      "max": 0.4113
+    },
+    "changes": {
+      "increase": 126,
+      "decrease": 23,
+      "no_change": 0
+    }
+  }
+}
+
+17.Stats API: Before–After Comparison (Stats Only)
+
+📍 Endpoint:
+POST /api/before_after_comparison_stats/
+
+📤 Request Body:
+
+{
+    "project_id": 1,
     "analysis_type": "ndvi",
-    "baseline_year": 2025,
-    "compared_years": [2024, 2023, 2022],
+    "area_type": "uc",
+    "before_year": 2018,
+    "after_year": 2022
+}
+
+
+📥 Response Example:
+
+{
+    "mode": "before_after_comparison",
+    "analysis_type": "ndvi",
+    "before_year": 2018,
+    "after_year": 2022,
     "results": [
         {
-            "uc_name": "Androon Texali Gate",
+            "uc_name": "Muhammad",
             "city_name": "Lahore",
-            "stats": {
-                "2025_vs_2022": {
-                    "status": "decrease",
-                    "baseline_mean": 0.2002,
-                    "comparison_mean": 0.2074
-                },
-                "2025_vs_2023": {
-                    "status": "decrease",
-                    "baseline_mean": 0.2002,
-                    "comparison_mean": 0.2312
-                },
-                "2025_vs_2024": {
-                    "status": "decrease",
-                    "baseline_mean": 0.2002,
-                    "comparison_mean": 0.2051
-                }
+            "comparison": {
+                "status": "decrease",
+                "before_mean": 0.3291,
+                "after_mean": 0.3048
             },
-            "cached": true
+            "map_layer_before": "media/map_layers/1ndvi2018ucMuhammad_annual.json",
+            "map_layer_after": "media/map_layers/1ndvi2022ucMuhammad_annual.json"
         },
         {
-            "uc_name": "Ameen Pura",
+            "uc_name": "Mustafa Abad",
             "city_name": "Lahore",
-            "stats": {
-                "2025_vs_2022": {
-                    "status": "decrease",
-                    "baseline_mean": 0.0415,
-                    "comparison_mean": 0.0582
-                },
-                "2025_vs_2023": {
-                    "status": "decrease",
-                    "baseline_mean": 0.0415,
-                    "comparison_mean": 0.0528
-                },
-                "2025_vs_2024": {
-                    "status": "decrease",
-                    "baseline_mean": 0.0415,
-                    "comparison_mean": 0.0467
-                }
+            "comparison": {
+                "status": "increase",
+                "before_mean": 0.2020,
+                "after_mean": 0.3034
             },
-            "cached": true
+            "map_layer_before": "media/map_layers/1ndvi2018ucMustafa Abad_annual.json",
+            "map_layer_after": "media/map_layers/1ndvi2022ucMustafa Abad_annual.json"
         }
     ]
 }
- 
-  
+
+
+ Notes:
+Used by frontend side panel stats.
+Includes UC-wise before/after mean and status.
+Map layers are annual layer URLs (optional for visualization).
+
+18. Pixelwise API: Before–After Comparison (Pixelwise Layers)
+
+📍 Endpoint:
+POST /api/before_after_comparison_pixelwise/
+
+📤 Request Body:
+
+{
+    "project_id": 1,
+    "analysis_type": "ndvi",
+    "area_type": "uc",
+    "before_year": 2018,
+    "after_year": 2022
+}
+
+
+📥 Response Example:
+
+{
+    "mode": "before_after_comparison_pixelwise",
+    "analysis_type": "ndvi",
+    "before_year": 2018,
+    "after_year": 2022,
+    "pixelwise": {
+        "before": {
+            "Muhammad": {
+                "urlFormat": "media/map_layers/1ndvi2018ucMuhammad_pixel.json",
+                "mapid": "media/map_layers/1ndvi2018ucMuhammad_pixel.json",
+                "token": "",
+                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
+            },
+            "Mustafa Abad": {
+                "urlFormat": "media/map_layers/1ndvi2018ucMustafa Abad_pixel.json",
+                "mapid": "media/map_layers/1ndvi2018ucMustafa Abad_pixel.json",
+                "token": "",
+                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
+            }
+        },
+        "after": {
+            "Muhammad": {
+                "urlFormat": "media/map_layers/1ndvi2022ucMuhammad_pixel.json",
+                "mapid": "media/map_layers/1ndvi2022ucMuhammad_pixel.json",
+                "token": "",
+                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
+            },
+            "Mustafa Abad": {
+                "urlFormat": "media/map_layers/1ndvi2022ucMustafa Abad_pixel.json",
+                "mapid": "media/map_layers/1ndvi2022ucMustafa Abad_pixel.json",
+                "token": "",
+                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
+            }
+        }
+    }
+}
+
+
+ Notes:
+
+Used by frontend map with slider for before/after pixel layers.
+Includes per-UC pixelwise map layers with palette for coloring.
+urlFormat and mapid point to the tile JSON for Earth Engine map visualization.
+
 
 18. To view an area of a project
 
