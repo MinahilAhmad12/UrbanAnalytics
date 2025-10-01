@@ -8,7 +8,7 @@ import ee
 from django.contrib.gis.geos import GEOSGeometry, Polygon as GEOSPolygon
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from urbananalytics.models import AreaAnalysis, Project, YearlyAnalysis ,YearlyPixelValue
+from urbananalytics.models import AreaAnalysis, Project, YearlyAnalysis ,YearlyPixelValue,BeforeAfterAnalysis,BeforeAfterPixelwise
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from concurrent.futures import ThreadPoolExecutor
@@ -165,7 +165,6 @@ def load_ucs_for_kml(project_id):
         return None
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)  
-
 
 @api_view(['POST'])
 def perform_gee_analysis(request):
@@ -416,7 +415,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             raise ValueError(f"Thermal band 'ST_B10' not found in image bands: {bands}")
 
         image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-        vis_params = {'min': 290, 'max': 320, "palette": ["blue", "cyan", "yellow", "orange", "red"]
+        vis_params = {'min': 290, 'max': 320, "palette": ["Sky Blue", "Lime Green", "Tomato Red", "Orange", "Dark Purple"]
 }
         band_name = 'Thermal'
         scale = 100
@@ -428,7 +427,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             .filterDate(start_date, end_date) \
             .median()
         image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
-        vis_params = {'min': 0, 'max': 30, "palette": ["green", "yellow", "orange", "red", "purple", "maroon"]
+        vis_params = {'min': 0, 'max': 30, "palette": ["Pink", "Coral", "Amber", "Light Yellow", "Magenta", "Violet"]
 }
         band_name = 'AQI'
         scale = 1000
@@ -702,14 +701,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         
         vis_params = {
         'min': 0, 'max': 1,
-        'palette': [
-            '#FFFFFF', 
-            '#FFFF66',  
-            '#ADFF2F',  
-            '#32CD32',  
-            '#008000',  
-            '#004B23'   
-        ]
+        'palette': ["Light Brown", "Sandy Yellow", "Yellow-Green", "Light Green", "Green", "Dark Green"]
     }
 
     elif analysis_type.lower() == "thermal":
@@ -723,7 +715,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         
         vis_params = {
             'min': 290, 'max': 320,
-            'palette': ['#0000FF', '#00BFFF', '#7FFFD4', '#FFFF66', '#FF8C00', '#B22222']
+            'palette': ["Deep Blue","Teal","Turquoise","Sea Green","Cream","Warm Orange"]
         }
 
     elif analysis_type.lower() == "aqi":
@@ -733,7 +725,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         
         vis_params = {
             'min': 0, 'max': 50,
-            'palette': ['#00E400', '#FFFF00', '#FF7E00', '#FF0000', '#8F3F97', '#7E0023']
+            'palette': ["Light Pink", "Lilac", "Pale Aqua", "Salmon", "Pale Yellow", "Peach"]
         }
 
     else:
@@ -772,7 +764,11 @@ def get_pixel_value(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
-def get_yearly_analysis_from_db(project_id, analysis_type, year, area_type, uc_name=None):
+
+def get_yearly_analysis_from_db(project_id, analysis_type, year, area_type, uc_name=None, is_pixelwise=False):
+    """
+    Fetch saved yearly analysis from DB + file storage if exists.
+    """
     try:
         record = YearlyAnalysis.objects.get(
             project_id=project_id,
@@ -780,43 +776,53 @@ def get_yearly_analysis_from_db(project_id, analysis_type, year, area_type, uc_n
             year=year,
             area_type=area_type,
             uc_name=uc_name,
-            is_pixelwise=False
+            is_pixelwise=is_pixelwise
         )
+
         map_layer = None
         if record.map_layer_path and os.path.exists(record.map_layer_path):
             with open(record.map_layer_path, "r") as f:
                 map_layer = json.load(f)
+
         return {
             "uc_name": record.uc_name,
             "city_name": record.city_name,
             "map_layer": map_layer,
             "stats": record.stats,
+            "mode": "pixelwise" if is_pixelwise else "annual_stats",
             "error": "0"
         }
+
     except YearlyAnalysis.DoesNotExist:
         return None
 
-def save_yearly_analysis(project_id, analysis_type, year, area_type, uc_name, city_name, map_layer, stats):
-    file_name = f"{project_id}_{analysis_type}_{year}_{area_type}_{uc_name or 'custom'}.json"
+
+def save_yearly_analysis(project_id, analysis_type, year, area_type, uc_name, city_name, map_layer, stats, is_pixelwise=False):
+    """
+    Save yearly analysis result (stats + map_layer) into DB and JSON file.
+    """
+    file_name = f"{project_id}_{analysis_type}_{year}_{area_type}_{uc_name or 'custom'}_{'pixel' if is_pixelwise else 'annual'}.json"
     file_path = os.path.join(settings.MEDIA_ROOT, "yearly_map_layers", file_name)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Save map layer to JSON file
     with open(file_path, "w") as f:
         json.dump(map_layer, f)
 
+    # Save or update DB record
     YearlyAnalysis.objects.update_or_create(
         project_id=project_id,
         analysis_type=analysis_type,
         year=year,
         area_type=area_type,
         uc_name=uc_name,
-        is_pixelwise=False,
+        is_pixelwise=is_pixelwise,
         defaults={
             "city_name": city_name,
             "stats": stats,
             "map_layer_path": file_path
         }
     )
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def per_year_analysis(request):
@@ -848,27 +854,6 @@ def per_year_analysis(request):
                 return Response({"error": "Project not found"}, status=404)
             city_name = project.location_name
 
-        # --- Helper function to save result in DB ---
-        def save_yearly_analysis(uc_name, city_name, stats, map_layer, is_pixelwise):
-            file_name = f"{project_id}_{analysis_type}_{year}_{area_type}_{uc_name or 'custom'}_{ 'pixel' if is_pixelwise else 'annual' }.json"
-            file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, "w") as f:
-                json.dump(map_layer, f)
-            YearlyAnalysis.objects.update_or_create(
-                project_id=project_id,
-                analysis_type=analysis_type,
-                year=year,
-                area_type=area_type,
-                uc_name=uc_name,
-                is_pixelwise=is_pixelwise,
-                defaults={
-                    "city_name": city_name,
-                    "stats": stats,
-                    "map_layer_path": file_path
-                }
-            )
-
         # --- Determine features ---
         features = []
         if area_type == "uc":
@@ -876,7 +861,8 @@ def per_year_analysis(request):
             if not uc_data:
                 db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
                 features = [
-                    {"geometry": json.loads(uc.geometry.geojson), "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}}
+                    {"geometry": json.loads(uc.geometry.geojson),
+                     "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}}
                     for uc in db_ucs
                 ]
             else:
@@ -886,7 +872,8 @@ def per_year_analysis(request):
             if not kml_data and project.kml_file:
                 with open(project.kml_file.path, "r", encoding="utf-8") as f:
                     polygon = kml_to_geosgeometry(f.read())
-                features = [{"geometry": json.loads(polygon.geojson), "properties": {"uc_name": None, "city_name": None}}]
+                features = [{"geometry": json.loads(polygon.geojson),
+                             "properties": {"uc_name": None, "city_name": None}}]
             else:
                 features = kml_data.get("features", [])
         elif area_type == "custom":
@@ -903,24 +890,12 @@ def per_year_analysis(request):
             city_name = feature["properties"].get("city_name")
 
             # --- Check DB cache ---
-            existing = YearlyAnalysis.objects.filter(
-                project_id=project_id,
-                analysis_type=analysis_type,
-                year=year,
-                area_type=area_type,
-                uc_name=uc_name,
-                is_pixelwise=(mode=="pixelwise")
-            ).first()
-
+            existing = get_yearly_analysis_from_db(
+                project_id, analysis_type, year, area_type,
+                uc_name, is_pixelwise=(mode == "pixelwise")
+            )
             if existing:
-                map_layer = json.load(open(existing.map_layer_path)) if existing.map_layer_path else None
-                return {
-                    "uc_name": existing.uc_name,
-                    "city_name": existing.city_name,
-                    "mode": mode,
-                    "map_layer": map_layer,
-                    "stats": existing.stats
-                }
+                return existing
 
             try:
                 polygon = ee.Geometry(feature["geometry"])
@@ -929,8 +904,15 @@ def per_year_analysis(request):
                     result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
                     stats = result.get("stats")
                     map_layer = result.get("map_layer")
-                    save_yearly_analysis(uc_name, city_name, stats, map_layer, False)
-                    return {"uc_name": uc_name, "city_name": city_name, "mode": "annual_stats", "map_layer": map_layer, "stats": stats}
+
+                    save_yearly_analysis(
+                        project_id, analysis_type, year, area_type,
+                        uc_name, city_name, map_layer, stats, is_pixelwise=False
+                    )
+                    return {
+                        "uc_name": uc_name, "city_name": city_name, "mode": "annual_stats",
+                        "map_layer": map_layer, "stats": stats
+                    }
 
                 else:  # pixelwise
                     image, vis_params = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
@@ -941,10 +923,19 @@ def per_year_analysis(request):
                         "token": map_id["token"],
                         "palette": vis_params.get("palette")
                     }
-                    save_yearly_analysis(uc_name, city_name, {}, map_layer, True)
-                    return {"uc_name": uc_name, "city_name": city_name, "mode": "pixelwise", "map_layer": map_layer}
+
+                    save_yearly_analysis(
+                        project_id, analysis_type, year, area_type,
+                        uc_name, city_name, map_layer, {}, is_pixelwise=True
+                    )
+                    return {
+                        "uc_name": uc_name, "city_name": city_name,
+                        "mode": "pixelwise", "map_layer": map_layer
+                    }
+
             except Exception as e:
-                return {"uc_name": uc_name, "city_name": city_name, "error": "1", "error_msg": str(e)}
+                return {"uc_name": uc_name, "city_name": city_name,
+                        "error": "1", "error_msg": str(e)}
 
         with ThreadPoolExecutor(max_workers=5) as executor:
             results = list(executor.map(process_feature, features))
@@ -957,6 +948,7 @@ def per_year_analysis(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -1061,11 +1053,67 @@ def get_yearly_pixel_value(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+    
+# ---------------- Helper: Run GEE before-after analysis ---------------- #
+def run_before_after_analysis(project_id, analysis_type, before_year, after_year, area_type, features):
+    """
+    Runs GEE analysis independently for both years for all features
+    """
+    def process_feature(feature):
+        uc_name = feature.get("uc_name")
+        city_name = feature.get("city_name")
+        try:
+            geojson_dict = feature.get("geometry")
+            polygon = ee.Geometry(geojson_dict) if geojson_dict else None
 
+            start_before, end_before = f"{before_year}-01-01", f"{before_year}-12-31"
+            start_after, end_after = f"{after_year}-01-01", f"{after_year}-12-31"
+
+            before_result = perform_analysis_for_polygon(analysis_type, polygon, start_before, end_before) if polygon else {}
+            after_result = perform_analysis_for_polygon(analysis_type, polygon, start_after, end_after) if polygon else {}
+
+            before_mean = before_result.get("stats", {}).get("mean")
+            after_mean = after_result.get("stats", {}).get("mean")
+            if before_mean is not None and after_mean is not None:
+                if after_mean > before_mean:
+                    status = "increase"
+                elif after_mean < before_mean:
+                    status = "decrease"
+                else:
+                    status = "no_change"
+            else:
+                status = "no_data"
+
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "comparison": {"status": status, "before_mean": before_mean, "after_mean": after_mean},
+                "map_layer_before": before_result.get("map_layer", {}),
+                "map_layer_after": after_result.get("map_layer", {})
+            }
+
+        except Exception as e:
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "comparison": {"status": "no_data", "before_mean": None, "after_mean": None},
+                "map_layer_before": {},
+                "map_layer_after": {},
+                "error_msg": str(e)
+            }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(process_feature, features))
+
+    return results
+
+
+# ---------------- Main API ---------------- #
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def before_after_comparison_stats(request):
-    
+    init_ee()
+
     data = request.data
     project_id = data.get("project_id")
     analysis_type = data.get("analysis_type")
@@ -1076,53 +1124,117 @@ def before_after_comparison_stats(request):
     if not all([project_id, analysis_type, area_type, before_year, after_year]):
         return Response({"error": "All fields are required."}, status=400)
 
-    # Fetch yearly analyses
-    before_analyses = YearlyAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        year=before_year
-    )
-    after_analyses = YearlyAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        year=after_year
-    )
+    project = Project.objects.filter(id=project_id).first()
+    if not project:
+        return Response({"error": "Project not found."}, status=404)
 
-    results = []
-    for after in after_analyses:
-        before = before_analyses.filter(uc_name=after.uc_name).first() if after.uc_name else None
+    city_name = project.location_name
 
-        comparison = {}
-        if before and before.stats and after.stats:
-            before_mean = before.stats.get("mean")
-            after_mean = after.stats.get("mean")
-            if before_mean is not None and after_mean is not None:
-                if after_mean > before_mean:
-                    status = "increase"
-                elif after_mean < before_mean:
-                    status = "decrease"
-                else:
-                    status = "no_change"
-                comparison = {
-                    "status": status,
-                    "before_mean": before_mean,
-                    "after_mean": after_mean
-                }
-            else:
-                comparison = {"status": "no_data", "before_mean": None, "after_mean": None}
+    # ---------------- Determine features ---------------- #
+    features = []
+    if area_type == "uc":
+        uc_data = load_ucs_for_uc(city_name)
+        if not uc_data:
+            db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+            features = [
+                {"uc_name": uc.uc_name, "city_name": uc.city_name, "geometry": json.loads(uc.geometry.geojson)}
+                for uc in db_ucs
+            ]
         else:
-            comparison = {"status": "no_data", "before_mean": None, "after_mean": None}
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in uc_data.get("features", [])
+            ]
+    elif area_type == "kml":
+        kml_data = load_ucs_for_kml(project.id)
+        if not kml_data and project.kml_file:
+            features = [{"uc_name": None, "city_name": None, "geometry": None}]
+        else:
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in kml_data.get("features", [])
+            ]
+    else:
+        return Response({"error": "Invalid area_type"}, status=400)
 
-        results.append({
-            "uc_name": after.uc_name,
-            "city_name": after.city_name,
-            "comparison": comparison,
-            "map_layer_before": f"media/map_layers/{project_id}{analysis_type}{before_year}uc{after.uc_name}_annual.json",
-            "map_layer_after": f"media/map_layers/{project_id}{analysis_type}{after_year}uc{after.uc_name}_annual.json"
-        })
+    # ---------------- Run or load before-after analysis ---------------- #
+    results = []
 
+    for feature in features:
+        uc_name = feature.get("uc_name")
+
+        # Check if result already exists in DB
+        existing = BeforeAfterAnalysis.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            area_type=area_type,
+            uc_name=uc_name,
+            before_year=before_year,
+            after_year=after_year
+        ).first()
+
+        if existing:
+            # Load map layers from file
+            try:
+                with open(existing.map_layer_before_path, "r") as f:
+                    map_layer_before = json.load(f)
+            except:
+                map_layer_before = {}
+
+            try:
+                with open(existing.map_layer_after_path, "r") as f:
+                    map_layer_after = json.load(f)
+            except:
+                map_layer_after = {}
+
+            results.append({
+                "uc_name": uc_name,
+                "city_name": existing.city_name,
+                "comparison": existing.comparison,
+                "map_layer_before": map_layer_before,
+                "map_layer_after": map_layer_after
+            })
+        else:
+            # Run GEE analysis
+            res = run_before_after_analysis(project_id, analysis_type, before_year, after_year, area_type, [feature])[0]
+
+            # Save map layers locally
+            before_path = os.path.join(settings.MEDIA_ROOT, "before_after_map_layers",
+                                       f"{project_id}_{analysis_type}_{before_year}_{uc_name or 'custom'}_before.json")
+            after_path = os.path.join(settings.MEDIA_ROOT, "before_after_map_layers",
+                                      f"{project_id}_{analysis_type}_{after_year}_{uc_name or 'custom'}_after.json")
+            os.makedirs(os.path.dirname(before_path), exist_ok=True)
+            with open(before_path, "w") as f:
+                json.dump(res.get("map_layer_before", {}), f)
+            os.makedirs(os.path.dirname(after_path), exist_ok=True)
+            with open(after_path, "w") as f:
+                json.dump(res.get("map_layer_after", {}), f)
+
+            # Save to DB
+            BeforeAfterAnalysis.objects.update_or_create(
+                project_id=project_id,
+                analysis_type=analysis_type,
+                area_type=area_type,
+                uc_name=uc_name,
+                before_year=before_year,
+                after_year=after_year,
+                defaults={
+                    "city_name": res.get("city_name"),
+                    "stats_before": {"mean": res["comparison"].get("before_mean")},
+                    "stats_after": {"mean": res["comparison"].get("after_mean")},
+                    "comparison": res["comparison"],
+                    "map_layer_before_path": before_path,
+                    "map_layer_after_path": after_path,
+                }
+            )
+
+            results.append(res)
+
+    # ---------------- Return response ---------------- #
     return Response({
         "mode": "before_after_comparison",
         "analysis_type": analysis_type,
@@ -1131,13 +1243,10 @@ def before_after_comparison_stats(request):
         "results": results
     })
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def before_after_comparison_summary(request):
-    """
-    Aggregated Summary API: Before–After Comparison
-    Works for UC and KML areas
-    """
     data = request.data
     project_id = data.get("project_id")
     analysis_type = data.get("analysis_type")
@@ -1148,58 +1257,29 @@ def before_after_comparison_summary(request):
     if not all([project_id, analysis_type, area_type, before_year, after_year]):
         return Response({"error": "All fields are required."}, status=400)
 
-    # Fetch yearly analyses
-    before_analyses = YearlyAnalysis.objects.filter(
+    records = BeforeAfterAnalysis.objects.filter(
         project_id=project_id,
         analysis_type=analysis_type,
         area_type=area_type,
-        year=before_year
-    )
-    after_analyses = YearlyAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        year=after_year
+        before_year=before_year,
+        after_year=after_year
     )
 
-    before_values = []
-    after_values = []
+    before_values, after_values = [], []
     change_counts = {"increase": 0, "decrease": 0, "no_change": 0}
 
-    if area_type == "uc":
-        # Build a lookup for before analyses by uc_name
-        before_lookup = {b.uc_name: b for b in before_analyses}
-
-        for after in after_analyses:
-            before = before_lookup.get(after.uc_name)
-            if before and before.stats and after.stats:
-                before_mean = before.stats.get("mean")
-                after_mean = after.stats.get("mean")
-                if before_mean is not None and after_mean is not None:
-                    before_values.append(before_mean)
-                    after_values.append(after_mean)
-                    if after_mean > before_mean:
-                        change_counts["increase"] += 1
-                    elif after_mean < before_mean:
-                        change_counts["decrease"] += 1
-                    else:
-                        change_counts["no_change"] += 1
-
-    else:
-        # For KML/custom, aggregate all before and after rows
-        for b, a in zip(before_analyses, after_analyses):
-            if b.stats and a.stats:
-                b_mean = b.stats.get("mean")
-                a_mean = a.stats.get("mean")
-                if b_mean is not None and a_mean is not None:
-                    before_values.append(b_mean)
-                    after_values.append(a_mean)
-                    if a_mean > b_mean:
-                        change_counts["increase"] += 1
-                    elif a_mean < b_mean:
-                        change_counts["decrease"] += 1
-                    else:
-                        change_counts["no_change"] += 1
+    for r in records:
+        before_mean = r.stats_before.get("mean") if r.stats_before else None
+        after_mean = r.stats_after.get("mean") if r.stats_after else None
+        if before_mean is not None and after_mean is not None:
+            before_values.append(before_mean)
+            after_values.append(after_mean)
+            if after_mean > before_mean:
+                change_counts["increase"] += 1
+            elif after_mean < before_mean:
+                change_counts["decrease"] += 1
+            else:
+                change_counts["no_change"] += 1
 
     summary_stats = {
         "before": {
@@ -1212,7 +1292,8 @@ def before_after_comparison_summary(request):
             "min": round(min(after_values),4) if after_values else None,
             "max": round(max(after_values),4) if after_values else None
         },
-        "changes": change_counts
+        "changes": change_counts,
+        "total": len(before_values)
     }
 
     return Response({
@@ -1223,10 +1304,96 @@ def before_after_comparison_summary(request):
         "summary_stats": summary_stats
     })
 
+# ---------------- Helper: Run pixelwise before-after GEE analysis ---------------- #
+def run_before_after_pixelwise(project_id, analysis_type, before_year, after_year, area_type, features):
+    """
+    Run pixelwise GEE analysis for before and after year per feature
+    """
+    PIXELWISE_PALETTE = ["#FFFFFF", "#FFFF66", "#ADFF2F", "#32CD32", "#008000", "#004B23"]
 
+    def load_cached_layer(path):
+        if path and os.path.exists(path):
+            with open(path, "r") as f:
+                data = json.load(f)
+                data["palette"] = PIXELWISE_PALETTE
+                return data
+        return {}
+
+    def process_feature(feature):
+        uc_name = feature.get("uc_name")
+        city_name = feature.get("city_name")
+        geojson_dict = feature.get("geometry")
+        polygon = ee.Geometry(geojson_dict) if geojson_dict else None
+
+        # ---------------- Check DB cache first ---------------- #
+        cached = BeforeAfterPixelwise.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            area_type=area_type,
+            uc_name=uc_name,
+            before_year=before_year,
+            after_year=after_year
+        ).first()
+
+        if cached:
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "map_layer_before": load_cached_layer(cached.map_layer_before_path),
+                "map_layer_after": load_cached_layer(cached.map_layer_after_path),
+            }
+
+        # ---------------- Run GEE if not cached ---------------- #
+        before_result = perform_analysis_for_polygon(
+            analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
+        ) if polygon else {}
+        after_result = perform_analysis_for_polygon(
+            analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
+        ) if polygon else {}
+
+        # File storage
+        folder = os.path.join(settings.MEDIA_ROOT, "before_after_pixelwise")
+        os.makedirs(folder, exist_ok=True)
+        before_path = os.path.join(folder, f"{project_id}{analysis_type}{before_year}_{uc_name or 'custom'}_before.json")
+        after_path = os.path.join(folder, f"{project_id}{analysis_type}{after_year}_{uc_name or 'custom'}_after.json")
+
+        if before_result.get("map_layer"):
+            with open(before_path, "w") as f:
+                json.dump(before_result["map_layer"], f)
+        if after_result.get("map_layer"):
+            with open(after_path, "w") as f:
+                json.dump(after_result["map_layer"], f)
+
+        # Save to DB
+        BeforeAfterPixelwise.objects.update_or_create(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            area_type=area_type,
+            uc_name=uc_name,
+            before_year=before_year,
+            after_year=after_year,
+            defaults={
+                "city_name": city_name,
+                "map_layer_before_path": before_path,
+                "map_layer_after_path": after_path
+            }
+        )
+
+        return {
+            "uc_name": uc_name,
+            "city_name": city_name,
+            "map_layer_before": {**before_result.get("map_layer", {}), "palette": PIXELWISE_PALETTE},
+            "map_layer_after": {**after_result.get("map_layer", {}), "palette": PIXELWISE_PALETTE},
+        }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(process_feature, features))
+    return results
+# ---------------- API ---------------- #
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def before_after_comparison_pixelwise(request):
-
+    init_ee()
     data = request.data
     project_id = data.get("project_id")
     analysis_type = data.get("analysis_type")
@@ -1237,50 +1404,50 @@ def before_after_comparison_pixelwise(request):
     if not all([project_id, analysis_type, area_type, before_year, after_year]):
         return Response({"error": "All fields are required."}, status=400)
 
-    before_analyses = YearlyAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        year=before_year,
-        is_pixelwise=True
+    project = Project.objects.filter(id=project_id).first()
+    if not project:
+        return Response({"error": "Project not found."}, status=404)
+    city_name = project.location_name
+
+    # ---------------- Determine features ---------------- #
+    features = []
+    if area_type == "uc":
+        uc_data = load_ucs_for_uc(city_name)
+        if not uc_data:
+            db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+            features = [
+                {"uc_name": uc.uc_name, "city_name": uc.city_name, "geometry": json.loads(uc.geometry.geojson)}
+                for uc in db_ucs
+            ]
+        else:
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in uc_data.get("features", [])
+            ]
+    elif area_type == "kml":
+        kml_data = load_ucs_for_kml(project.id)
+        if not kml_data and project.kml_file:
+            features = [{"uc_name": None, "city_name": None, "geometry": None}]
+        else:
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in kml_data.get("features", [])
+            ]
+    else:
+        return Response({"error": "Invalid area_type"}, status=400)
+
+    results = run_before_after_pixelwise(
+        project_id, analysis_type, before_year, after_year, area_type, features
     )
-
-    after_analyses = YearlyAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        year=after_year,
-        is_pixelwise=True
-    )
-
-    before_pixelwise = {}
-    after_pixelwise = {}
-
-    # Build map objects per UC for before year
-    for before in before_analyses:
-        before_pixelwise[before.uc_name] = {
-            "urlFormat": before.map_layer_path,  # use your saved URL/tiles
-            "mapid": before.map_layer_path,      # same or generate mapid if needed
-            "token": "",
-            "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-        }
-
-    # Build map objects per UC for after year
-    for after in after_analyses:
-        after_pixelwise[after.uc_name] = {
-            "urlFormat": after.map_layer_path,
-            "mapid": after.map_layer_path,
-            "token": "",
-            "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-        }
 
     return Response({
         "mode": "before_after_comparison_pixelwise",
         "analysis_type": analysis_type,
         "before_year": before_year,
         "after_year": after_year,
-        "pixelwise": {
-            "before": before_pixelwise,
-            "after": after_pixelwise
-        },
+        "results": results
     })

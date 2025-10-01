@@ -104,30 +104,31 @@ class AreaAnalysis(models.Model):
     
 class YearlyAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")
-    analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
+    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
     year = models.IntegerField()                      # the selected year
-    area_type = models.CharField(max_length=20)      # uc/custom/kml
+    area_type = models.CharField(max_length=20)       # uc/custom/kml
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
-    # For summary statistics
-    stats = models.JSONField(null=True, blank=True)  # {mean, min, max, std_dev}
+    # Summary statistics
+    stats = models.JSONField(null=True, blank=True)
 
-    # For pixelwise analysis
+    # Pixelwise / Annual toggle
     is_pixelwise = models.BooleanField(default=False)
-    map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # saved tile/map URL JSON
+    map_layer_path = models.CharField(max_length=500, null=True, blank=True) # saved tile/map URL JSON
+    # GEE live map info
+    map_layer = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # include is_pixelwise to allow separate rows
         unique_together = ("project", "analysis_type", "year", "area_type", "uc_name", "is_pixelwise")
 
-    def str(self):
+    def __str__(self):
         return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
 
-
+    
 class YearlyPixelValue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
     analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
@@ -143,7 +144,67 @@ class YearlyPixelValue(models.Model):
 
     def str(self):
         return f"{self.analysis_type.upper()} | {self.year} | ({self.lat}, {self.lng})"
+    
+class BeforeAfterAnalysis(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="before_after_analyses")
+    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
+    area_type = models.CharField(max_length=20)       # uc/custom/kml
+    uc_name = models.CharField(max_length=255, null=True, blank=True)
+    city_name = models.CharField(max_length=255, null=True, blank=True)
 
+    before_year = models.IntegerField()
+    after_year = models.IntegerField()
+
+    stats_before = models.JSONField(null=True, blank=True)
+    stats_after = models.JSONField(null=True, blank=True)
+    comparison = models.JSONField(null=True, blank=True)
+
+    map_layer_before_path = models.CharField(max_length=500, null=True, blank=True)
+    map_layer_after_path = models.CharField(max_length=500, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("project", "analysis_type", "area_type", "uc_name", "before_year", "after_year")
+
+    def __str__(self):
+        return f"{self.analysis_type.upper()} | {self.before_year}-{self.after_year} | {self.area_type} | {self.uc_name or 'ALL'}"
+    
+
+class BeforeAfterPixelwise(models.Model):
+    project = models.ForeignKey("Project", on_delete=models.CASCADE)
+    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
+    area_type = models.CharField(max_length=20)       # uc / kml / custom
+
+    uc_name = models.CharField(max_length=255, null=True, blank=True)
+    city_name = models.CharField(max_length=255, null=True, blank=True)
+
+    before_year = models.IntegerField()
+    after_year = models.IntegerField()
+
+    # Required cached file paths for storing map layers (JSON files)
+    map_layer_before_path = models.CharField(max_length=500)
+    map_layer_after_path = models.CharField(max_length=500)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (
+            "project",
+            "analysis_type",
+            "area_type",
+            "uc_name",
+            "before_year",
+            "after_year",
+        )
+        indexes = [
+            models.Index(fields=["project", "analysis_type", "before_year", "after_year"]),
+            models.Index(fields=["area_type"]),
+        ]
+
+    def _str_(self):
+        return f"{self.analysis_type.upper()} | {self.uc_name or 'Custom Area'} | {self.before_year} vs {self.after_year}"
 class Report(models.Model):
     project_area   = models.ForeignKey(
         'ProjectArea',
