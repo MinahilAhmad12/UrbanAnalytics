@@ -1054,6 +1054,8 @@ def get_yearly_pixel_value(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
     
+
+
 # ---------------- Helper: Run GEE before-after analysis ---------------- #
 def run_before_after_analysis(project_id, analysis_type, before_year, after_year, area_type, features):
     """
@@ -1204,9 +1206,9 @@ def before_after_comparison_stats(request):
 
             # Save map layers locally
             before_path = os.path.join(settings.MEDIA_ROOT, "before_after_map_layers",
-                                       f"{project_id}_{analysis_type}_{before_year}_{uc_name or 'custom'}_before.json")
+                                       f"{project_id}{analysis_type}{before_year}_{uc_name or 'custom'}_before.json")
             after_path = os.path.join(settings.MEDIA_ROOT, "before_after_map_layers",
-                                      f"{project_id}_{analysis_type}_{after_year}_{uc_name or 'custom'}_after.json")
+                                      f"{project_id}{analysis_type}{after_year}_{uc_name or 'custom'}_after.json")
             os.makedirs(os.path.dirname(before_path), exist_ok=True)
             with open(before_path, "w") as f:
                 json.dump(res.get("map_layer_before", {}), f)
@@ -1234,76 +1236,44 @@ def before_after_comparison_stats(request):
 
             results.append(res)
 
+    # ---------------- Calculate summary ---------------- #
+    before_values, after_values = [], []
+    change_counts = {"increase": 0, "decrease": 0, "no_change": 0}
+
+    for r in results:
+        before_mean = r["comparison"].get("before_mean")
+        after_mean = r["comparison"].get("after_mean")
+        status = r["comparison"].get("status")
+        if before_mean is not None and after_mean is not None:
+            before_values.append(before_mean)
+            after_values.append(after_mean)
+            if status in change_counts:
+                change_counts[status] += 1
+
+    summary_stats = {
+        "before": {
+            "mean": round(sum(before_values)/len(before_values), 4) if before_values else None,
+            "min": round(min(before_values), 4) if before_values else None,
+            "max": round(max(before_values), 4) if before_values else None
+        },
+        "after": {
+            "mean": round(sum(after_values)/len(after_values), 4) if after_values else None,
+            "min": round(min(after_values), 4) if after_values else None,
+            "max": round(max(after_values), 4) if after_values else None
+        },
+        "changes": change_counts,
+        "total": len(before_values)
+    }
+
     # ---------------- Return response ---------------- #
     return Response({
         "mode": "before_after_comparison",
         "analysis_type": analysis_type,
         "before_year": before_year,
         "after_year": after_year,
-        "results": results
-    })
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def before_after_comparison_summary(request):
-    data = request.data
-    project_id = data.get("project_id")
-    analysis_type = data.get("analysis_type")
-    area_type = data.get("area_type")
-    before_year = data.get("before_year")
-    after_year = data.get("after_year")
-
-    if not all([project_id, analysis_type, area_type, before_year, after_year]):
-        return Response({"error": "All fields are required."}, status=400)
-
-    records = BeforeAfterAnalysis.objects.filter(
-        project_id=project_id,
-        analysis_type=analysis_type,
-        area_type=area_type,
-        before_year=before_year,
-        after_year=after_year
-    )
-
-    before_values, after_values = [], []
-    change_counts = {"increase": 0, "decrease": 0, "no_change": 0}
-
-    for r in records:
-        before_mean = r.stats_before.get("mean") if r.stats_before else None
-        after_mean = r.stats_after.get("mean") if r.stats_after else None
-        if before_mean is not None and after_mean is not None:
-            before_values.append(before_mean)
-            after_values.append(after_mean)
-            if after_mean > before_mean:
-                change_counts["increase"] += 1
-            elif after_mean < before_mean:
-                change_counts["decrease"] += 1
-            else:
-                change_counts["no_change"] += 1
-
-    summary_stats = {
-        "before": {
-            "mean": round(sum(before_values)/len(before_values),4) if before_values else None,
-            "min": round(min(before_values),4) if before_values else None,
-            "max": round(max(before_values),4) if before_values else None
-        },
-        "after": {
-            "mean": round(sum(after_values)/len(after_values),4) if after_values else None,
-            "min": round(min(after_values),4) if after_values else None,
-            "max": round(max(after_values),4) if after_values else None
-        },
-        "changes": change_counts,
-        "total": len(before_values)
-    }
-
-    return Response({
-        "mode": "before_after_summary",
-        "analysis_type": analysis_type,
-        "before_year": before_year,
-        "after_year": after_year,
+        "results": results,
         "summary_stats": summary_stats
     })
-
 # ---------------- Helper: Run pixelwise before-after GEE analysis ---------------- #
 def run_before_after_pixelwise(project_id, analysis_type, before_year, after_year, area_type, features):
     """
