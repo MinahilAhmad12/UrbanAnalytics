@@ -402,28 +402,28 @@ Response JSON:
 
     Thermal (Kelvin, 290 → 320)
 
-      290 – 295 → blue (cool areas: water bodies, shaded regions)
+      290 – 295 → Sky Blue (cool areas: water bodies, shaded regions)
 
-      295 – 300 → cyan (slightly cool, vegetated zones)
+      295 – 300 → Lime Green (slightly cool, vegetated zones)
 
-      300 – 305 → yellow (moderate temperature: mixed land use)
+      300 – 305 → Tomato Red (moderate temperature: mixed land use)
 
-      305 – 310 → orange (hot zones: built-up areas, roads)
+      305 – 310 → Orange (hot zones: built-up areas, roads)
 
-      310 – 320 → red (very hot: urban heat islands, deserts, bare soil)
+      310 – 320 → Dark Purple (very hot: urban heat islands, deserts, bare soil)
 
 
     AQI (0 → 50, scaled from NO₂ density × 1e5)
 
-      0 – 10 → green (Good air quality)
+      0 – 10 → Pink (Good air quality)
 
-      10 – 20 → yellow (Moderate, acceptable but some pollutants)
+      10 – 20 → Coral (Moderate, acceptable but some pollutants)
 
-      20 – 30 → orange (Unhealthy for sensitive groups)
+      20 – 30 → Amber (Unhealthy for sensitive groups)
 
-      30 – 40 → red (Unhealthy)
+      30 – 40 → Light Yellow (Unhealthy)
 
-      40 – 50 → purple → maroon (Very unhealthy to hazardous)
+      40 – 50 → Magenta → Violet (Very unhealthy to hazardous)
 13. For pixel-wise analysis
 Request: POST
 for area_type == "uc"
@@ -568,48 +568,48 @@ Value ranges and color palettes for the legends:
 1-NDVI:
 Range: 0 → 1.0
 Palette:
-['#FFFFFF', '#FFFF66','#ADFF2F ', '#32CD32', '#008000', '#004B23']
+["Light Brown", "Sandy Yellow", "Yellow-Green", "Light Green", "Green", "Dark Green"]
 
 NDVI Value 
 Range	                  Color            	Meaning
 
-0.00 – 0.19     	#FFFFFF (white)	Bare soil, no vegetation
-0.20 – 0.39	      #FFFF66 (yellow)	Sparse/weak vegetation
-0.40 – 0.59     	#ADFF2F (light green)	Moderate vegetation
-0.60 – 0.79     	#32CD32 (medium green)	Healthy vegetation
-0.80 – 0.99     	#008000 (dark green)	Dense vegetation
-1.00	            #004B23 (very dark green)	Very dense vegetation
+0.00 – 0.19     	Light Brown	        Bare soil, no vegetation
+0.20 – 0.39	        Sandy Yellow     	Sparse/weak vegetation
+0.40 – 0.59     	Yellow-Green    	Moderate vegetation
+0.60 – 0.79     	Light Green     	Healthy vegetation
+0.80 – 0.99     	Green           	Dense vegetation
+1.00	            Dark Green      	Very dense vegetation
 
 2-Thermal
 
 Range: 290 → 320
 Palette:
-['#0000FF', '#00BFFF', '#7FFFD4', '#FFFF66', '#FF8C00', '#B22222']
+["Deep Blue","Teal","Turquoise","Sea Green","Cream","Warm Orange"]
 
 Temp Range 
-(K)	         Color	Meaning
-290 – 295	#0000FF (Blue)	Coldest areas, water
-295 – 300	#00BFFF (Deep Sky Blue)	Cool vegetation
-300 – 305	#7FFFD4 (Aquamarine)	Mild warm
-305 – 310	#FFFF66 (Yellow)	Warm zones
-310 – 315	#FF8C00 (Dark Orange)	Hot bare soil / concrete
-315 – 320	#B22222 (Firebrick Red)	Extremely hot urban zones
+(K)	         Color	     Meaning
+290 – 295	 Deep Blue	 Coldest areas, water
+295 – 300	 Teal        Cool vegetation
+300 – 305	 Turquoise	 Mild warm
+305 – 310	 Sea Green	 Warm zones
+310 – 315	 Cream  	 Hot bare soil / concrete
+315 – 320	 Warm Orange Extremely hot urban zones
 
 3-AQI
 
 Range: 0 → 50
 Palette:
-['#00E400', '#FFFF00', '#FF7E00', '#FF0000', '#8F3F97', '#7E0023']
+["Light Pink", "Lilac", "Pale Aqua", "Salmon", "Pale Yellow", "Sky Blue"]
 
 
 
 AQI Value	 Color	    Air Quality Level
-0 – 8	    #00E400 (Bright Green)	Good
-8 – 16  	#FFFF00 (Yellow)	Moderate
-16 – 24 	#FF7E00 (Orange)	Unhealthy for sensitive groups
-24 – 32 	#FF0000 (Red)	Unhealthy
-32 – 40 	#8F3F97 (Purple)	Very Unhealthy
-40 – 50+	#7E0023 (Maroon)	Hazardous
+0 – 8	     Light Pink 	Good
+8 – 16  	 Lilac          Moderate
+16 – 24 	 Pale Aqua      Unhealthy for sensitive groups
+24 – 32 	 Salmon         Unhealthy
+32 – 40 	 Pale Yellow    Very Unhealthy
+40 – 50+	 Peach       Hazardous
 
 
 14. To get the pixel value for any analysis when you hover over the pixel
@@ -772,7 +772,6 @@ Response (Annual Stats Mode):
         { ... }
     ]
 }
-
 16. Get Yearly Pixel Value API
 
 Endpoint:
@@ -820,33 +819,123 @@ Response Example (NDVI):
     "pixel_value": { "NDVI": 0.1637 }
 }
 
-17.Aggregated Summary API: Before–After Comparison
- Endpoint:
-POST http://127.0.0.1:8000/api/before_after_comparison_summary/
+17-Before-After Comparison (Pixelwise)
 
-📤 Request Body:
+Name: Before-After Comparison Pixelwise
+Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_pixelwise/
+
+Request Body:
 
 {
   "project_id": 1,
   "analysis_type": "ndvi",
   "area_type": "uc",
-  "before_year": 2018,
+  "before_year": 2019,
   "after_year": 2022
 }
 
 
-📥 Response Example:
+Response:
+
+{
+  "mode": "before_after_comparison_pixelwise",
+  "analysis_type": "ndvi",
+  "before_year": 2019,
+  "after_year": 2022,
+  "results": [
+    {
+      "uc_name": "Androon Texali Gate",
+      "city_name": "Lahore",
+      "map_layer_before": {
+        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/8ebf22ce82be4c2f0b333373541f1f9f-3a89516229174c030b1e8b0e95c23148/tiles/{z}/{x}/{y}",
+        "mapid": "projects/urbananalytics-460415/maps/8ebf22ce82be4c2f0b333373541f1f9f-3a89516229174c030b1e8b0e95c23148",
+        "token": "",
+        "palette": ["#FFFFFF","#FFFF66","#ADFF2F","#32CD32","#008000","#004B23"]
+      },
+      "map_layer_after": {
+        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/9dfd8340363cea0ace49d8590a49d448-bc4864ffa283a1fb68dfbc1fb17ecfe5/tiles/{z}/{x}/{y}",
+        "mapid": "projects/urbananalytics-460415/maps/9dfd8340363cea0ace49d8590a49d448-bc4864ffa283a1fb68dfbc1fb17ecfe5",
+        "token": "",
+        "palette": ["#FFFFFF","#FFFF66","#ADFF2F","#32CD32","#008000","#004B23"]
+      }
+    }
+  ]
+}
+
+18- Before-After Comparison (Stats)
+
+Name: Before-After Comparison Stats
+Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_stats/
+
+Request Body:
+
+{
+  "project_id": 1,
+  "analysis_type": "ndvi",
+  "area_type": "uc",
+  "before_year": 2019,
+  "after_year": 2022
+}
+
+
+Response:
+
+{
+  "mode": "before_after_comparison",
+  "analysis_type": "ndvi",
+  "before_year": 2019,
+  "after_year": 2022,
+  "results": [
+    {
+      "uc_name": "Androon Texali Gate",
+      "city_name": "Lahore",
+      "comparison": {
+        "status": "increase",
+        "after_mean": 0.20715995290479566,
+        "before_mean": 0.15982104709360925
+      },
+      "map_layer_before": {
+        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5129485855bcc041974d67728d93dd54-1894516b5e639f78a470c233ef11bf78/tiles/{z}/{x}/{y}",
+        "mapid": "projects/urbananalytics-460415/maps/5129485855bcc041974d67728d93dd54-1894516b5e639f78a470c233ef11bf78",
+        "token": ""
+      },
+      "map_layer_after": {
+        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/42aea3c4724f48fe9be58b2e90e7e21b-bac3780e00abd81164a54185f8a95f6f/tiles/{z}/{x}/{y}",
+        "mapid": "projects/urbananalytics-460415/maps/42aea3c4724f48fe9be58b2e90e7e21b-bac3780e00abd81164a54185f8a95f6f",
+        "token": ""
+      }
+    }
+  ]
+}
+
+19- Before-After Comparison (Summary)
+
+Name: Before-After Comparison Summary
+Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_summary/
+
+Request Body:
+
+{
+  "project_id": 1,
+  "analysis_type": "ndvi",
+  "area_type": "uc",
+  "before_year": 2019,
+  "after_year": 2022
+}
+
+
+Response:
 
 {
   "mode": "before_after_summary",
   "analysis_type": "ndvi",
-  "before_year": 2018,
+  "before_year": 2019,
   "after_year": 2022,
   "summary_stats": {
     "before": {
-      "mean": 0.1561,
-      "min": 0.0385,
-      "max": 0.4618
+      "mean": 0.1526,
+      "min": 0.0249,
+      "max": 0.3556
     },
     "after": {
       "mean": 0.1825,
@@ -854,129 +943,13 @@ POST http://127.0.0.1:8000/api/before_after_comparison_summary/
       "max": 0.4113
     },
     "changes": {
-      "increase": 126,
-      "decrease": 23,
+      "increase": 148,
+      "decrease": 1,
       "no_change": 0
-    }
+    },
+    "total": 149
   }
 }
-
-17.Stats API: Before–After Comparison (Stats Only)
-
-📍 Endpoint:
-POST /api/before_after_comparison_stats/
-
-📤 Request Body:
-
-{
-    "project_id": 1,
-    "analysis_type": "ndvi",
-    "area_type": "uc",
-    "before_year": 2018,
-    "after_year": 2022
-}
-
-
-📥 Response Example:
-
-{
-    "mode": "before_after_comparison",
-    "analysis_type": "ndvi",
-    "before_year": 2018,
-    "after_year": 2022,
-    "results": [
-        {
-            "uc_name": "Muhammad",
-            "city_name": "Lahore",
-            "comparison": {
-                "status": "decrease",
-                "before_mean": 0.3291,
-                "after_mean": 0.3048
-            },
-            "map_layer_before": "media/map_layers/1ndvi2018ucMuhammad_annual.json",
-            "map_layer_after": "media/map_layers/1ndvi2022ucMuhammad_annual.json"
-        },
-        {
-            "uc_name": "Mustafa Abad",
-            "city_name": "Lahore",
-            "comparison": {
-                "status": "increase",
-                "before_mean": 0.2020,
-                "after_mean": 0.3034
-            },
-            "map_layer_before": "media/map_layers/1ndvi2018ucMustafa Abad_annual.json",
-            "map_layer_after": "media/map_layers/1ndvi2022ucMustafa Abad_annual.json"
-        }
-    ]
-}
-
-
- Notes:
-Used by frontend side panel stats.
-Includes UC-wise before/after mean and status.
-Map layers are annual layer URLs (optional for visualization).
-
-18. Pixelwise API: Before–After Comparison (Pixelwise Layers)
-
-📍 Endpoint:
-POST /api/before_after_comparison_pixelwise/
-
-📤 Request Body:
-
-{
-    "project_id": 1,
-    "analysis_type": "ndvi",
-    "area_type": "uc",
-    "before_year": 2018,
-    "after_year": 2022
-}
-
-
-📥 Response Example:
-
-{
-    "mode": "before_after_comparison_pixelwise",
-    "analysis_type": "ndvi",
-    "before_year": 2018,
-    "after_year": 2022,
-    "pixelwise": {
-        "before": {
-            "Muhammad": {
-                "urlFormat": "media/map_layers/1ndvi2018ucMuhammad_pixel.json",
-                "mapid": "media/map_layers/1ndvi2018ucMuhammad_pixel.json",
-                "token": "",
-                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-            },
-            "Mustafa Abad": {
-                "urlFormat": "media/map_layers/1ndvi2018ucMustafa Abad_pixel.json",
-                "mapid": "media/map_layers/1ndvi2018ucMustafa Abad_pixel.json",
-                "token": "",
-                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-            }
-        },
-        "after": {
-            "Muhammad": {
-                "urlFormat": "media/map_layers/1ndvi2022ucMuhammad_pixel.json",
-                "mapid": "media/map_layers/1ndvi2022ucMuhammad_pixel.json",
-                "token": "",
-                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-            },
-            "Mustafa Abad": {
-                "urlFormat": "media/map_layers/1ndvi2022ucMustafa Abad_pixel.json",
-                "mapid": "media/map_layers/1ndvi2022ucMustafa Abad_pixel.json",
-                "token": "",
-                "palette": ["#654321","#FFA07A","#FFFF66","#ADFF2F","#008000","#004B23"]
-            }
-        }
-    }
-}
-
-
- Notes:
-
-Used by frontend map with slider for before/after pixel layers.
-Includes per-UC pixelwise map layers with palette for coloring.
-urlFormat and mapid point to the tile JSON for Earth Engine map visualization.
 
 
 18. To view an area of a project
