@@ -691,6 +691,7 @@ def pixelwise_analysis(request):
             status=500
         )
 
+# Pixelwise analysis function
 def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
     init_ee()
 
@@ -698,11 +699,18 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
             .filterBounds(polygon).filterDate(start_date, end_date).select(['B8', 'B4'])
         image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
-        
+
         vis_params = {
-        'min': 0, 'max': 1,
-        'palette': ["Light Brown", "Sandy Yellow", "Yellow-Green", "Light Green", "Green", "Dark Green"]
-    }
+            'min': 0, 'max': 1,
+            'palette': [
+                "#A52A2A",  # Light Brown: Bare soil
+                "#F4D03F",  # Sandy Yellow: Sparse vegetation
+                "#9ACD32",  # Yellow-Green: Moderate vegetation
+                "#90EE90",  # Light Green: Healthy vegetation
+                "#008000",  # Green: Dense vegetation
+                "#006400"   # Dark Green: Very dense
+            ]
+        }
 
     elif analysis_type.lower() == "thermal":
         collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
@@ -712,26 +720,42 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
                 .filterBounds(polygon).filterDate(start_date, end_date).filter(ee.Filter.lt('CLOUD_COVER', 60))
         composite = collection.median()
         image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-        
+
         vis_params = {
             'min': 290, 'max': 320,
-            'palette': ["Deep Blue","Teal","Turquoise","Sea Green","Cream","Warm Orange"]
+            'palette': [
+                "#0000FF",  # Deep Blue: 290-295 K
+                "#008080",  # Teal: 295-300 K
+                "#40E0D0",  # Turquoise: 300-305 K
+                "#2E8B57",  # Sea Green: 305-310 K
+                "#FFFDD0",  # Cream: 310-315 K
+                "#FF8C00"   # Warm Orange: 315-320 K
+            ]
         }
 
     elif analysis_type.lower() == "aqi":
         collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
             .filterBounds(polygon).filterDate(start_date, end_date)
         image = collection.median().select('NO2_column_number_density').multiply(1e5).rename('AQI').clip(polygon)
-        
+
         vis_params = {
             'min': 0, 'max': 50,
-            'palette': ["Light Pink", "Lilac", "Pale Aqua", "Salmon", "Pale Yellow", "Peach"]
+            'palette': [
+                "#00E400",  # Good
+                "#FFFF00",  # Moderate
+                "#FF7E00",  # Unhealthy for sensitive
+                "#FF0000",  # Unhealthy
+                "#8F3F97",  # Very Unhealthy
+                "#7E0023"   # Hazardous
+            ]
         }
 
     else:
         raise ValueError("Invalid analysis type")
 
     return image, vis_params
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def get_pixel_value(request):
@@ -1274,19 +1298,20 @@ def before_after_comparison_stats(request):
         "results": results,
         "summary_stats": summary_stats
     })
+    
+
+
+
 # ---------------- Helper: Run pixelwise before-after GEE analysis ---------------- #
 def run_before_after_pixelwise(project_id, analysis_type, before_year, after_year, area_type, features):
     """
     Run pixelwise GEE analysis for before and after year per feature
     """
-    PIXELWISE_PALETTE = ["#FFFFFF", "#FFFF66", "#ADFF2F", "#32CD32", "#008000", "#004B23"]
-
     def load_cached_layer(path):
+        """Load cached JSON map layer, return empty dict if not exists"""
         if path and os.path.exists(path):
             with open(path, "r") as f:
-                data = json.load(f)
-                data["palette"] = PIXELWISE_PALETTE
-                return data
+                return json.load(f)
         return {}
 
     def process_feature(feature):
@@ -1314,14 +1339,38 @@ def run_before_after_pixelwise(project_id, analysis_type, before_year, after_yea
             }
 
         # ---------------- Run GEE if not cached ---------------- #
-        before_result = perform_analysis_for_polygon(
-            analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
-        ) if polygon else {}
-        after_result = perform_analysis_for_polygon(
-            analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
-        ) if polygon else {}
+        before_result = {}
+        after_result = {}
 
-        # File storage
+        if polygon:
+            # Use run_pixelwise_analysis to get correct palette per type
+            before_image, before_vis = run_pixelwise_analysis(
+                analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
+            )
+            before_map = before_image.getMapId(before_vis)
+            before_result = {
+                "map_layer": {
+                    "urlFormat": before_map["tile_fetcher"].url_format,
+                    "mapid": before_map["mapid"],
+                    "token": before_map["token"],
+                    "palette": before_vis["palette"]
+                }
+            }
+
+            after_image, after_vis = run_pixelwise_analysis(
+                analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
+            )
+            after_map = after_image.getMapId(after_vis)
+            after_result = {
+                "map_layer": {
+                    "urlFormat": after_map["tile_fetcher"].url_format,
+                    "mapid": after_map["mapid"],
+                    "token": after_map["token"],
+                    "palette": after_vis["palette"]
+                }
+            }
+
+        # ---------------- Save JSON ---------------- #
         folder = os.path.join(settings.MEDIA_ROOT, "before_after_pixelwise")
         os.makedirs(folder, exist_ok=True)
         before_path = os.path.join(folder, f"{project_id}{analysis_type}{before_year}_{uc_name or 'custom'}_before.json")
@@ -1334,7 +1383,7 @@ def run_before_after_pixelwise(project_id, analysis_type, before_year, after_yea
             with open(after_path, "w") as f:
                 json.dump(after_result["map_layer"], f)
 
-        # Save to DB
+        # ---------------- Save to DB ---------------- #
         BeforeAfterPixelwise.objects.update_or_create(
             project_id=project_id,
             analysis_type=analysis_type,
@@ -1352,13 +1401,15 @@ def run_before_after_pixelwise(project_id, analysis_type, before_year, after_yea
         return {
             "uc_name": uc_name,
             "city_name": city_name,
-            "map_layer_before": {**before_result.get("map_layer", {}), "palette": PIXELWISE_PALETTE},
-            "map_layer_after": {**after_result.get("map_layer", {}), "palette": PIXELWISE_PALETTE},
+            "map_layer_before": before_result.get("map_layer", {}),
+            "map_layer_after": after_result.get("map_layer", {}),
         }
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(process_feature, features))
+
     return results
+
 # ---------------- API ---------------- #
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
