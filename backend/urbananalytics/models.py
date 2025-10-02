@@ -17,19 +17,24 @@ class CustomUser(AbstractUser):
 
 class Project(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    project_name = models.CharField(max_length=255 , default="Untitled Project")   
+    project_name = models.CharField(max_length=255, default="Untitled Project")   
     location_name = models.CharField(max_length=255, null=True, blank=True) 
     kml_file = models.FileField(upload_to='kml_files/', null=True, blank=True)  
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ("project_name", "owner")
+        ordering = ["-created_at"]
+        
     def clean(self):
         if not self.location_name and not self.kml_file:
             raise ValidationError("You must provide either a location name or a KML file.")
         if self.location_name and self.kml_file:
             raise ValidationError("Provide only one: location name OR KML file.")
-    def str(self):
-        return f"{self.name} (by {self.owner.username})"
 
+    def __str__(self):
+        return f"{self.project_name} (by {self.owner.username})"
 
     
 class UnionCouncil(models.Model):
@@ -89,7 +94,7 @@ class AreaAnalysis(models.Model):
     area_type = models.CharField(max_length=20)
     geometry = models.JSONField(null=True, blank=True)
     stats = models.JSONField(null=True, blank=True)
-    map_layer_path = models.CharField(max_length=500, null=True, blank=True)  # use CharField
+    cog_https_url = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_pixelwise = models.BooleanField(default=False)
@@ -98,9 +103,11 @@ class AreaAnalysis(models.Model):
 
     class Meta:
         unique_together = ("project", "analysis_type", "start_date", "end_date", "area_type", "uc_name")
+        ordering = ["uc_name", "start_date"]
 
-    def str(self):
+    def __str__(self):
         return f"{self.analysis_type.upper()} | {self.area_type} | {self.uc_name or 'ALL'}"
+
     
 class YearlyAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")

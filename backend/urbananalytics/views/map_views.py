@@ -27,6 +27,45 @@ from django.shortcuts import get_object_or_404
 import numpy as np
 from rest_framework import status
 from django.db.models import Avg, Min, Max
+from django.http import JsonResponse
+from django.contrib.gis.geos import GEOSGeometry
+from urbananalytics.models import UnionCouncil
+from django.core.serializers import serialize
+from django.contrib.gis.serializers import geojson
+from django.http import HttpResponse
+import ee
+from django.contrib.gis.geos import GEOSGeometry, Polygon as GEOSPolygon
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from urbananalytics.models import AreaAnalysis, Project, YearlyAnalysis ,YearlyPixelValue
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from concurrent.futures import ThreadPoolExecutor
+import json
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import fastkml
+from shapely.geometry import shape, mapping
+import os
+from django.conf import settings
+from urbananalytics.utils import extract_bounds_from_kml
+from fastkml import kml
+from django.contrib.gis.geos import Polygon
+import certifi
+from django.shortcuts import get_object_or_404
+import numpy as np
+from rest_framework import status
+from django.db.models import Avg, Min, Max
+import boto3
+import geemap
+import re
+import shutil
+import hashlib
+from rio_cogeo.cogeo import cog_translate
+from rasterio.enums import Resampling
+from rio_cogeo.profiles import cog_profiles
+import rasterio
+
 
 DATA_DIR = os.path.join(settings.BASE_DIR, "local_data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -133,13 +172,38 @@ def get_ucs(request):
 
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 os.environ['SSL_CERT_FILE'] = certifi.where()
+# def init_ee():
+#     """Initialize Earth Engine lazily when needed."""
+#     if ee.data._initialized:  # Skip if already initialized
+#         return
+#     service_account = os.path.join(settings.BASE_DIR, 'service_account.json')
+
+#     # service_account = 'gee-service-account@urbananalytics-460415.iam.gserviceaccount.com'
+#     credentials = ee.ServiceAccountCredentials(service_account, settings.SERVICE_ACCOUNT_PATH)
+
+#     try:
+#         ee.Initialize(credentials, project='urbananalytics-460415')
+#         print("Earth Engine initialized successfully!")
+#     except Exception as e:
+#         print("Failed to initialize Earth Engine:", e)
+#         raise RuntimeError("Earth Engine initialization failed. Check credentials.")
+
 def init_ee():
     """Initialize Earth Engine lazily when needed."""
     if ee.data._initialized:  # Skip if already initialized
         return
-    service_account = r'C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json'
-    # service_account = 'gee-service-account@urbananalytics-460415.iam.gserviceaccount.com'
-    credentials = ee.ServiceAccountCredentials(service_account, settings.SERVICE_ACCOUNT_PATH)
+
+    # Path to service_account.json at the same level as manage.py
+    service_account_path = os.path.join(settings.BASE_DIR, 'service_account.json')
+
+    # Service account email from the JSON file
+    # For GEE, it should be something like 'your-service-account@your-project.iam.gserviceaccount.com'
+    with open(service_account_path) as f:
+        import json
+        service_account_info = json.load(f)
+        service_account_email = service_account_info['client_email']
+
+    credentials = ee.ServiceAccountCredentials(service_account_email, key_file=service_account_path)
 
     try:
         ee.Initialize(credentials, project='urbananalytics-460415')
@@ -147,7 +211,6 @@ def init_ee():
     except Exception as e:
         print("Failed to initialize Earth Engine:", e)
         raise RuntimeError("Earth Engine initialization failed. Check credentials.")
-
 
 
 def load_ucs_for_uc(city_name):
@@ -166,6 +229,12 @@ def load_ucs_for_kml(project_id):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)  
 
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_S3_REGION_NAME
+)
 @api_view(['POST'])
 def perform_gee_analysis(request):
     init_ee()
@@ -184,8 +253,9 @@ def perform_gee_analysis(request):
 
     try:
         results = []
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME 
 
-        # Check cache first if project_id exists
+        
         if project_id and area_type in ["uc", "kml"]:
             cached_results = AreaAnalysis.objects.filter(
                 project_id=project_id,
@@ -198,15 +268,11 @@ def perform_gee_analysis(request):
 
             if cached_results.exists():
                 for cached in cached_results:
-                    map_layer = None
-                    if cached.map_layer_path and os.path.exists(cached.map_layer_path):
-                        with open(cached.map_layer_path, "r") as f:
-                            map_layer = json.load(f)
 
                     results.append({
                         "uc_name": cached.uc_name,
                         "city_name": cached.city_name,
-                        "map_layer": map_layer,
+                        "cog_https_url": cached.cog_https_url,
                         "stats": cached.stats,
                         "area_type": cached.area_type
                     })
@@ -215,7 +281,117 @@ def perform_gee_analysis(request):
                     "message": f"Cached {analysis_type.upper()} analysis returned",
                     "results": results
                 })
+        
+        def process_uc(feature, project_id, analysis_type, start_date, end_date, bucket_name):
+            uc_name = feature["properties"].get("uc_name", "unknown_uc")
+            city_name = feature["properties"].get("city_name", "unknown_city")
 
+            uc_name_safe = re.sub(r"[^\w\-]", "_", uc_name)
+            local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "average", str(project_id), uc_name_safe)
+            os.makedirs(local_dir, exist_ok=True)
+            
+            
+            local_tif = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_cog = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}_cog.tif")
+
+            try:
+                polygon = ee.Geometry(feature["geometry"])
+                result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
+
+                if not result or "image" not in result or result["image"] is None:
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "error": "1",
+                        "error_msg": "No image generated for this UC",
+                        "cog_https_url": None,
+                        "stats": {}
+                    }
+
+                area_sq_m = polygon.area().getInfo()
+                base_scale = result.get("scale", 10)
+                scale = base_scale * 5 if area_sq_m > 1e8 else base_scale * 3 if area_sq_m > 5e7 else base_scale
+
+                
+                geemap.ee_export_image(
+                    result["image"],
+                    filename=local_tif,
+                    scale=scale,
+                    file_per_band=False,
+                    crs="EPSG:3857"
+                )
+
+                profile = cog_profiles.get("deflate")  
+
+                dst_kwargs = profile.copy()
+                dst_kwargs.update({
+                    "blockxsize": 512,
+                    "blockysize": 512,
+                    "tiled": True,
+                    "compress": "deflate",
+                    "resampling": Resampling.nearest
+                })
+
+                with rasterio.open(local_tif, "r+") as src:
+                    factors = [2, 4, 8, 16]
+                    src.build_overviews(factors, Resampling.nearest)
+                    src.update_tags(ns="rio_overview", resampling="nearest")
+
+                
+                cog_translate(
+                    local_tif,
+                    local_cog,
+                    dst_kwargs=dst_kwargs,
+                    in_memory=False,
+                    quiet=False
+                )
+                            
+
+            
+                s3_file_key = f"average/{project_id}/{uc_name_safe}/{analysis_type}_{start_date}_{end_date}.tif"
+                s3_client.upload_file(local_cog, settings.AWS_STORAGE_BUCKET_NAME, s3_file_key)
+                cog_https_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_file_key}"
+
+                
+                if os.path.exists(local_dir):
+                    shutil.rmtree(local_dir)
+
+                
+                AreaAnalysis.objects.update_or_create(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                    area_type=area_type,
+                    uc_name=uc_name,
+                    defaults={
+                        "city_name": city_name,
+                        "stats": result.get("stats") or {},
+                        "is_pixelwise": False,
+                        "cog_https_url": cog_https_url
+                    }
+                )
+
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "0",
+                    "cog_https_url": cog_https_url,
+                    "stats": result.get("stats") or {}
+                }
+
+            except Exception as e:
+                if os.path.exists(local_dir):
+                    shutil.rmtree(local_dir)
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": str(e),
+                    "cog_https_url": None,
+                    "stats": {}
+                }
+              
         if area_type == "uc":
             if not project_id:
                 return Response({"error": "project_id is required for UC analysis"}, status=400)
@@ -244,30 +420,14 @@ def perform_gee_analysis(request):
             if not features:
                 return Response({"error": "No Union Councils found"}, status=404)
 
-            def process_uc(feature):
-                try:
-                    geojson_dict = feature["geometry"]
-                    polygon = ee.Geometry(geojson_dict)
-                    result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "0",
-                        "map_layer": result.get("map_layer"),
-                        "stats": result.get("stats") or {}   
-                    }
-                except Exception as e:
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "1",
-                        "error_msg": str(e),
-                        "map_layer": None,
-                        "stats": {}   
-                    }
-
+            results = []
             with ThreadPoolExecutor(max_workers=5) as executor:
-                results = list(executor.map(process_uc, features))
+                futures = [
+                    executor.submit(process_uc, f, project_id, analysis_type, start_date, end_date, bucket_name)
+                    for f in features
+                ]
+                for future in futures:
+                    results.append(future.result())
 
         elif area_type == "kml":
             if not project_id:
@@ -298,31 +458,14 @@ def perform_gee_analysis(request):
 
             if not features:
                 return Response({"error": "No Union Councils found"}, status=404)
-
-            def process_uc(feature):
-                try:
-                    geojson_dict = feature["geometry"]
-                    polygon = ee.Geometry(geojson_dict)
-                    result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "0",
-                        "map_layer": result.get("map_layer"),
-                        "stats": result.get("stats") or {}
-                    }
-                except Exception as e:
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "1",
-                        "error_msg": str(e),
-                        "map_layer": None,
-                        "stats": {}
-                    }
-
+            results = []
             with ThreadPoolExecutor(max_workers=5) as executor:
-                results = list(executor.map(process_uc, features))
+                futures = [
+                    executor.submit(process_uc, f, project_id, analysis_type, start_date, end_date, bucket_name)
+                    for f in features
+                ]
+                for future in futures:
+                    results.append(future.result())
 
         elif area_type == "custom":
             if not geometry_data:
@@ -331,50 +474,87 @@ def perform_gee_analysis(request):
             geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
             polygon = ee.Geometry(geom_json)
             result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
+            if not result or "image" not in result or result["image"] is None:
+                    return Response({
+                        "error": "No image generated for custom geometry"
+                    }, status=400)
+
+            local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "average", str(project_id), "custom")
+            os.makedirs(local_dir, exist_ok=True)
+
+            local_tif = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_cog = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}_cog.tif")
+
+            
+            geemap.ee_export_image(
+                result["image"],
+                filename=local_tif,
+                scale=result.get("scale", 10),
+                file_per_band=False,
+                crs="EPSG:3857"
+            )
+
+            
+            with rasterio.open(local_tif, "r+") as src:
+                factors = [2, 4, 8, 16]
+                src.build_overviews(factors, Resampling.nearest)
+                src.update_tags(ns="rio_overview", resampling="nearest")
+
+            
+            profile = cog_profiles.get("deflate")
+            dst_kwargs = profile.copy()
+            dst_kwargs.update({
+                "blockxsize": 512,
+                "blockysize": 512,
+                "tiled": True,
+                "compress": "deflate",
+                "resampling": Resampling.nearest
+            })
+
+            cog_translate(
+                local_tif,
+                local_cog,
+                dst_kwargs=dst_kwargs,
+                in_memory=False,
+                quiet=False
+            )
+
+            s3_key = f"average/{project_id}/custom/{analysis_type}_{start_date}_{end_date}.tif"
+            s3_client.upload_file(local_cog, bucket_name, s3_key)
+            cog_https_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
+
+            
+            if os.path.exists(local_dir):
+                shutil.rmtree(local_dir)
+
+            
+            AreaAnalysis.objects.update_or_create(
+                project_id=project_id,
+                analysis_type=analysis_type,
+                start_date=start_date,
+                end_date=end_date,
+                area_type="custom",
+                uc_name=None,
+                defaults={
+                    "city_name": None,
+                    "stats": result.get("stats"),
+                    "is_pixelwise": False,
+                    "cog_https_url": cog_https_url
+                }
+            )
+
             results.append({
                 "uc_name": None,
                 "city_name": None,
-                "map_layer": result.get("map_layer"),
+                "cog_https_url": cog_https_url,
                 "stats": result.get("stats"),
-                "area_type": "custom"
+                "area_type": "custom",
+                "error": "0"
             })
-
-        else:
-            return Response({"error": "Invalid area_type"}, status=400)
-
-        if project_id and results and area_type in ["uc", "kml"]:
-            for res in results:
-                layer_content = res.get("map_layer")
-                stats = res.get("stats")
-                uc_name = res.get("uc_name")
-                city_name = res.get("city_name")
-
-                file_name = f"{project_id}{analysis_type}{start_date}{end_date}{area_type}_{uc_name}.json"
-                file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "w") as f:
-                    json.dump(layer_content, f)
-
-                AreaAnalysis.objects.update_or_create(
-                    project_id=project_id,
-                    analysis_type=analysis_type,
-                    start_date=start_date,
-                    end_date=end_date,
-                    area_type=area_type,
-                    uc_name=uc_name,
-                    defaults={
-                        "city_name": city_name,
-                        "stats": stats,
-                        "is_pixelwise": False,
-                        "map_layer_path": file_path
-                    }
-                )
-
         return Response({
             "message": f"{analysis_type.upper()} analysis performed",
             "results": results
-        })
-
+        })   
     except Exception as e:
         return Response({"error": "Failed to perform analysis", "details": str(e)}, status=500)
 
@@ -382,94 +562,108 @@ def perform_gee_analysis(request):
 def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
     init_ee()
     scale = 10
+    try:
+        
+        if analysis_type.lower() == "ndvi":
+            collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
+                .filterBounds(polygon) \
+                .filterDate(start_date, end_date) \
+                .select(['B8', 'B4']) \
+                .median()
+            image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
+            vis_params = {'min': 0, 'max': 1, "palette": ["white", "yellow", "lightgreen", "green", "darkgreen"]
+    }
+            band_name = 'NDVI'
 
-    if analysis_type.lower() == "ndvi":
-        collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
-            .filterBounds(polygon) \
-            .filterDate(start_date, end_date) \
-            .select(['B8', 'B4']) \
-            .median()
-        image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
-        vis_params = {'min': 0, 'max': 1, "palette": ["white", "yellow", "lightgreen", "green", "darkgreen"]
-}
-        band_name = 'NDVI'
-
-    elif analysis_type.lower() == "thermal":
-        collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
-            .filterBounds(polygon) \
-            .filterDate(start_date, end_date) \
-            .filter(ee.Filter.lt('CLOUD_COVER', 60))
-
-        if collection.size().getInfo() == 0:
-            collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+        elif analysis_type.lower() == "thermal":
+            collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
                 .filterBounds(polygon) \
                 .filterDate(start_date, end_date) \
                 .filter(ee.Filter.lt('CLOUD_COVER', 60))
 
-        if collection.size().getInfo() == 0:
-            raise ValueError("No Landsat 8 or 9 images available for the selected date range and area")
+            if collection.size().getInfo() == 0:
+                collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+                    .filterBounds(polygon) \
+                    .filterDate(start_date, end_date) \
+                    .filter(ee.Filter.lt('CLOUD_COVER', 60))
 
-        composite = collection.median()
-        bands = composite.bandNames().getInfo()
-        if 'ST_B10' not in bands:
-            raise ValueError(f"Thermal band 'ST_B10' not found in image bands: {bands}")
+            if collection.size().getInfo() == 0:
+                raise ValueError("No Landsat 8 or 9 images available for the selected date range and area")
 
-        image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-        vis_params = {'min': 290, 'max': 320, "palette": ["Sky Blue", "Lime Green", "Tomato Red", "Orange", "Dark Purple"]
-}
-        band_name = 'Thermal'
-        scale = 100
+            composite = collection.median()
+            bands = composite.bandNames().getInfo()
+            if 'ST_B10' not in bands:
+                raise ValueError(f"Thermal band 'ST_B10' not found in image bands: {bands}")
 
-    elif analysis_type.lower() == "aqi":
-        
-        collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
-            .filterBounds(polygon) \
-            .filterDate(start_date, end_date) \
-            .median()
-        image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
-        vis_params = {'min': 0, 'max': 30, "palette": ["Pink", "Coral", "Amber", "Light Yellow", "Magenta", "Violet"]
-}
-        band_name = 'AQI'
-        scale = 1000
-       
-
-
-    else:
-        raise ValueError("Invalid analysis type")
-
-    
-    stats = image.reduceRegion(
-        reducer=ee.Reducer.mean(),
-        geometry=polygon,
-        scale=scale,
-        maxPixels=1e9
-    ).getInfo()
-
-    mean_value = stats.get(band_name)
-
-    if mean_value is not None:
-        flat_image = ee.Image.constant(mean_value).clip(polygon).rename(band_name)
-        vis_image = flat_image.visualize(**vis_params)
-        status = "success"
-    else:
-        black_image = ee.Image.constant(0).clip(polygon).rename("NoData")
-        vis_image = black_image.visualize(min=0, max=1, palette=["black"]) 
-        status = "nodata"
-
-
-    map_data = vis_image.getMapId()
-    return {
-        "map_layer": {
-            "urlFormat": map_data["tile_fetcher"].url_format,
-            "mapid": map_data["mapid"],
-            "token": map_data["token"]
-        },
-        "stats": {
-            "mean": mean_value,
-            "status": status
- 
-        }
+            image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
+            vis_params = {'min': 290, 'max': 320, "palette": ["Sky Blue", "Lime Green", "Tomato Red", "Orange", "Dark Purple"]
     }
+            band_name = 'Thermal'
+            scale = 100
+
+        elif analysis_type.lower() == "aqi":
+            
+            collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
+                .filterBounds(polygon) \
+                .filterDate(start_date, end_date) \
+                .median()
+            image = collection.select('NO2_column_number_density').rename('AQI').multiply(1e5).clip(polygon)
+            vis_params = {'min': 0, 'max': 30, "palette": ["Pink", "Coral", "Amber", "Light Yellow", "Magenta", "Violet"]
+    }
+            band_name = 'AQI'
+            scale = 1000
+        
+
+
+        else:
+            raise ValueError("Invalid analysis type")
+
+        
+        stats = image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=polygon,
+            scale=scale,
+            maxPixels=1e9
+        ).getInfo()
+
+        mean_value = stats.get(band_name)
+
+        if mean_value is not None:
+            avg_image = ee.Image.constant(mean_value).clip(polygon).rename(band_name)
+            vis_image = avg_image.visualize(**vis_params)
+            status = "success"
+        else:
+            avg_image = ee.Image.constant(0).clip(polygon).rename("NoData")
+            vis_image = avg_image.visualize(min=0, max=1, palette=["black"]) 
+            status = "nodata"
+
+
+        
+        return {
+            "image": vis_image,
+            "raw_image": avg_image,
+            "scale": scale,
+            "stats": {
+                "mean": mean_value,
+                "status": status
+    
+            }
+        }
+
+    except Exception as e:
+        
+        avg_image = ee.Image.constant(0).clip(polygon).rename("NoData")
+        vis_image = avg_image.visualize(min=0, max=1, palette=["black"])
+        return {
+            "image": vis_image,
+            "raw_image": avg_image,
+            "scale": scale,
+            "stats": {
+                "mean": None,
+                "status": f"error: {str(e)}"
+            }
+        }
+            
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -489,7 +683,7 @@ def pixelwise_analysis(request):
 
     try:
         results = []
-
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
         if project_id and area_type in ["uc", "kml"]:
             cached_results = AreaAnalysis.objects.filter(
@@ -503,16 +697,10 @@ def pixelwise_analysis(request):
 
             if cached_results.exists():
                 for cached in cached_results:
-                    map_layer = None
-                    if cached.map_layer_path and os.path.exists(cached.map_layer_path):
-                        with open(cached.map_layer_path, "r") as f:
-                            map_layer = json.load(f)
-
                     results.append({
                         "uc_name": cached.uc_name,
                         "city_name": cached.city_name,
-                        "map_layer": map_layer,
-                        "palette_used": map_layer.get("palette") if map_layer else None,
+                        "cog_https_url": cached.cog_https_url,
                         "area_type": cached.area_type
                     })
 
@@ -521,7 +709,141 @@ def pixelwise_analysis(request):
                     "results": results
                 })
 
-        
+        def process_uc(feature):
+            uc_name = feature["properties"].get("uc_name", "unknown_uc")
+            city_name = feature["properties"].get("city_name", "unknown_city")
+            uc_safe = re.sub(r"[^\w\-]", "_", uc_name)
+            local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id), uc_safe)
+            os.makedirs(local_dir, exist_ok=True)
+            local_tif = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_cog = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}_cog.tif")
+            
+            
+            try:
+                try:
+                    geojson_dict = feature.get("geometry")
+                    if not geojson_dict:
+                        raise ValueError("Missing geometry")
+                    polygon = ee.Geometry(geojson_dict)
+                except Exception as e:
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "error": "1",
+                        "error_msg": f"Invalid geometry: {str(e)}",
+                        "cog_https_url": None
+                    }
+                image, vis_params = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
+                
+                if not image:
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "error": "1",
+                        "error_msg": "No image generated for this UC",
+                        "cog_https_url": None
+                    }
+
+                
+                area_sq_m = polygon.area().getInfo()
+                scale = 10  
+                if area_sq_m > 1e8:
+                    scale *= 5
+                elif area_sq_m > 5e7:
+                    scale *= 3
+                    
+                print(f"Exporting UC: {uc_name}, Area: {area_sq_m:.0f} m², Scale: {scale}")
+                
+                vis_image = image.visualize(
+                    min=vis_params.get("min"),
+                    max=vis_params.get("max"),
+                    palette=vis_params.get("palette")
+                )
+                try:
+                    geemap.ee_export_image(
+                        vis_image,
+                        filename=local_tif,
+                        scale=scale,
+                        file_per_band=False,
+                        crs="EPSG:3857"
+                    )
+                except Exception as e:
+                    print(f"⚠️ First export failed for {uc_name}: {str(e)}. Retrying with coarser scale...")
+
+                fallback_scale = max(50, scale * 5)
+                geemap.ee_export_image(
+                    vis_image,
+                    filename=local_tif,
+                    scale=fallback_scale,
+                    file_per_band=False,
+                    crs="EPSG:3857"
+                )
+                geemap.ee_export_image(
+                    vis_image,
+                    filename=local_tif,
+                    scale=scale,
+                    file_per_band=False,
+                    crs="EPSG:3857"
+                )
+                with rasterio.open(local_tif, "r+") as src:
+                    factors = [2, 4, 8, 16]
+                    src.build_overviews(factors, Resampling.nearest)
+                    src.update_tags(ns="rio_overview", resampling="nearest")
+
+                profile = cog_profiles.get("deflate")
+                dst_kwargs = profile.copy()
+                dst_kwargs.update({
+                    "blockxsize": 512,
+                    "blockysize": 512,
+                    "tiled": True,
+                    "compress": "deflate",
+                    "resampling": Resampling.nearest
+                })
+
+                cog_translate(local_tif, local_cog, dst_kwargs=dst_kwargs, in_memory=False, quiet=False)
+
+                s3_file_key = f"pixelwise/{project_id}/{uc_safe}/{analysis_type}_{start_date}_{end_date}.tif"
+                s3_client.upload_file(local_cog, bucket_name, s3_file_key)
+                cog_https_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_file_key}"
+                
+
+                
+                if os.path.exists(local_dir):
+                    shutil.rmtree(local_dir)
+
+                
+                AreaAnalysis.objects.update_or_create(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                    area_type=area_type,
+                    uc_name=uc_name,
+                    defaults={
+                        "city_name": city_name,
+                        "cog_https_url": cog_https_url,
+                        "is_pixelwise": True
+                    }
+                )
+
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "0",
+                    "cog_https_url": cog_https_url,
+                }
+
+            except Exception as e:
+                if os.path.exists(local_dir):
+                    shutil.rmtree(local_dir)
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": str(e),
+                    "cog_https_url": None
+                }
+
         if area_type == "uc":
             if not project_id:
                 return Response({"error": "project_id is required for UC analysis"}, status=400)
@@ -546,32 +868,6 @@ def pixelwise_analysis(request):
             else:
                 features = uc_data.get("features", [])
 
-            def process_uc(feature):
-                try:
-                    geojson_dict = feature["geometry"]
-                    polygon = ee.Geometry(geojson_dict)
-                    image, vis_params = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-                    map_id = image.getMapId(vis_params)
-
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "0",
-                        "map_layer": {
-                            "urlFormat": map_id["tile_fetcher"].url_format,
-                            "mapid": map_id["mapid"],
-                            "token": map_id["token"],
-                            "palette": vis_params["palette"]
-                        }
-                    }
-                except Exception as e:
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "1",
-                        "error_msg": str(e),
-                        "map_layer": None
-                    }
 
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
@@ -598,33 +894,6 @@ def pixelwise_analysis(request):
                     } for uc in db_ucs
                 ]
 
-            def process_uc(feature):
-                try:
-                    geojson_dict = feature["geometry"]
-                    polygon = ee.Geometry(geojson_dict)
-                    image, vis_params = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-                    map_id = image.getMapId(vis_params)
-
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "0",
-                        "map_layer": {
-                            "urlFormat": map_id["tile_fetcher"].url_format,
-                            "mapid": map_id["mapid"],
-                            "token": map_id["token"],
-                            "palette": vis_params["palette"]
-                        }
-                    }
-                except Exception as e:
-                    return {
-                        "uc_name": feature["properties"]["uc_name"],
-                        "city_name": feature["properties"]["city_name"],
-                        "error": "1",
-                        "error_msg": str(e),
-                        "map_layer": None
-                    }
-
             with ThreadPoolExecutor(max_workers=5) as executor:
                 results = list(executor.map(process_uc, features))
 
@@ -635,51 +904,81 @@ def pixelwise_analysis(request):
             geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
             polygon = ee.Geometry(geom_json)
             image, vis_params = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-            map_id = image.getMapId(vis_params)
+            if not image:
+                return Response({
+                    "error": "1",
+                    "error_msg": "No image generated for custom area",
+                    "cog_https_url": None
+                }, status=500)
+
+            custom_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id))
+            os.makedirs(custom_dir, exist_ok=True)
+            local_tif = os.path.join(custom_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_cog = os.path.join(custom_dir, f"{analysis_type}_{start_date}_{end_date}_cog.tif")
+
+            vis_image = image.visualize(
+                    min=vis_params.get("min"),
+                    max=vis_params.get("max"),
+                    palette=vis_params.get("palette")
+                )
+            geemap.ee_export_image(
+                vis_image,
+                filename=local_tif,
+                scale=10,
+                file_per_band=False,
+                crs="EPSG:3857"
+            )
+            with rasterio.open(local_tif, "r+") as src:
+                factors = [2, 4, 8, 16]
+                src.build_overviews(factors, Resampling.nearest)
+                src.update_tags(ns="rio_overview", resampling="nearest")
+
+            profile = cog_profiles.get("deflate")
+            dst_kwargs = profile.copy()
+            dst_kwargs.update({
+                "blockxsize": 512,
+                "blockysize": 512,
+                "tiled": True,
+                "compress": "deflate",
+                "resampling": Resampling.nearest
+            })
+
+            cog_translate(local_tif, local_cog, dst_kwargs=dst_kwargs, in_memory=False, quiet=False)
+            s3_file_key = f"pixelwise/{project_id}/custom/{analysis_type}_{start_date}_{end_date}.tif"
+            s3_client.upload_file(local_cog, bucket_name, s3_file_key)
+            cog_https_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_file_key}"
+                
+            
+            if os.path.exists(custom_dir):
+                shutil.rmtree(custom_dir)
+
+            AreaAnalysis.objects.update_or_create(
+                project_id=project_id,
+                analysis_type=analysis_type,
+                start_date=start_date,
+                end_date=end_date,
+                area_type="custom",
+                defaults={
+                    "city_name": None,
+                    "cog_https_url": cog_https_url,
+                    "is_pixelwise": True
+                }
+            )
 
             results.append({
                 "uc_name": None,
                 "city_name": None,
-                "map_layer": {
-                    "urlFormat": map_id["tile_fetcher"].url_format,
-                    "mapid": map_id["mapid"],
-                    "token": map_id["token"],
-                    "palette": vis_params["palette"]
-                },
+                "error": "0",
+                "cog_https_url": cog_https_url,
                 "area_type": "custom"
             })
+            
+            
 
         else:
             return Response({"error": "Invalid area_type"}, status=400)
 
         
-        if project_id and results and area_type in ["uc", "kml"]:
-            for res in results:
-                layer_content = res.get("map_layer")
-                uc_name = res.get("uc_name")
-                city_name = res.get("city_name")
-
-                file_name = f"{project_id}{analysis_type}{start_date}{end_date}{area_type}_{uc_name}.json"
-                file_path = os.path.join(settings.MEDIA_ROOT, "map_layers", file_name)
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "w") as f:
-                    json.dump(layer_content, f)
-
-                AreaAnalysis.objects.update_or_create(
-                    project_id=project_id,
-                    analysis_type=analysis_type,
-                    start_date=start_date,
-                    end_date=end_date,
-                    area_type=area_type,
-                    uc_name=uc_name,
-                    defaults={
-                        "city_name": city_name,
-                        "stats": {},  
-                        "map_layer_path": file_path,
-                        "is_pixelwise": True
-                    }
-                )
-
         return Response({
             "message": f"{analysis_type.upper()} pixelwise analysis performed",
             "results": results
@@ -691,7 +990,6 @@ def pixelwise_analysis(request):
             status=500
         )
 
-# Pixelwise analysis function
 def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
     init_ee()
 
@@ -699,18 +997,18 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
             .filterBounds(polygon).filterDate(start_date, end_date).select(['B8', 'B4'])
         image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
-
+        
         vis_params = {
-            'min': 0, 'max': 1,
-            'palette': [
-                "#A52A2A",  # Light Brown: Bare soil
-                "#F4D03F",  # Sandy Yellow: Sparse vegetation
-                "#9ACD32",  # Yellow-Green: Moderate vegetation
-                "#90EE90",  # Light Green: Healthy vegetation
-                "#008000",  # Green: Dense vegetation
-                "#006400"   # Dark Green: Very dense
+        'min': 0, 'max': 1,
+        'palette': [
+                "#A52A2A",  
+                "#F4A460", 
+                "#9ACD32",  
+                "#90EE90",  
+                "#008000",  
+                "#006400"   
             ]
-        }
+    }
 
     elif analysis_type.lower() == "thermal":
         collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
@@ -720,16 +1018,16 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
                 .filterBounds(polygon).filterDate(start_date, end_date).filter(ee.Filter.lt('CLOUD_COVER', 60))
         composite = collection.median()
         image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-
+        
         vis_params = {
             'min': 290, 'max': 320,
             'palette': [
-                "#0000FF",  # Deep Blue: 290-295 K
-                "#008080",  # Teal: 295-300 K
-                "#40E0D0",  # Turquoise: 300-305 K
-                "#2E8B57",  # Sea Green: 305-310 K
-                "#FFFDD0",  # Cream: 310-315 K
-                "#FF8C00"   # Warm Orange: 315-320 K
+                "#00008B",  
+                "#008080",  
+                "#40E0D0",  
+                "#2E8B57",  
+                "#FFFDD0",  
+                "#FF8C00"   
             ]
         }
 
@@ -737,16 +1035,16 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
             .filterBounds(polygon).filterDate(start_date, end_date)
         image = collection.median().select('NO2_column_number_density').multiply(1e5).rename('AQI').clip(polygon)
-
+        
         vis_params = {
             'min': 0, 'max': 50,
             'palette': [
-                "#00E400",  # Good
-                "#FFFF00",  # Moderate
-                "#FF7E00",  # Unhealthy for sensitive
-                "#FF0000",  # Unhealthy
-                "#8F3F97",  # Very Unhealthy
-                "#7E0023"   # Hazardous
+                "#FFB6C1",  
+                "#C8A2C8",  
+                "#AFEEEE",  
+                "#FA8072",  
+                "#FFFFE0",  
+                "#FFDAB9"   
             ]
         }
 
@@ -754,8 +1052,6 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
         raise ValueError("Invalid analysis type")
 
     return image, vis_params
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def get_pixel_value(request):
@@ -789,6 +1085,7 @@ def get_pixel_value(request):
         return Response({"error": str(e)}, status=500)
 
 
+    
 def get_yearly_analysis_from_db(project_id, analysis_type, year, area_type, uc_name=None, is_pixelwise=False):
     """
     Fetch saved yearly analysis from DB + file storage if exists.
