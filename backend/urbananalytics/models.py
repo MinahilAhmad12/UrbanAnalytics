@@ -162,6 +162,13 @@ class YearlyComparisonAnalysis(models.Model):
     class Meta:
         unique_together = ("project", "analysis_type", "baseline_year", "area_type", "uc_name")
 
+<<<<<<< Updated upstream
+=======
+    def __str__(self):
+        return f"{self.analysis_type.upper()} | {self.before_year}-{self.after_year} | {self.area_type} | {self.uc_name or 'ALL'}"
+
+    
+>>>>>>> Stashed changes
 
 class Report(models.Model):
     project_area   = models.ForeignKey(

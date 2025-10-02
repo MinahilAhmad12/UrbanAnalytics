@@ -784,6 +784,66 @@ def get_pixel_value(request):
         return Response({"error": str(e)}, status=500)
 
 
+<<<<<<< Updated upstream
+=======
+def get_yearly_analysis_from_db(project_id, analysis_type, year, area_type, uc_name=None, is_pixelwise=False):
+    try:
+        record = YearlyAnalysis.objects.get(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            year=year,
+            area_type=area_type,
+            uc_name=uc_name,
+            is_pixelwise=is_pixelwise
+        )
+
+        # Prefer DB field if available
+        map_layer = record.map_layer  
+
+        # Fallback: load from file if DB field is empty
+        if not map_layer and record.map_layer_path and os.path.exists(record.map_layer_path):
+            with open(record.map_layer_path, "r") as f:
+                map_layer = json.load(f)
+
+        return {
+            "uc_name": record.uc_name,
+            "city_name": record.city_name,
+            "map_layer": map_layer,
+            "stats": record.stats,
+            "mode": "pixelwise" if is_pixelwise else "annual_stats",
+            "error": "0"
+        }
+
+    except YearlyAnalysis.DoesNotExist:
+        return None
+
+
+def save_yearly_analysis(project_id, analysis_type, year, area_type, uc_name, city_name, map_layer, stats, is_pixelwise=False):
+    file_name = f"{project_id}_{analysis_type}_{year}_{area_type}_{uc_name or 'custom'}_{'pixel' if is_pixelwise else 'annual'}.json"
+    file_path = os.path.join(settings.MEDIA_ROOT, "yearly_map_layers", file_name)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Save to JSON file
+    with open(file_path, "w") as f:
+        json.dump(map_layer, f)
+
+    # Save or update DB record (store both)
+    YearlyAnalysis.objects.update_or_create(
+        project_id=project_id,
+        analysis_type=analysis_type,
+        year=year,
+        area_type=area_type,
+        uc_name=uc_name,
+        is_pixelwise=is_pixelwise,
+        defaults={
+            "city_name": city_name,
+            "stats": stats,
+            "map_layer_path": file_path,
+            "map_layer": map_layer   # 👈 store JSON directly in DB
+        }
+    )
+
+>>>>>>> Stashed changes
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def per_year_analysis(request):
@@ -1107,6 +1167,69 @@ def get_yearly_pixel_value(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
+<<<<<<< Updated upstream
+=======
+
+# ---------------- Helper: Run GEE before-after analysis ---------------- #
+def run_before_after_analysis(project_id, analysis_type, before_year, after_year, area_type, features):
+    """
+    Runs GEE analysis independently for both years for all features
+    """
+    def process_feature(feature):
+        uc_name = feature.get("uc_name")
+        city_name = feature.get("city_name")
+        try:
+            geojson_dict = feature.get("geometry")
+            polygon = ee.Geometry(geojson_dict) if geojson_dict else None
+
+            start_before, end_before = f"{before_year}-01-01", f"{before_year}-12-31"
+            start_after, end_after = f"{after_year}-01-01", f"{after_year}-12-31"
+
+            before_result = perform_analysis_for_polygon(analysis_type, polygon, start_before, end_before) if polygon else {}
+            after_result = perform_analysis_for_polygon(analysis_type, polygon, start_after, end_after) if polygon else {}
+
+            before_mean = before_result.get("stats", {}).get("mean")
+            after_mean = after_result.get("stats", {}).get("mean")
+            if before_mean is not None and after_mean is not None:
+                if after_mean > before_mean:
+                    status = "increase"
+                elif after_mean < before_mean:
+                    status = "decrease"
+                else:
+                    status = "no_change"
+            else:
+                status = "no_data"
+
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "comparison": {
+                    "status": status,
+                    "before_mean": before_mean,
+                    "after_mean": after_mean
+                }
+            }
+
+        except Exception as e:
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "comparison": {
+                    "status": "no_data",
+                    "before_mean": None,
+                    "after_mean": None
+                },
+                "error_msg": str(e)
+            }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(process_feature, features))
+
+    return results
+
+
+# ---------------- Main API ---------------- #
+>>>>>>> Stashed changes
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def yearly_comparison(request):
@@ -1146,14 +1269,78 @@ def yearly_comparison(request):
             res = perform_analysis_for_polygon(analysis_type, polygon_ee, start, end)
             return res.get("stats", {}).get("mean")
 
+<<<<<<< Updated upstream
         # --- Helper to process a polygon/UC ---
         def process_polygon(uc_name, uc_city, polygon):
             # Check DB first
             existing = YearlyComparisonAnalysis.objects.filter(
+=======
+    # ---------------- Determine features ---------------- #
+    features = []
+    if area_type == "uc":
+        uc_data = load_ucs_for_uc(city_name)
+        if not uc_data:
+            db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+            features = [
+                {"uc_name": uc.uc_name, "city_name": uc.city_name, "geometry": json.loads(uc.geometry.geojson)}
+                for uc in db_ucs
+            ]
+        else:
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in uc_data.get("features", [])
+            ]
+    elif area_type == "kml":
+        kml_data = load_ucs_for_kml(project.id)
+        if not kml_data and project.kml_file:
+            features = [{"uc_name": None, "city_name": None, "geometry": None}]
+        else:
+            features = [
+                {"uc_name": f["properties"].get("uc_name"),
+                 "city_name": f["properties"].get("city_name"),
+                 "geometry": f["geometry"]}
+                for f in kml_data.get("features", [])
+            ]
+    else:
+        return Response({"error": "Invalid area_type"}, status=400)
+
+    # ---------------- Run or load before-after analysis ---------------- #
+    results = []
+
+    for feature in features:
+        uc_name = feature.get("uc_name")
+
+        existing = BeforeAfterAnalysis.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            area_type=area_type,
+            uc_name=uc_name,
+            before_year=before_year,
+            after_year=after_year
+        ).first()
+
+        if existing:
+            results.append({
+                "uc_name": uc_name,
+                "city_name": existing.city_name,
+                "comparison": existing.comparison
+            })
+        else:
+            # Run GEE analysis
+            res = run_before_after_analysis(
+                project_id, analysis_type, before_year, after_year, area_type, [feature]
+            )[0]
+
+            # Save to DB (only stats, no layers)
+            BeforeAfterAnalysis.objects.update_or_create(
+>>>>>>> Stashed changes
                 project_id=project_id,
                 analysis_type=analysis_type,
                 baseline_year=start_year,
                 area_type=area_type,
+<<<<<<< Updated upstream
                 uc_name=uc_name
             ).first()
 
@@ -1163,6 +1350,16 @@ def yearly_comparison(request):
                     "city_name": uc_city,
                     "stats": existing.stats,
                     "cached": True
+=======
+                uc_name=uc_name,
+                before_year=before_year,
+                after_year=after_year,
+                defaults={
+                    "city_name": res.get("city_name"),
+                    "stats_before": {"mean": res["comparison"].get("before_mean")},
+                    "stats_after": {"mean": res["comparison"].get("after_mean")},
+                    "comparison": res["comparison"]
+>>>>>>> Stashed changes
                 }
 
             baseline_mean = mean_for_year(polygon, start_year)
@@ -1200,6 +1397,64 @@ def yearly_comparison(request):
                     }
                 )
 
+<<<<<<< Updated upstream
+=======
+    summary_stats = {
+        "before": {
+            "mean": round(sum(before_values)/len(before_values), 4) if before_values else None,
+            "min": round(min(before_values), 4) if before_values else None,
+            "max": round(max(before_values), 4) if before_values else None
+        },
+        "after": {
+            "mean": round(sum(after_values)/len(after_values), 4) if after_values else None,
+            "min": round(min(after_values), 4) if after_values else None,
+            "max": round(max(after_values), 4) if after_values else None
+        },
+        "changes": change_counts,
+        "total": len(before_values)
+    }
+
+    # ---------------- Return response ---------------- #
+    return Response({
+        "mode": "before_after_comparison",
+        "analysis_type": analysis_type,
+        "before_year": before_year,
+        "after_year": after_year,
+        "results": results,
+        "summary_stats": summary_stats
+    })
+
+
+# ---------------- Helper: Run pixelwise before-after GEE analysis ---------------- #
+def run_before_after_pixelwise(project_id, analysis_type, before_year, after_year, area_type, features):
+    """
+    Run pixelwise GEE analysis for before and after year per feature
+    """
+    def load_cached_layer(path):
+        """Load cached JSON map layer, return empty dict if not exists"""
+        if path and os.path.exists(path):
+            with open(path, "r") as f:
+                return json.load(f)
+        return {}
+
+    def process_feature(feature):
+        uc_name = feature.get("uc_name")
+        city_name = feature.get("city_name")
+        geojson_dict = feature.get("geometry")
+        polygon = ee.Geometry(geojson_dict) if geojson_dict else None
+
+        # ---------------- Check DB cache first ---------------- #
+        cached = BeforeAfterPixelwise.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            area_type=area_type,
+            uc_name=uc_name,
+            before_year=before_year,
+            after_year=after_year
+        ).first()
+
+        if cached:
+>>>>>>> Stashed changes
             return {
                 "uc_name": uc_name,
                 "city_name": uc_city,
