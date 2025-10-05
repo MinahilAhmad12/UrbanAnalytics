@@ -239,51 +239,149 @@ Response:
 
 
     Response JSON:
-
+   {
     "message": "NDVI analysis performed",
     "results": [
         {
-            "uc_name": "Chak No. 454",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.30041502565097,
-                "status": "success"
-            }
-        },
-        {
-            "uc_name": "Chak No. 452",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.2287976527707333,
-                "status": "success"
-            }
-        },
-        {
-            "uc_name": "Langowal",
+            "uc_name": "Abdullah Pur",
             "city_name": "Sheikhupura",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.21005446723629206,
-                "status": "success"
-            }
-        }]
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Abu Bakar Siddique Colony",
+            "city_name": "Lahore",
+            "mean_value": 305.6118,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Ahdian",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.3612,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Ajnian Wala",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.5946,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Alpa Kalan",
+            "city_name": "Kasur",
+            "mean_value": 307.557,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Babu Sabu",
+            "city_name": "Lahore",
+            "mean_value": 303.8969,
+            "color": "#32CD32",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Baddomalhi",
+            "city_name": "Narowal",
+            "mean_value": 309.9998,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bahalike",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.8515,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Baharianwala",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.003,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Baoli Jamada",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.0446,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bara Ghar",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.786,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Barkhurdar",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.7135,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhanwan",
+            "city_name": "Gujranwala",
+            "mean_value": 305.8024,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bharath",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.4303,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhaseen",
+            "city_name": "Lahore",
+            "mean_value": 299.883,
+            "color": "#32CD32",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhenian",
+            "city_name": "Narowal",
+            "mean_value": 310.4102,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhikkhi",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.8638,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhlanwala Ka",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.9001,
+            "color": "#FF6347",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhobera",
+            "city_name": "Hafizabad",
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Bhullair",
+            "city_name": "Sheikhupura",
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "uc"
+    }]}
     for area_type = "custom"
 
     Request JSON:
@@ -341,89 +439,184 @@ Response:
 
 Response JSON:
 
-"message": "NDVI analysis performed",
+{
+    "message": "THERMAL average analysis returned",
     "results": [
         {
-            "uc_name": "Chak No. 454",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/05c14be075f74c1fc6e6be9f05de9304-ac4d7a8667c85671ba779afe639492e7",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.30041502565097,
-                "status": "success"
-            }
-        },
-        {
-            "uc_name": "Chak No. 452",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/dbb5e535cc26f77003e81c907c967066-f14c2ed1f75a7b235b21f7569366c872",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.2287976527707333,
-                "status": "success"
-            }
-        },
-        {
-            "uc_name": "Langowal",
+            "uc_name": "Abdullah Pur",
             "city_name": "Sheikhupura",
-            "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/fc7f7f174eccaa37810cd71cf0eacb61-d38253776afbcd5343f64c49867f963c",
-                "token": ""
-            },
-            "stats": {
-                "mean": 0.21005446723629206,
-                "status": "success"
-            }
-        }]
-
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Abu Bakar Siddique Colony",
+            "city_name": "Lahore",
+            "mean_value": 305.6118,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Ahdian",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.3612,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Ajnian Wala",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.5946,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Alpa Kalan",
+            "city_name": "Kasur",
+            "mean_value": 307.557,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Babu Sabu",
+            "city_name": "Lahore",
+            "mean_value": 303.8969,
+            "color": "#32CD32",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Baddomalhi",
+            "city_name": "Narowal",
+            "mean_value": 309.9998,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bahalike",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.8515,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Baharianwala",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.003,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Baoli Jamada",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.0446,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bara Ghar",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.786,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Barkhurdar",
+            "city_name": "Sheikhupura",
+            "mean_value": 307.7135,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhanwan",
+            "city_name": "Gujranwala",
+            "mean_value": 305.8024,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bharath",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.4303,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhaseen",
+            "city_name": "Lahore",
+            "mean_value": 299.883,
+            "color": "#32CD32",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhenian",
+            "city_name": "Narowal",
+            "mean_value": 310.4102,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhikkhi",
+            "city_name": "Sheikhupura",
+            "mean_value": 310.8638,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhlanwala Ka",
+            "city_name": "Sheikhupura",
+            "mean_value": 305.9001,
+            "color": "#FF6347",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhobera",
+            "city_name": "Hafizabad",
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "kml"
+        },
+        {
+            "uc_name": "Bhullair",
+            "city_name": "Sheikhupura",
+            "mean_value": 290,
+            "color": "#87CEEB",
+            "area_type": "kml"
+        },]}
     Value Ranges and Color Palettes for the legends:
     NDVI (0 → 1)
 
-      0.0 – 0.2 → white → yellow (no vegetation / bare soil)
+      Palette: ["#FFFFFF", "#FFFF00", "#90EE90", "#008000", "#006400"]
 
-      0.2 – 0.4 → yellow → lightgreen (sparse vegetation / stressed crops)
-
-      0.4 – 0.6 → lightgreen → green (moderately healthy vegetation)
-
-      0.6 – 0.8 → green → darkgreen (dense healthy vegetation)
-
-      0.8 – 1.0 → darkgreen (very dense & healthy vegetation like forests)
-
+      Value Range	Color(s)	Interpretation
+      0.00 – 0.20	#FFFFFF → #FFFF00	No vegetation / bare soil
+      0.20 – 0.40	#FFFF00 → #90EE90	Sparse vegetation / stressed crops
+      0.40 – 0.60	#90EE90 → #008000	Moderately healthy vegetation
+      0.60 – 0.80	#008000 → #006400	Dense healthy vegetation
+      0.80 – 1.00	#006400	Very dense & healthy vegetation (forests)
 
     Thermal (Kelvin, 290 → 320)
 
-      290 – 295 → Sky Blue (cool areas: water bodies, shaded regions)
+      Palette: ["#87CEEB", "#32CD32", "#FF6347", "#FFA500", "#800080"]
 
-      295 – 300 → Lime Green (slightly cool, vegetated zones)
+      Value Range	Color	Interpretation
+      290 – 295	#87CEEB (Sky Blue)	Cool areas: water bodies, shaded regions
+      295 – 300	#32CD32 (Lime Green)	Slightly cool, vegetated zones
+      300 – 305	#FF6347 (Tomato Red)	Moderate temperature: mixed land use
+      305 – 310	#FFA500 (Orange)	Hot zones: built-up areas, roads
+      310 – 320	#800080 (Dark Purple)	Very hot: urban heat islands, deserts, bare soil
 
-      300 – 305 → Tomato Red (moderate temperature: mixed land use)
+  AQI (0 → 30, scaled from NO₂ × 1e5)
 
-      305 – 310 → Orange (hot zones: built-up areas, roads)
+    Palette: ["#FFC0CB", "#FF7F50", "#FFBF00", "#FFFFE0", "#FF00FF", "#8A2BE2"]
 
-      310 – 320 → Dark Purple (very hot: urban heat islands, deserts, bare soil)
+    Value Range	Color	Interpretation
+    0 – 5	#FFC0CB (Pink)	Good air quality
+    5 – 10	#FF7F50 (Coral)	Moderate, acceptable
+    10 – 15	#FFBF00 (Amber)	Unhealthy for sensitive groups
+    15 – 20	#FFFFE0 (Light Yellow)	Unhealthy
+    20 – 25	#FF00FF (Magenta)	Very unhealthy
+    25 – 30	#8A2BE2 (Violet)	Hazardous air quality
 
-
-    AQI (0 → 50, scaled from NO₂ density × 1e5)
-
-      0 – 10 → Pink (Good air quality)
-
-      10 – 20 → Coral (Moderate, acceptable but some pollutants)
-
-      20 – 30 → Amber (Unhealthy for sensitive groups)
-
-      30 – 40 → Light Yellow (Unhealthy)
-
-      40 – 50 → Magenta → Violet (Very unhealthy to hazardous)
 13. For pixel-wise analysis
 Request: POST
 for area_type == "uc"
@@ -437,63 +630,278 @@ for area_type == "uc"
 }
 Response:
 {
-    "message": "AQI pixelwise analysis performed",
+    "message": "NDVI pixelwise analysis performed",
     "results": [
         {
-            "uc_name": "Hanna (H-65)",
-            "city_name": "Quetta",
+            "uc_name": "Chak No. 454",
+            "city_name": "Faisalabad",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__454/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Nawa Killi (H-50)",
-            "city_name": "Quetta",
+            "uc_name": "Chak No. 452",
+            "city_name": "Faisalabad",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__452/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Kotwal (H-49)",
-            "city_name": "Quetta",
+            "uc_name": "Chak No. 53/",
+            "city_name": "Faisalabad",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
-        },]}
-        
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__53_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 490",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__490/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 455",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__455/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Thatha Baig",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Thatha_Baig/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Tandlianwala",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Tandlianwala/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Pindi Sheikh",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Pindi_Sheikh/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mouza Garh",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mouza_Garh/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mauza Wali W",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mauza_Wali_W/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mauza Killia",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mauza_Killia/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mamu Kanjan",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mamu_Kanjan/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Jamara",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Jamara/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 617",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__617/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 603",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__603/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 599",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__599/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 548",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__548/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 514",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__514/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 507",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__507/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 498",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__498/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 429",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__429/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 422",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__422/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 420",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__420/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 619",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__619/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 416",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__416/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 411",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__411/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 405",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__405/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 400",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__400/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 3",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_3/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 2",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_2/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 1",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_1/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 527",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__527/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 484",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__484/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 479",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__479/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 475",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__475/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 47/",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__47_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 468",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__468/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 467",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__467/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 463",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__463/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 448",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__448/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 441",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__441/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 437",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__437/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 388",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__388/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 228",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__228/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 226",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__226/{z}/{x}/{y}.png"
+        }]}
 for area_type == "kml"
 {
     "analysis_type": "aqi",  
@@ -506,110 +914,204 @@ for area_type == "kml"
 Response:
 
 {
-    "message": "AQI pixelwise analysis performed",
+    "message": "THERMAL pixelwise analysis performed",
     "results": [
         {
-            "uc_name": "Hanna (H-65)",
-            "city_name": "Quetta",
+            "uc_name": "Chak No.44",
+            "city_name": "Sheikhupura",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/928a4ba8b22f226ee96011d1d6a4b9dc-c9470afc9e2678e52591cf494ec3a7ff",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No_44/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Nawa Killi (H-50)",
-            "city_name": "Quetta",
+            "uc_name": "Langowal",
+            "city_name": "Sheikhupura",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/d6ee75d3b28a182ed7154496eb971582-448dee2422225d2b99be207180172900",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Langowal/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Kotwal (H-49)",
-            "city_name": "Quetta",
+            "uc_name": "Mopalkey",
+            "city_name": "Okara",
             "error": "0",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/5c681e4532c738221e787ae719840f7f-9df9923d46653378503de3c2e83c8d18",
-                "token": "",
-                "palette": [
-                    "#00E400",
-                    "#FFFF00",
-                    "#FF7E00",
-                    "#FF0000",
-                    "#8F3F97",
-                    "#7E0023"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Mopalkey/{z}/{x}/{y}.png"
         },
-    ] }
+        {
+            "uc_name": "Bhenian",
+            "city_name": "Narowal",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Bhenian/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Baddomalhi",
+            "city_name": "Narowal",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Baddomalhi/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Lashari",
+            "city_name": "Okara",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Lashari/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Jandraka",
+            "city_name": "Okara",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Jandraka/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Qila Kalar W",
+            "city_name": "Sialkot",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Qila_Kalar_W/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Jamara",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Jamara/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 97/",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__97_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 91/",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__91_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 647",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__647/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 644",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__644/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 591",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__591/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 58/",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__58_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 566",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__566/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 562",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__562/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 54/",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__54_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 383",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__383/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 378",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__378/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 363",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__363/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 353",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__353/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 283",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__283/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 273",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__273/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 44-",
+            "city_name": "Faisalabad",
+            "error": "0",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__44-/{z}/{x}/{y}.png"
+        }]}
 
 Value ranges and color palettes for the legends: 
 1-NDVI:
-Range: 0 → 1.0
+   NDVI (0 → 1)
+
 Palette:
-["Light Brown", "Sandy Yellow", "Yellow-Green", "Light Green", "Green", "Dark Green"]
 
-NDVI Value 
-Range	                  Color            	Meaning
+["#A52A2A", "#F4A460", "#9ACD32", "#90EE90", "#008000", "#006400"]
 
-0.00 – 0.19     	Light Brown	        Bare soil, no vegetation
-0.20 – 0.39	        Sandy Yellow     	Sparse/weak vegetation
-0.40 – 0.59     	Yellow-Green    	Moderate vegetation
-0.60 – 0.79     	Light Green     	Healthy vegetation
-0.80 – 0.99     	Green           	Dense vegetation
-1.00	            Dark Green      	Very dense vegetation
+Value Range	         Color	                    Interpretation
+0.0 – 0.1667	  #A52A2A (Brown)	      Bare soil, no vegetation
+0.1667 – 0.3333	#F4A460 (Sandy Brown)	Sparse vegetation
+0.3333 – 0.5	  #9ACD32 (Yellow-Green)	Moderate vegetation
+0.5 – 0.6667	  #90EE90 (Light Green)	Healthy vegetation
+0.6667 – 0.8333	#008000 (Green)	      Dense vegetation
+0.8333 – 1.0	  #006400 (Dark Green) 	Very dense vegetation / forests
 
 2-Thermal
 
 Range: 290 → 320
 Palette:
-["Deep Blue","Teal","Turquoise","Sea Green","Cream","Warm Orange"]
 
-Temp Range 
-(K)	         Color	     Meaning
-290 – 295	 Deep Blue	 Coldest areas, water
-295 – 300	 Teal        Cool vegetation
-300 – 305	 Turquoise	 Mild warm
-305 – 310	 Sea Green	 Warm zones
-310 – 315	 Cream  	 Hot bare soil / concrete
-315 – 320	 Warm Orange Extremely hot urban zones
+["#00008B", "#008080", "#40E0D0", "#2E8B57", "#FFFDD0", "#FF8C00"]
 
-3-AQI
+Value Range	Color	              Interpretation
+290 – 295	#00008B (Dark Blue)	Very cool areas (water, shaded regions)
+295 – 300	#008080 (Teal)	Cool vegetated areas
+300 – 305	#40E0D0 (Turquoise)	Moderate temperature zones
+305 – 310	#2E8B57 (Sea Green)	Slightly warm zones
+310 – 315	#FFFDD0 (Cream)	Hot zones: urban surfaces, roads
+315 – 320	#FF8C00 (Dark Orange)	Very hot areas: urban heat islands, bare soil
 
-Range: 0 → 50
+3-AQI (dynamic vmin → vmax from p5–p95)
+
 Palette:
-["Light Pink", "Lilac", "Pale Aqua", "Salmon", "Pale Yellow", "Sky Blue"]
 
+["#6A0DAD", "#FF00FF", "#FF1493", "#FF4500", "#FFD700", "#FF0000", "#8B0000"]
 
-
-AQI Value	 Color	    Air Quality Level
-0 – 8	     Light Pink 	Good
-8 – 16  	 Lilac          Moderate
-16 – 24 	 Pale Aqua      Unhealthy for sensitive groups
-24 – 32 	 Salmon         Unhealthy
-32 – 40 	 Pale Yellow    Very Unhealthy
-40 – 50+	 Peach       Hazardous
+Value Range	                          Color	          Interpretation                          
+vmin – vmin + 1/7*(vmax-vmin)	#6A0DAD (Deep Purple)	Very good air quality
+next 1/7	                    #FF00FF (Magenta)	    Good-moderate
+next 1/7	                    #FF1493 (Deep Pink)	  Moderate
+next 1/7	                    #FF4500 (Orange Red)	  Unhealthy for sensitive groups
+next 1/7	                    #FFD700 (Gold)	        Unhealthy
+next 1/7	                    #FF0000 (Red)	        Very unhealthy
+top 1/7	                      #8B0000 (Dark Red)	    Hazardous / critical
 
 
 14. To get the pixel value for any analysis when you hover over the pixel

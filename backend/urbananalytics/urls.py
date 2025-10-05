@@ -1,5 +1,5 @@
 from django.urls import path
-from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs,save_area_with_analyses,perform_gee_analysis, pixelwise_analysis,get_pixel_value,per_year_analysis,get_yearly_pixel_value,before_after_comparison_stats,before_after_comparison_pixelwise
+from urbananalytics.views import signup,verify_signup_otp,resend_signup_verification_email, forgot_password,verify_forgot_password_otp, reset_password, resend_forgot_password_email,create_project,get_user_projects,generate_report,view_project_area,get_project_details,get_project_reports,delete_project_area,get_ucs,save_area_with_analyses,perform_gee_average_analysis, pixelwise_analysis,get_pixel_value,per_year_analysis,get_yearly_pixel_value,before_after_comparison_stats,before_after_comparison_pixelwise
 from django.conf.urls.static import static
 from urbananalytics.views import MyTokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -28,7 +28,7 @@ urlpatterns = [
     ),
     path('projects/<int:project_id>/reports/', get_project_reports, name='get_project_reports'),
     path('get_ucs/',get_ucs, name='get_ucs_by_city'),
-    path('analyze/', perform_gee_analysis, name='perform_gee_analysis'),
+    path('analyze/', perform_gee_average_analysis, name='perform_gee_analysis'),
     path('pixelwiseanalysis/', pixelwise_analysis, name='perform_gee_pixelwiseanalysis'),
     path('getpixelvalue/', get_pixel_value, name='get_pixel_value'),
     path('per_year_analysis/', per_year_analysis, name='per_year_analysis'),

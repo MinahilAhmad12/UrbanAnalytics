@@ -94,7 +94,7 @@ class AreaAnalysis(models.Model):
     area_type = models.CharField(max_length=20)
     geometry = models.JSONField(null=True, blank=True)
     stats = models.JSONField(null=True, blank=True)
-    cog_https_url = models.CharField(max_length=500, null=True, blank=True)
+    tile_url_template = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_pixelwise = models.BooleanField(default=False)
