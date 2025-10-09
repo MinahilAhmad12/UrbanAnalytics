@@ -1136,323 +1136,185 @@ Response:
         "AQI": 12.27115446880105
     }
 }
-15. Per Year Analysis API
+15. Per Year Analysis
 
 Endpoint:
-POST http://127.0.0.1:8000/api/per_year_analysis/
+POST /api/per_year_analysis/
 
-Request Body:
-
-{
-    "analysis_type": "ndvi",        // Options: "ndvi", "thermal", "aqi"
-    "year": 2024,                   // Year of analysis
-    "area_type": "uc",              // Options: "uc", "kml", "custom"
-    "project_id": 1,                // Required for "uc" or "kml"
-    "mode": "pixelwise"             // Options: "pixelwise", "annual_stats"
-}
-
-
-Response (Pixelwise Mode):
+Request Body (Annual Stats):
 
 {
-    "message": "NDVI pixelwise analysis for 2024 performed",
-    "year": 2024,
-    "results": [
-        {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
-            "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        },
-        {
-            "uc_name": "Ameen Pura",
-            "city_name": "Lahore",
-            "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        },
-        {
-            "uc_name": "Wassanpura",
-            "city_name": "Lahore",
-            "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        },
-        {
-            "uc_name": "Shahdara",
-            "city_name": "Lahore",
-            "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        },
-        {
-            "uc_name": "Mozang",
-            "city_name": "Lahore",
-            "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        }
-    ]
-}
-
-
-
-Response (Annual Stats Mode):
-
-{
-    "message": "NDVI annual_stats analysis for 2024 performed",
-    "year": 2024,
-    "results": [
-        {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
-            "mode": "annual_stats",
-            "map_layer": { ... },
-            "stats": {
-                "mean": 0.2051,
-                "min": -0.0362,
-                "max": 0.6105,
-                "std_dev": 0.1542
-            }
-        },
-        { ... }
-    ]
-}
-16. Get Yearly Pixel Value API
-
-Endpoint:
-POST http://127.0.0.1:8000/api/get_yearly_pixel_value/
-
-Request Body:
-
-{
-    "analysis_type": "aqi",   // Options: "ndvi", "thermal", "aqi"
-    "year": 2023,
-    "lat": 31.5203,
-    "lng": 74.3597
-}
-
-
-Response Example (AQI):
-
-{
-    "lat": 31.5203,
-    "lng": 74.3597,
-    "analysis_type": "aqi",
-    "year": 2023,
-    "pixel_value": { "AQI": 15.1093 }
-}
-
-
-Response Example (Thermal):
-
-{
-    "lat": 31.5203,
-    "lng": 74.3597,
-    "analysis_type": "thermal",
-    "year": 2023,
-    "pixel_value": { "THERMAL": 307.1689 }
-}
-
-
-Response Example (NDVI):
-
-{
-    "lat": 31.5203,
-    "lng": 74.3597,
     "analysis_type": "ndvi",
-    "year": 2023,
-    "pixel_value": { "NDVI": 0.1637 }
+    "year": 2025,
+    "area_type": "uc",
+    "project_id": 1,
+    "mode": "annual_stats"
 }
 
-17-Before-After Comparison (Pixelwise)
 
-Name: Before-After Comparison Pixelwise
-Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_pixelwise/
+Response (Annual Stats):
+
+{
+    "message": "Cached NDVI annual_stats analysis returned",
+    "year": 2025,
+    "results": [
+        {
+            "uc_name": "Abu Bakar Siddique Colony",
+            "city_name": "Lahore",
+            "mean_value": 0.1807,
+            "color": "#FFFFFF",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Al-faisal Town",
+            "city_name": "Lahore",
+            "mean_value": 0.0981,
+            "color": "#FFFFFF",
+            "area_type": "uc"
+        }
+        // ... other UCs
+    ]
+}
+
+
+Request Body (Pixelwise):
+
+{
+    "analysis_type": "ndvi",
+    "year": 2024,
+    "area_type": "uc",
+    "project_id": 1,
+    "mode": "pixelwise"
+}
+
+
+Response (Pixelwise):
+
+{
+    "message": "Cached NDVI pixelwise analysis returned",
+    "year": 2024,
+    "results": [
+        {
+            "uc_name": "Abu Bakar Siddique Colony",
+            "city_name": "Lahore",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/yearly/1/Abu_Bakar_Siddique_Colony/{z}/{x}/{y}.png",
+            "error": "0"
+        },
+        {
+            "uc_name": "Al-faisal Town",
+            "city_name": "Lahore",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/yearly/1/Al-faisal_Town/{z}/{x}/{y}.png",
+            "error": "0"
+        }
+        // ... other UCs
+    ]
+}
+
+16. Before-After Comparison Stats
+
+Endpoint:
+POST /api/before_after_comparison_stats/
 
 Request Body:
 
 {
-  "project_id": 1,
-  "analysis_type": "ndvi",
-  "area_type": "uc",
-  "before_year": 2019,
-  "after_year": 2022
+    "project_id": 1,
+    "analysis_type": "ndvi",
+    "area_type": "uc",
+    "before_year": 2019,
+    "after_year": 2022
 }
 
 
 Response:
 
 {
-  "mode": "before_after_comparison_pixelwise",
-  "analysis_type": "ndvi",
-  "before_year": 2019,
-  "after_year": 2022,
-  "results": [
-    {
-      "uc_name": "Androon Texali Gate",
-      "city_name": "Lahore",
-      "map_layer_before": {
-        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/8ebf22ce82be4c2f0b333373541f1f9f-3a89516229174c030b1e8b0e95c23148/tiles/{z}/{x}/{y}",
-        "mapid": "projects/urbananalytics-460415/maps/8ebf22ce82be4c2f0b333373541f1f9f-3a89516229174c030b1e8b0e95c23148",
-        "token": "",
-        "palette": ["#FFFFFF","#FFFF66","#ADFF2F","#32CD32","#008000","#004B23"]
-      },
-      "map_layer_after": {
-        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/9dfd8340363cea0ace49d8590a49d448-bc4864ffa283a1fb68dfbc1fb17ecfe5/tiles/{z}/{x}/{y}",
-        "mapid": "projects/urbananalytics-460415/maps/9dfd8340363cea0ace49d8590a49d448-bc4864ffa283a1fb68dfbc1fb17ecfe5",
-        "token": "",
-        "palette": ["#FFFFFF","#FFFF66","#ADFF2F","#32CD32","#008000","#004B23"]
-      }
+    "message": "NDVI before-after comparison completed",
+    "analysis_type": "ndvi",
+    "before_year": 2019,
+    "after_year": 2022,
+    "results": [
+        {
+            "uc_name": "Muhammad",
+            "city_name": "Lahore",
+            "before_mean": 0.2584,
+            "after_mean": 0.3048,
+            "status": "increase",
+            "color_before": "#9ACD32",
+            "color_after": "#9ACD32",
+            "area_type": "uc"
+        },
+        {
+            "uc_name": "Tajpura",
+            "city_name": "Lahore",
+            "before_mean": 0.0628,
+            "after_mean": 0.0665,
+            "status": "increase",
+            "color_before": "#A52A2A",
+            "color_after": "#A52A2A",
+            "area_type": "uc"
+        }
+        // ... other UCs
+    ],
+    "summary_stats": {
+        "before": {
+            "mean": 0.1526,
+            "min": 0.0249,
+            "max": 0.3556
+        },
+        "after": {
+            "mean": 0.1825,
+            "min": 0.0387,
+            "max": 0.4113
+        },
+        "changes": {
+            "increase": 148,
+            "decrease": 1,
+            "no_change": 0
+        },
+        "total": 149
     }
-  ]
 }
 
-18- Before-After Comparison (Stats)
+17. Before-After Comparison Pixelwise
 
-Name: Before-After Comparison Stats
-Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_stats/
+Endpoint:
+POST /api/before_after_comparison_pixelwise/
 
 Request Body:
 
 {
-  "project_id": 1,
-  "analysis_type": "ndvi",
-  "area_type": "uc",
-  "before_year": 2019,
-  "after_year": 2022
+    "project_id": 1,
+    "analysis_type": "thermal",
+    "area_type": "uc",
+    "before_year": 2018,
+    "after_year": 2020
 }
 
 
 Response:
 
 {
-  "mode": "before_after_comparison",
-  "analysis_type": "ndvi",
-  "before_year": 2019,
-  "after_year": 2022,
-  "results": [
-    {
-      "uc_name": "Androon Texali Gate",
-      "city_name": "Lahore",
-      "comparison": {
-        "status": "increase",
-        "after_mean": 0.20715995290479566,
-        "before_mean": 0.15982104709360925
-      },
-      "map_layer_before": {
-        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5129485855bcc041974d67728d93dd54-1894516b5e639f78a470c233ef11bf78/tiles/{z}/{x}/{y}",
-        "mapid": "projects/urbananalytics-460415/maps/5129485855bcc041974d67728d93dd54-1894516b5e639f78a470c233ef11bf78",
-        "token": ""
-      },
-      "map_layer_after": {
-        "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/42aea3c4724f48fe9be58b2e90e7e21b-bac3780e00abd81164a54185f8a95f6f/tiles/{z}/{x}/{y}",
-        "mapid": "projects/urbananalytics-460415/maps/42aea3c4724f48fe9be58b2e90e7e21b-bac3780e00abd81164a54185f8a95f6f",
-        "token": ""
-      }
-    }
-  ]
+    "mode": "before_after_comparison_pixelwise",
+    "analysis_type": "thermal",
+    "before_year": 2018,
+    "after_year": 2020,
+    "results": [
+        {
+            "uc_name": "Androon Texali Gate",
+            "city_name": "Lahore",
+            "tile_url_before": "https://urbananalytics.s3.amazonaws.com/tiles/before_after/1/Androon_Texali_Gate/2018/{z}/{x}/{y}.png",
+            "tile_url_after": "https://urbananalytics.s3.amazonaws.com/tiles/before_after/1/Androon_Texali_Gate/2020/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Muhammad",
+            "city_name": "Lahore",
+            "tile_url_before": "https://urbananalytics.s3.amazonaws.com/tiles/before_after/1/Muhammad/2018/{z}/{x}/{y}.png",
+            "tile_url_after": "https://urbananalytics.s3.amazonaws.com/tiles/before_after/1/Muhammad/2020/{z}/{x}/{y}.png"
+        }
+        // ... other UCs
+    ]
 }
-
-19- Before-After Comparison (Summary)
-
-Name: Before-After Comparison Summary
-Endpoint: POST http://127.0.0.1:8000/api/before_after_comparison_summary/
-
-Request Body:
-
-{
-  "project_id": 1,
-  "analysis_type": "ndvi",
-  "area_type": "uc",
-  "before_year": 2019,
-  "after_year": 2022
-}
-
-
-Response:
-
-{
-  "mode": "before_after_summary",
-  "analysis_type": "ndvi",
-  "before_year": 2019,
-  "after_year": 2022,
-  "summary_stats": {
-    "before": {
-      "mean": 0.1526,
-      "min": 0.0249,
-      "max": 0.3556
-    },
-    "after": {
-      "mean": 0.1825,
-      "min": 0.0387,
-      "max": 0.4113
-    },
-    "changes": {
-      "increase": 148,
-      "decrease": 1,
-      "no_change": 0
-    },
-    "total": 149
-  }
-}
-
 
 18. To view an area of a project
 
