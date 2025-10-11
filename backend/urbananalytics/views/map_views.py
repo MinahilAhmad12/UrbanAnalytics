@@ -78,7 +78,7 @@ from pyproj import Transformer
 
 from rio_tiler.io import COGReader
 
-#from rio_tiler.utils import tile_read
+# from rio_tiler.utils import tile_read
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -187,53 +187,9 @@ def get_ucs(request):
 
     except Project.DoesNotExist:
         return Response({"error": "Project not found"}, status=404)
-
-
+    
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 os.environ['SSL_CERT_FILE'] = certifi.where()
-# def init_ee():
-#     """Initialize Earth Engine lazily when needed."""
-#     if ee.data._initialized:  # Skip if already initialized
-#         return
-#     service_account = os.path.join(settings.BASE_DIR, 'service_account.json')
-
-#     # service_account = 'gee-service-account@urbananalytics-460415.iam.gserviceaccount.com'
-#     credentials = ee.ServiceAccountCredentials(service_account, settings.SERVICE_ACCOUNT_PATH)
-
-#     try:
-#         ee.Initialize(credentials, project='urbananalytics-460415')
-#         print("Earth Engine initialized successfully!")
-#     except Exception as e:
-#         print("Failed to initialize Earth Engine:", e)
-#         raise RuntimeError("Earth Engine initialization failed. Check credentials.")
-
-# def init_ee():
-#     """Initialize Earth Engine lazily when needed."""
-#     if ee.data._initialized:  # Skip if already initialized
-#         return
-
-#     # Path to service_account.json at the same level as manage.py
-#     service_account_path = os.path.join(settings.BASE_DIR, 'service_account.json')
-
-#     # Service account email from the JSON file
-#     # For GEE, it should be something like 'your-service-account@your-project.iam.gserviceaccount.com'
-#     with open(service_account_path) as f:
-#         import json
-#         service_account_info = json.load(f)
-#         service_account_email = service_account_info['client_email']
-
-#     credentials = ee.ServiceAccountCredentials(service_account_email, key_file=service_account_path)
-
-#     try:
-#         ee.Initialize(credentials, project='urbananalytics-460415')
-#         print("Earth Engine initialized successfully!")
-#     except Exception as e:
-#         print("Failed to initialize Earth Engine:", e)
-#         raise RuntimeError("Earth Engine initialization failed. Check credentials.")
-
-import os
-import ee
-from django.conf import settings
 
 def init_ee():
     """Initialize Earth Engine lazily when needed."""
@@ -247,7 +203,7 @@ def init_ee():
         # Fallback to local file if env variable not found
         service_account_path = os.path.join(settings.BASE_DIR, "service_account.json")
 
-    # Read service account info
+    # Read service account info/
     with open(service_account_path) as f:
         import json
         service_account_info = json.load(f)
@@ -607,7 +563,6 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         }
 
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def pixelwise_analysis(request):
@@ -659,7 +614,7 @@ def pixelwise_analysis(request):
             local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id), uc_safe)
             os.makedirs(local_dir, exist_ok=True)
 
-            local_tif = os.path.join(local_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_tif = os.path.join(local_dir, f"{analysis_type}{start_date}{end_date}.tif")
             tiles_dir = os.path.join(local_dir, "tiles")
 
             try:
@@ -673,11 +628,20 @@ def pixelwise_analysis(request):
                 area_sq_m = polygon.area().getInfo()
                 default_scales = {"ndvi": 10, "thermal": 100, "aqi": 7000}
                 scale = default_scales.get(analysis_type.lower(), 10)
+                
+                if area_sq_m > 1e9:          
+                    scale = max(scale, 60)
+                elif area_sq_m > 5e8:        
+                    scale = max(scale, 40)
+                elif area_sq_m > 1e8:        
+                    scale = max(scale, 20)
+                    
                 if area_sq_m < (scale**2):
                     scale = max(int(area_sq_m**0.5), 1)
                 if analysis_type.lower() == "ndvi" and area_sq_m < 1e4:
                     scale = max(scale, 20)
                 if area_sq_m < 100:
+                    print(f" Skipped {uc_name} — area too small for export ({area_sq_m:.2f} m²)")
                     return {"uc_name": uc_name, "city_name": city_name, "error": "1",
                             "error_msg": "Polygon too small for analysis", "tile_url_template": None}
 
@@ -688,25 +652,103 @@ def pixelwise_analysis(request):
                             "error_msg": "No image generated", "tile_url_template": None}
 
                 
+                
+                polygon_3857 = polygon.transform("EPSG:3857", maxError=1)
+
+                
+                image = image.clip(polygon_3857)
+
+                try:
+                    stats = image.reduceRegion(
+                        reducer=ee.Reducer.percentile([5, 95]),
+                        geometry=polygon,
+                        scale=scale,
+                        bestEffort=True,
+                        maxPixels=1e13
+                    ).getInfo()
+
+                    band_name = list(stats.keys())[0]  
+                    vmin = float(stats.get(f'{band_name}_p5', vis_params.get("min", 0)))
+                    vmax = float(stats.get(f'{band_name}_p95', vis_params.get("max", 1)))
+                    
+                    if vmin == vmax:
+                        vmax += 1e-3  
+                except Exception:
+                    vmin = vis_params.get("min", 0)
+                    vmax = vis_params.get("max", 1)
+                
                 vis_image = image.visualize(
-                    min=vis_params.get("min"),
-                    max=vis_params.get("max"),
+                    min=vmin,
+                    max=vmax,
                     palette=vis_params.get("palette")
                 )
 
-               
-                geemap.ee_export_image(
-                    vis_image,
-                    filename=local_tif,
-                    scale=scale,
-                    file_per_band=False,
-                    crs="EPSG:3857"
-                )
+                
+                data_type = "uint8"  
+                vis_image = vis_image.reproject(crs="EPSG:3857", scale=scale)
 
-                if not os.path.exists(local_tif):
-                    return {"uc_name": uc_name, "city_name": city_name, "error": "1",
-                            "error_msg": "Export failed", "tile_url_template": None}
+                
+                
+                pixel_count = image.reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=polygon,
+                scale=scale,
+                maxPixels=1e13
+                ).getInfo()
+                if not pixel_count or all(v == 0 for v in pixel_count.values()):
+                    print(f" No pixel data found for {uc_name}, skipping export.")
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "error": "1",
+                        "error_msg": "Export failed: No valid pixels found (empty data).",
+                        "tile_url_template": None
+                    }
 
+                export_success = False
+                attempt = 0
+                max_attempts = 4
+
+                while not export_success and attempt < max_attempts:
+                    try:
+                        attempt += 1
+                        print(f"Export attempt {attempt} at scale={scale} meters/pixel")
+
+                        geemap.ee_export_image(
+                            vis_image,
+                            filename=local_tif,
+                            scale=scale,
+                            file_per_band=False,
+                            crs="EPSG:3857"
+                        )
+
+                        if os.path.exists(local_tif) and os.path.getsize(local_tif) > 0:
+                            export_success = True
+                        else:
+                            raise Exception("Export produced empty or missing file")
+
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "Total request size" in error_msg or "50331648 bytes" in error_msg:
+                            
+                            scale = min(int(scale * 2), 200)
+                            print(f" Export too large, retrying with scale={scale}")
+                        elif "Network" in error_msg or "getaddrinfo" in error_msg:
+                            print(f" Network error, retrying after 5 seconds...")
+                            time.sleep(5)
+                        else:
+                            print(f" Export failed: {error_msg}")
+                            break
+
+                if not export_success:
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "error": "1",
+                        "error_msg": f"Export failed after {attempt} attempts (last scale={scale})",
+                        "tile_url_template": None
+                }
+                
                 
                 with rasterio.open(local_tif, "r+") as src:
                     width, height = src.width, src.height
@@ -758,7 +800,13 @@ def pixelwise_analysis(request):
                                     continue
                                 img = np.moveaxis(data, 0, 2)
                                 img = (img * 255).astype(np.uint8) if img.max() <= 1 else img
-                                pil_img = Image.fromarray(img)
+
+                                if img.shape[2] == 3:
+                                    alpha = np.any(img > 0, axis=2).astype(np.uint8) * 255
+                                    img = np.dstack((img, alpha))
+
+                                pil_img = Image.fromarray(img, mode="RGBA")
+
 
                                 tile_path = os.path.join(tiles_dir, str(z), str(t.x))
                                 os.makedirs(tile_path, exist_ok=True)
@@ -767,7 +815,7 @@ def pixelwise_analysis(request):
                                 print(f"Tile x={t.x}, y={t.y}, z={t.z} skipped: {e}")
 
                 
-                s3_tile_prefix = f"tiles/pixelwise/{project_id}/{uc_safe}"
+                s3_tile_prefix = f"tiles/pixelwise/{project_id}/{analysis_type}/{start_date}_{end_date}/{uc_safe}"
                 for root, dirs, files in os.walk(tiles_dir):
                     for fname in files:
                         if fname.lower().endswith(".png"):
@@ -897,14 +945,40 @@ def pixelwise_analysis(request):
             custom_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id))
             os.makedirs(custom_dir, exist_ok=True)
 
-            local_tif = os.path.join(custom_dir, f"{analysis_type}_{start_date}_{end_date}.tif")
+            local_tif = os.path.join(custom_dir, f"{analysis_type}{start_date}{end_date}.tif")
             tiles_dir = os.path.join(custom_dir, "tiles")
-            vis_image = image.visualize(
-                    min=vis_params.get("min"),
-                    max=vis_params.get("max"),
-                    palette=vis_params.get("palette")
-                )
+            polygon_3857 = polygon.transform("EPSG:3857", maxError=1)
+            image = image.clip(polygon_3857)
+            
+            try:
+                stats = image.reduceRegion(
+                    reducer=ee.Reducer.percentile([5, 95]),
+                    geometry=polygon,
+                    scale=scale,
+                    bestEffort=True,
+                    maxPixels=1e13
+                ).getInfo()
 
+                band_name = list(stats.keys())[0]  
+                vmin = float(stats.get(f'{band_name}_p5', vis_params.get("min", 0)))
+                vmax = float(stats.get(f'{band_name}_p95', vis_params.get("max", 1)))
+                
+                if vmin == vmax:
+                    vmax += 1e-3  
+            except Exception:
+                vmin = vis_params.get("min", 0)
+                vmax = vis_params.get("max", 1)
+            
+            vis_image = image.visualize(
+                min=vmin,
+                max=vmax,
+                palette=vis_params.get("palette")
+            )
+
+            
+            data_type = "uint8"  
+            vis_image = vis_image.reproject(crs="EPSG:3857", scale=scale)
+            
             
             geemap.ee_export_image(
                 vis_image,
@@ -967,9 +1041,16 @@ def pixelwise_analysis(request):
                             data, mask = cog.tile(t.x, t.y, t.z)
                             if data is None:
                                 continue
+
                             img = np.moveaxis(data, 0, 2)
                             img = (img * 255).astype(np.uint8) if img.max() <= 1 else img
-                            pil_img = Image.fromarray(img)
+
+                            if img.shape[2] == 3:
+                                alpha = np.any(img > 0, axis=2).astype(np.uint8) * 255
+                                img = np.dstack((img, alpha))
+
+                            pil_img = Image.fromarray(img, mode="RGBA")
+
 
                             tile_path = os.path.join(tiles_dir, str(z), str(t.x))
                             os.makedirs(tile_path, exist_ok=True)
@@ -978,7 +1059,7 @@ def pixelwise_analysis(request):
                             print(f"Tile x={t.x}, y={t.y}, z={t.z} skipped: {e}")
 
             
-            s3_tile_prefix = f"tiles/pixelwise/custom/{project_id}"
+                s3_tile_prefix = f"tiles/pixelwise/custom/{project_id}/{analysis_type}/{start_date}_{end_date}"
             for root, dirs, files in os.walk(tiles_dir):
                 for fname in files:
                     if fname.lower().endswith(".png"):
@@ -1021,118 +1102,188 @@ def pixelwise_analysis(request):
             shutil.rmtree(custom_dir)
         return Response({"uc_name": None, "city_name": None, "error": "1",
                 "error_msg": str(e), "tile_url_template": None}, status=500)
-    
 
 def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
     init_ee()
 
-    
+    def print_debug_info(image, analysis_type, polygon, scale):
+        try:
+            count = ee.Number(image.reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=polygon,
+                scale=scale,
+                bestEffort=True
+            ).values().reduce(ee.Reducer.sum())).getInfo()
+            print(f"[DEBUG] {analysis_type} pixel count in polygon:", count)
+        except Exception as e:
+            print(f"[DEBUG] {analysis_type} pixel count failed:", str(e))
+            
+    fallback_palette = ["#FFFFFF", "#0000FF", "#00FF00", "#FF0000"]
+
     if analysis_type.lower() == "ndvi":
-        collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
+        s2_collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
             .filterBounds(polygon) \
             .filterDate(start_date, end_date) \
-            .select(['B8', 'B4'])
+            .select(['B8', 'B4'])  
 
-        if collection.size().getInfo() == 0:
-            
-            image = ee.Image.constant(0).rename("NDVI").clip(polygon)
+        s2_size = s2_collection.size().getInfo()
+        print(f"[DEBUG] Sentinel-2 collection size: {s2_size}")
 
-            vis_params = {
-                'min': 0, 'max': 1,
-                'palette': ['000000']  
-            }
-            return image, vis_params
+        if s2_size > 0:
+            image = s2_collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
+            scale = 10
+        else:
+            print("[DEBUG] No Sentinel-2 images found, falling back to Landsat-8")
+            l8_collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+                .filterBounds(polygon) \
+                .filterDate(start_date, end_date) \
+                .select(['B5', 'B4'])  
 
+            l8_size = l8_collection.size().getInfo()
+            print(f"[DEBUG] Landsat-8 collection size: {l8_size}")
 
-        image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
-
-        vis_params = {
-            'min': 0, 'max': 1,
-            'palette': [
-                "#A52A2A",  
-                "#F4A460",  
-                "#9ACD32",  
-                "#90EE90",  
-                "#008000",  
-                "#006400"   
-            ]
-        }
-
-        scale = 10
-
-        
-    elif analysis_type.lower() == "thermal":
-        collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
-            .filterBounds(polygon).filterDate(start_date, end_date).filter(ee.Filter.lt('CLOUD_COVER', 60))
-        if collection.size().getInfo() == 0:
-            collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
-                .filterBounds(polygon).filterDate(start_date, end_date).filter(ee.Filter.lt('CLOUD_COVER', 60))
-        if collection.size().getInfo() == 0:
-            image = ee.Image.constant(0).rename("Thermal").clip(polygon)
-            vis_params = {'min': 0, 'max': 1, 'palette': ['000000']}
-            return image, vis_params
-        
-        composite = collection.median()
-        image = composite.select('ST_B10').multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
-        
-        vis_params = {
-            'min': 290, 'max': 320,
-            'palette': [
-                "#00008B",  
-                "#008080",  
-                "#40E0D0",  
-                "#2E8B57",  
-                "#FFFDD0",  
-                "#FF8C00"   
-            ]
-        }
-        
-        scale = 30
-
-    elif analysis_type.lower() == "aqi":
-        collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
-            .filterBounds(polygon).filterDate(start_date, end_date)
-
-        if collection.size().getInfo() == 0:
-            image = ee.Image.constant(0).rename("AQI").clip(polygon)
-            vis_params = {'min': 0, 'max': 1, 'palette': ['000000']}
-            return image, vis_params
-        
-        image = collection.median() \
-            .select('NO2_column_number_density').multiply(1e5).rename('AQI').clip(polygon)
+            if l8_size > 0:
+                image = l8_collection.median().normalizedDifference(['B5', 'B4']).rename('NDVI').clip(polygon)
+                scale = 30
+            else:
+                print("[DEBUG] No Landsat-8 images found, creating constant NDVI image")
+                image = ee.Image.constant(0.01).rename("NDVI").clip(polygon)
+                scale = 30
 
         try:
             stats = image.reduceRegion(
-                reducer=ee.Reducer.percentile([5,95]),
+                reducer=ee.Reducer.percentile([5, 95]),
                 geometry=polygon,
-                scale=7000,
+                scale=scale,
                 bestEffort=True,
                 maxPixels=1e13
             ).getInfo()
 
-            vmin = float(stats.get('AQI_p5', 0.0))
-            vmax = float(stats.get('AQI_p95', 30.0))
+            vmin = float(stats.get('NDVI_p5', 0))
+            vmax = float(stats.get('NDVI_p95', 1))
+            if vmin == vmax:
+                vmax += 1e-3
 
-        except Exception:
-            vmin, vmax = 0.0, 30.0
+            print(f"[DEBUG] NDVI min={vmin}, max={vmax}")
+        except Exception as e:
+            print("[DEBUG] Failed to compute NDVI min/max:", e)
+            vmin, vmax = 0, 1
 
-        palette = [
-            "#6A0DAD",  
-            "#FF00FF",  
-            "#FF1493",  
-            "#FF4500",  
-            "#FFD700",  
-            "#FF0000",  
-            "#8B0000"   
+        vis_params = {
+            'min': vmin,
+            'max': vmax,
+            'palette': ["#A52A2A", "#F4A460", "#9ACD32", "#90EE90", "#008000", "#006400"]
+        }
+
+        try:
+            pixel_count = ee.Number(image.reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=polygon,
+                scale=scale,
+                bestEffort=True,
+                maxPixels=1e13
+            ).get('NDVI')).getInfo()
+            print(f"[DEBUG] NDVI pixel count: {pixel_count}")
+        except Exception as e:
+            print("[DEBUG] NDVI pixel count failed:", e)
+
+        print_debug_info(image, analysis_type, polygon, scale)
+        return image, vis_params, scale  # ✅ added scale
+
+    elif analysis_type.lower() == "thermal":
+        collection = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2') \
+            .filterBounds(polygon) \
+            .filterDate(start_date, end_date) \
+            .filter(ee.Filter.lt('CLOUD_COVER', 60))
+
+        if collection.size().getInfo() == 0:
+            collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
+                .filterBounds(polygon) \
+                .filterDate(start_date, end_date) \
+                .filter(ee.Filter.lt('CLOUD_COVER', 60))
+
+        if collection.size().getInfo() == 0:
+            image = ee.Image.constant(295).rename("Thermal").clip(polygon)
+            vis_params = {'min': 290, 'max': 320,
+                          'palette': ["#00008B", "#008080", "#40E0D0", "#2E8B57", "#FFFDD0", "#FF8C00"]}
+            scale = 100
+        else:
+            image = collection.median().select('ST_B10') \
+                .multiply(0.00341802).add(149.0).rename('Thermal').clip(polygon)
+
+            stats = image.reduceRegion(
+                reducer=ee.Reducer.percentile([5, 95]),
+                geometry=polygon,
+                scale=100,
+                bestEffort=True,
+                maxPixels=1e13
+            ).getInfo()
+
+            vmin = float(stats.get('ST_B10_p5', 290))
+            vmax = float(stats.get('ST_B10_p95', 320))
+            if vmin == vmax:
+                vmax += 1e-3
+
+            vis_params = {'min': vmin, 'max': vmax,
+                          'palette': ["#00008B", "#008080", "#40E0D0", "#2E8B57", "#FFFDD0", "#FF8C00"]}
+            scale = 100
+
+        print_debug_info(image, analysis_type, polygon, scale)
+        return image, vis_params, scale  # ✅ added scale
+
+    elif analysis_type.lower() == "aqi":
+        no2_collection = ee.ImageCollection('COPERNICUS/S5P/NRTI/L3_NO2') \
+            .filterBounds(polygon) \
+            .filterDate(start_date, end_date)
+
+        if no2_collection.size().getInfo() == 0:
+            image = ee.Image.constant(0).rename("AQI").clip(polygon)
+            vis_params = {'min': 0, 'max': 0.0002, 'palette': fallback_palette}
+            return image, vis_params, 500  # ✅ added scale
+
+        no2_image = no2_collection.median().select('NO2_column_number_density').resample('bilinear')
+
+        s2_collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
+            .filterBounds(polygon) \
+            .filterDate(start_date, end_date) \
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
+            .map(lambda img: img.clip(polygon))
+
+        if s2_collection.size().getInfo() == 0:
+            image = no2_image.rename("AQI")
+            vis_params = {'min': 0, 'max': 0.0002, 'palette': fallback_palette}
+            return image, vis_params, 500  # ✅ added scale
+
+        s2_image = s2_collection.median()
+        ndvi = s2_image.normalizedDifference(['B8', 'B4']).rename('NDVI')
+        ndvi_scaled = ndvi.unitScale(-1, 1).clamp(0, 1)
+
+        no2_max_num = ee.Number(no2_image.reduceRegion(
+            reducer=ee.Reducer.max(),
+            geometry=polygon,
+            scale=500,
+            bestEffort=True
+        ).get('NO2_column_number_density'))
+        no2_max_num = ee.Algorithms.If(no2_max_num, no2_max_num, ee.Number(1e-6))
+        no2_max = ee.Image.constant(no2_max_num)
+
+        aqi_image = no2_image.divide(no2_max).multiply(ndvi_scaled).rename('AQI').clip(polygon)
+
+        aqi_palette = [
+            "#2E0854", "#7A1FA2", "#BA68C8",
+            "#F06292", "#FF8A65", "#FFB74D", "#FFF176"
         ]
-
-
-        vis_params = {'min': vmin, 'max': vmax, 'palette': palette}
+        vis_params = {'min': 0.1, 'max': 0.8, 'palette': aqi_palette}
+        return aqi_image, vis_params, 500  # ✅ added scale
 
     else:
         raise ValueError("Invalid analysis type")
 
-    return image, vis_params
+    if "palette" not in vis_params or len(vis_params["palette"]) < 2:
+        vis_params["palette"] = fallback_palette
+
+    return image, vis_params, scale  # ✅ final catch-all return
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -1165,33 +1316,48 @@ def get_pixel_value(request):
         })
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-
+from datetime import datetime
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def per_year_analysis(request):
-    """
-    Handles per-year analysis in two modes:
-    1. pixelwise → uses existing accurate pixelwise logic, uploads tiles to S3
-    2. annual_stats → fast average stats calculation, similar to simple average analysis
-    Both modes now use caching to avoid repeated computation.
-    """
     init_ee()
     analysis_type = request.data.get("analysis_type")
     year = request.data.get("year")
     area_type = request.data.get("area_type")
     project_id = request.data.get("project_id")
     city_name = request.data.get("city_name")
-    mode = request.data.get("mode", "pixelwise")  # default to pixelwise
+    mode = request.data.get("mode", "pixelwise")  # default: pixelwise
 
+    # -------------------------
+    # Basic input validation
+    # -------------------------
     if not all([analysis_type, year, area_type]):
         return Response({"error": "Missing required parameters"}, status=400)
 
     try:
+        current_year = datetime.now().year
+        current_month = datetime.now().strftime("%B %Y")
+        selected_year = int(year)
+        note = None
+
+        # ⚠️ Block future years
+        if selected_year > current_year:
+            return Response({
+                "error": f"Future year {selected_year} cannot be analyzed yet.",
+                "message": f"Data for {selected_year} will be available once the year begins."
+            }, status=400)
+
+        # ⚠️ Add note for ongoing year
+        elif selected_year == current_year:
+            note = f"⚠️ Data for {selected_year} includes satellite observations available up to {current_month} only."
+
         project = Project.objects.get(id=project_id) if project_id else None
         results = []
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
-        # Load features (UCs or KML)
+        # -------------------------
+        # Load features (UCs / KML)
+        # -------------------------
         features = []
         if area_type == "uc" and project and project.location_name:
             uc_data = load_ucs_for_uc(project.location_name)
@@ -1216,12 +1382,12 @@ def per_year_analysis(request):
             return Response({"error": "No features found for analysis"}, status=404)
 
         # -------------------------
-        # Check cached results first
+        # Cached results check
         # -------------------------
         cached_results = YearlyAnalysis.objects.filter(
             project_id=project_id,
             analysis_type=analysis_type,
-            year=year,
+            year=selected_year,
             area_type=area_type,
             is_pixelwise=(mode == "pixelwise")
         ).order_by('uc_name')
@@ -1246,12 +1412,13 @@ def per_year_analysis(request):
                     })
             return Response({
                 "message": f"Cached {analysis_type.upper()} {mode} analysis returned",
-                "year": year,
+                "year": selected_year,
+                "note": note,
                 "results": results
             })
 
         # -------------------------
-        # Annual stats mode (compute if not cached)
+        # Annual Stats Mode
         # -------------------------
         if mode == "annual_stats":
             def analyze_feature_stats(feature):
@@ -1280,11 +1447,10 @@ def per_year_analysis(request):
                     mean_value = round(mean_value, 4)
                     color = result["stats"].get("color", "#000000")
 
-                    # Save to DB
                     YearlyAnalysis.objects.update_or_create(
                         project_id=project_id,
                         analysis_type=analysis_type,
-                        year=year,
+                        year=selected_year,
                         area_type=area_type,
                         uc_name=uc_name,
                         defaults={
@@ -1304,14 +1470,7 @@ def per_year_analysis(request):
                     }
 
                 except Exception as e:
-                    return {
-                        "uc_name": uc_name,
-                        "city_name": city_name,
-                        "error": "1",
-                        "error_msg": str(e),
-                        "mean_value": None,
-                        "color": "#000000"
-                    }
+                    return {"uc_name": uc_name, "city_name": city_name, "error": "1", "error_msg": str(e)}
 
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = [executor.submit(analyze_feature_stats, f) for f in features]
@@ -1319,13 +1478,14 @@ def per_year_analysis(request):
                     results.append(future.result())
 
             return Response({
-                "message": f"{analysis_type.upper()} annual stats analysis for {year} completed",
-                "year": year,
+                "message": f"{analysis_type.upper()} annual stats analysis for {selected_year} completed",
+                "year": selected_year,
+                "note": note,
                 "results": results
             })
 
         # -------------------------
-        # Pixelwise mode (compute if not cached)
+        # Pixelwise Mode
         # -------------------------
         elif mode == "pixelwise":
             def process_feature(feature):
@@ -1334,15 +1494,14 @@ def per_year_analysis(request):
                 uc_safe = re.sub(r"[^\w\-]", "_", uc_name)
                 local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id), uc_safe)
                 os.makedirs(local_dir, exist_ok=True)
-                local_tif = os.path.join(local_dir, f"{analysis_type}_{year}.tif")
+                local_tif = os.path.join(local_dir, f"{analysis_type}_{selected_year}.tif")
                 tiles_dir = os.path.join(local_dir, "tiles")
 
                 try:
-                    # Check cache per feature
                     cached_pixel = YearlyAnalysis.objects.filter(
                         project_id=project_id,
                         analysis_type=analysis_type,
-                        year=year,
+                        year=selected_year,
                         area_type=area_type,
                         uc_name=uc_name,
                         is_pixelwise=True
@@ -1356,22 +1515,25 @@ def per_year_analysis(request):
                         }
 
                     polygon = ee.Geometry(feature["geometry"])
-                    image, vis_params = run_pixelwise_analysis(
-                        analysis_type, polygon, f"{year}-01-01", f"{year}-12-31"
+                    # ✅ Updated: now also receives scale from run_pixelwise_analysis
+                    image, vis_params, scale = run_pixelwise_analysis(
+                        analysis_type, polygon, f"{selected_year}-01-01", f"{selected_year}-12-31"
                     )
+
                     if not image:
                         raise ValueError("No image generated")
 
                     vis_image = image.visualize(
-                        min=vis_params.get("min"), 
-                        max=vis_params.get("max"), 
+                        min=vis_params.get("min"),
+                        max=vis_params.get("max"),
                         palette=vis_params.get("palette")
                     )
+
+                    # ✅ Updated: use dynamic scale instead of fixed 10
                     geemap.ee_export_image(
-                        vis_image, filename=local_tif, scale=10, file_per_band=False, crs="EPSG:3857"
+                        vis_image, filename=local_tif, scale=scale, file_per_band=False, crs="EPSG:3857"
                     )
 
-                    # Build overviews
                     with rasterio.open(local_tif, "r+") as src:
                         factors = [2, 4, 8, 16]
                         valid_factors = [f for f in factors if f < min(src.width, src.height)]
@@ -1379,10 +1541,10 @@ def per_year_analysis(request):
                             src.build_overviews(valid_factors, Resampling.nearest)
                             src.update_tags(ns="rio_overview", resampling="nearest")
 
-                    # Generate tiles
                     if os.path.exists(tiles_dir):
                         shutil.rmtree(tiles_dir)
                     os.makedirs(tiles_dir, exist_ok=True)
+
                     with COGReader(local_tif) as cog:
                         left, bottom, right, top = cog.bounds
                         transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
@@ -1395,7 +1557,7 @@ def per_year_analysis(request):
                             tile_list = list(mercantile.tiles(lon_left, lat_bottom, lon_right, lat_top, [z]))
                             for t in tile_list:
                                 data, mask = cog.tile(t.x, t.y, t.z)
-                                if data is None: 
+                                if data is None:
                                     continue
                                 img = np.moveaxis(data, 0, 2)
                                 img = (img * 255).astype(np.uint8) if img.max() <= 1 else img
@@ -1404,7 +1566,6 @@ def per_year_analysis(request):
                                 os.makedirs(tile_path, exist_ok=True)
                                 pil_img.save(os.path.join(tile_path, f"{t.y}.png"))
 
-                    # Upload to S3
                     s3_prefix = f"tiles/yearly/{project_id}/{uc_safe}"
                     for root, dirs, files in os.walk(tiles_dir):
                         for fname in files:
@@ -1414,17 +1575,14 @@ def per_year_analysis(request):
                                 s3_key = f"{s3_prefix}/{rel_path}"
                                 s3_client.upload_file(full_path, bucket_name, s3_key)
 
-                    # Fix: Only save S3 URL template
                     tile_url_template = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{s3_prefix}/{{z}}/{{x}}/{{y}}.png"
-
                     if os.path.exists(local_dir):
                         shutil.rmtree(local_dir)
 
-                    # Save to DB
                     YearlyAnalysis.objects.update_or_create(
                         project_id=project_id,
                         analysis_type=analysis_type,
-                        year=year,
+                        year=selected_year,
                         area_type=area_type,
                         uc_name=uc_name,
                         defaults={
@@ -1447,8 +1605,9 @@ def per_year_analysis(request):
                     results.append(future.result())
 
             return Response({
-                "message": f"{analysis_type.upper()} pixelwise yearly analysis for {year} performed",
-                "year": year,
+                "message": f"{analysis_type.upper()} pixelwise yearly analysis for {selected_year} performed",
+                "year": selected_year,
+                "note": note,
                 "results": results
             })
 
@@ -1457,6 +1616,7 @@ def per_year_analysis(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
 
 
 
@@ -1819,7 +1979,6 @@ def before_after_comparison_stats(request):
     })
 
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def before_after_comparison_pixelwise(request):
@@ -1905,19 +2064,22 @@ def before_after_comparison_pixelwise(request):
         try:
             polygon = ee.Geometry(feature.get("geometry"))
 
-            # Run pixelwise analysis for before year
-            before_image, before_vis = run_pixelwise_analysis(
+            # Run pixelwise analysis for before year (✅ now includes scale)
+            before_image, before_vis, before_scale = run_pixelwise_analysis(
                 analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
             )
-            # Run pixelwise analysis for after year
-            after_image, after_vis = run_pixelwise_analysis(
+            # Run pixelwise analysis for after year (✅ now includes scale)
+            after_image, after_vis, after_scale = run_pixelwise_analysis(
                 analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
             )
 
             # Visualize images and export tiles to S3
-            def export_to_s3(image, vis_params, year_label):
+            def export_to_s3(image, vis_params, year_label, scale):
                 # Generate local COG
-                local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "before_after_pixelwise", str(project_id), uc_safe, str(year_label))
+                local_dir = os.path.join(
+                    settings.MEDIA_ROOT, "temp_exports", "before_after_pixelwise",
+                    str(project_id), uc_safe, str(year_label)
+                )
                 os.makedirs(local_dir, exist_ok=True)
                 local_tif = os.path.join(local_dir, f"{analysis_type}_{year_label}.tif")
 
@@ -1926,8 +2088,9 @@ def before_after_comparison_pixelwise(request):
                     max=vis_params.get("max"),
                     palette=vis_params.get("palette")
                 )
+                # ✅ Updated: use dynamic scale returned from run_pixelwise_analysis
                 geemap.ee_export_image(
-                    vis_image, filename=local_tif, scale=10, file_per_band=False, crs="EPSG:3857"
+                    vis_image, filename=local_tif, scale=scale, file_per_band=False, crs="EPSG:3857"
                 )
 
                 # Build tiles directory
@@ -1951,8 +2114,9 @@ def before_after_comparison_pixelwise(request):
 
                 return f"{s3_domain}/{s3_prefix}/{{z}}/{{x}}/{{y}}.png"
 
-            tile_url_before = export_to_s3(before_image, before_vis, before_year)
-            tile_url_after = export_to_s3(after_image, after_vis, after_year)
+            # ✅ Pass correct scale dynamically
+            tile_url_before = export_to_s3(before_image, before_vis, before_year, before_scale)
+            tile_url_after = export_to_s3(after_image, after_vis, after_year, after_scale)
 
             # Save to DB
             BeforeAfterPixelwise.objects.update_or_create(
