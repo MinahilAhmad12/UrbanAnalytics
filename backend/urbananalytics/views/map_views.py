@@ -1738,7 +1738,6 @@ def per_year_analysis(request):
 
 
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def get_yearly_pixel_value(request):
@@ -1843,17 +1842,11 @@ def get_yearly_pixel_value(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
     
-  
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def before_after_comparison_stats(request):
-    """
-    Optimized before-after comparison API.
-    Matches response format of per_year_analysis (annual_stats mode).
-    Uses cached data from BeforeAfterAnalysis table to avoid repeated GEE calls.
-    """
+    
     init_ee()
 
     data = request.data
@@ -1863,7 +1856,6 @@ def before_after_comparison_stats(request):
     before_year = data.get("before_year")
     after_year = data.get("after_year")
 
-    # ✅ Fixed indentation + removed stray bracket
     if not all([project_id, analysis_type, area_type, before_year, after_year]):
         return Response({"error": "All fields are required."}, status=400)
 
@@ -1916,68 +1908,24 @@ def before_after_comparison_stats(request):
 
     cached_map = {c.uc_name: c for c in cached_data}
 
-    # ---------------- Helper: color mapping ---------------- #
-    def get_color(value):
-        """Same color mapping as per_year_analysis annual_stats mode."""
-        if value is None:
-            return "#000000"
-        if analysis_type.lower() == "ndvi":
-            if value < 0.1:
-                return "#A52A2A"  # barren
-            elif value < 0.25:
-                return "#F4A460"
-            elif value < 0.4:
-                return "#9ACD32"
-            elif value < 0.6:
-                return "#90EE90"
-            elif value < 0.8:
-                return "#008000"
-            else:
-                return "#006400"
-        elif analysis_type.lower() == "thermal":
-            if value < 295:
-                return "#87CEEB"
-            elif value < 300:
-                return "#32CD32"
-            elif value < 305:
-                return "#FFD700"
-            elif value < 310:
-                return "#FFA500"
-            else:
-                return "#FF6347"
-        elif analysis_type.lower() == "aqi":
-            if value < 5:
-                return "#32CD32"
-            elif value < 10:
-                return "#FFFF00"
-            elif value < 20:
-                return "#FFA500"
-            else:
-                return "#FF0000"
-        return "#000000"
-
     # ---------------- Main computation ---------------- #
     def process_feature(feature):
         uc_name = feature.get("uc_name")
         city_name = feature.get("city_name")
 
-        # Return cached result if available
         if uc_name in cached_map:
             c = cached_map[uc_name]
             comp = c.comparison or {}
             before_mean = comp.get("before_mean")
             after_mean = comp.get("after_mean")
             status = comp.get("status")
-            color_before = get_color(before_mean)
-            color_after = get_color(after_mean)
+
             return {
                 "uc_name": uc_name,
                 "city_name": city_name,
                 "before_mean": before_mean,
                 "after_mean": after_mean,
                 "status": status,
-                "color_before": color_before,
-                "color_after": color_after,
                 "area_type": area_type
             }
 
@@ -2013,10 +1961,6 @@ def before_after_comparison_stats(request):
             else:
                 status = "no_change"
 
-            color_before = get_color(before_mean)
-            color_after = get_color(after_mean)
-
-            # Save in DB (cached)
             BeforeAfterAnalysis.objects.update_or_create(
                 project_id=project_id,
                 analysis_type=analysis_type,
@@ -2026,8 +1970,8 @@ def before_after_comparison_stats(request):
                 after_year=after_year,
                 defaults={
                     "city_name": city_name,
-                    "stats_before": {"mean": before_mean, "color": color_before},
-                    "stats_after": {"mean": after_mean, "color": color_after},
+                    "stats_before": {"mean": before_mean},
+                    "stats_after": {"mean": after_mean},
                     "comparison": {
                         "status": status,
                         "before_mean": before_mean,
@@ -2042,8 +1986,6 @@ def before_after_comparison_stats(request):
                 "before_mean": before_mean,
                 "after_mean": after_mean,
                 "status": status,
-                "color_before": color_before,
-                "color_after": color_after,
                 "area_type": area_type
             }
 
@@ -2054,13 +1996,11 @@ def before_after_comparison_stats(request):
                 "before_mean": None,
                 "after_mean": None,
                 "status": "error",
-                "color_before": "#000000",
-                "color_after": "#000000",
                 "error_msg": str(e),
                 "area_type": area_type
             }
 
-    # Run multithreaded
+    # ---------------- Run multithreaded ---------------- #
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(process_feature, f) for f in features]
         for future in as_completed(futures):
@@ -2097,8 +2037,6 @@ def before_after_comparison_stats(request):
         "results": results,
         "summary_stats": summary_stats
     })
-
-
 
 
 @api_view(['POST'])
