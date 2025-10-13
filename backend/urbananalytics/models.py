@@ -122,7 +122,7 @@ class YearlyAnalysis(models.Model):
 
     # Pixelwise / Annual toggle
     is_pixelwise = models.BooleanField(default=False)
-    map_layer_path = models.CharField(max_length=500, null=True, blank=True) # saved tile/map URL JSON
+    tile_url_template = models.CharField(max_length=500, null=True, blank=True) # saved tile/map URL JSON
     # GEE live map info
     map_layer = models.JSONField(null=True, blank=True)
 
@@ -166,8 +166,8 @@ class BeforeAfterAnalysis(models.Model):
     stats_after = models.JSONField(null=True, blank=True)
     comparison = models.JSONField(null=True, blank=True)
 
-    map_layer_before_path = models.CharField(max_length=500, null=True, blank=True)
-    map_layer_after_path = models.CharField(max_length=500, null=True, blank=True)
+    tile_url_template_before = models.CharField(max_length=500, null=True, blank=True)
+    tile_url_template_after = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -212,19 +212,38 @@ class BeforeAfterPixelwise(models.Model):
 
     def _str_(self):
         return f"{self.analysis_type.upper()} | {self.uc_name or 'Custom Area'} | {self.before_year} vs {self.after_year}"
+
+
 class Report(models.Model):
-    project_area   = models.ForeignKey(
-        'ProjectArea',
-        on_delete=models.CASCADE,
-        related_name='reports'
-    )
-    created_at     = models.DateTimeField(auto_now_add=True)
-    report_type    = models.CharField(max_length=50)  
-    parameters     = models.JSONField(default=dict, blank=True)  
-    file           = models.FileField(upload_to='reports/')  
+    REPORT_TYPES = [
+        ('average', 'Average'),
+        ('pixelwise', 'Pixelwise'),
+        ('1yr_average', '1-Year Average'),
+        ('1yr_pixelwise', '1-Year Pixelwise'),
+        ('2yr_comparison', '2-Year Comparison'),
+    ]
 
-    class Meta:
-        ordering = ['-created_at']
+    ANALYSIS_TYPES = [
+        ('ndvi', 'NDVI'),
+        ('thermal', 'Thermal'),
+        ('aqi', 'AQI'),
+    ]
 
-    def str(self):
-        return f"Report[{self.report_type}] for Area {self.project_area.id}"
+    AREA_TYPES = [
+        ('uc', 'UC'),
+        ('kml', 'KML'),
+    ]
+
+    project = models.ForeignKey('Project', on_delete=models.CASCADE)
+    analysis_type = models.CharField(max_length=20, choices=ANALYSIS_TYPES)
+    report_type = models.CharField(max_length=30, choices=REPORT_TYPES)
+    area_type = models.CharField(max_length=10, choices=AREA_TYPES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    file = models.FileField(max_length=500, upload_to="reports/", blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    message = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.project} | {self.analysis_type} | {self.report_type} | {self.area_type} | {self.start_date}→{self.end_date}"

@@ -621,7 +621,7 @@ Response JSON:
 Request: POST
 for area_type == "uc"
 {
-    "analysis_type": "aqi",  
+    "analysis_type": "ndvi",  
     "start_date": "2023-9-01",
     "end_date": "2023-9-10",
     "area_type": "uc",
@@ -630,281 +630,26 @@ for area_type == "uc"
 }
 Response:
 {
-    "message": "NDVI pixelwise analysis performed",
-    "results": [
-        {
-            "uc_name": "Chak No. 454",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__454/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 452",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__452/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 53/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__53_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 490",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__490/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 455",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__455/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Thatha Baig",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Thatha_Baig/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Tandlianwala",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Tandlianwala/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Pindi Sheikh",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Pindi_Sheikh/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Mouza Garh",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mouza_Garh/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Mauza Wali W",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mauza_Wali_W/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Mauza Killia",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mauza_Killia/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Mamu Kanjan",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Mamu_Kanjan/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Jamara",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Jamara/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 617",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__617/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 603",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__603/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 599",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__599/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 548",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__548/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 514",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__514/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 507",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__507/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 498",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__498/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 429",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__429/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 422",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__422/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 420",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__420/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 619",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__619/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 416",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__416/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 411",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__411/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 405",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__405/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 400",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__400/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Samundri - 3",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_3/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Samundri - 2",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_2/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Samundri - 1",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Samundri_-_1/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 527",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__527/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 484",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__484/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 479",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__479/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 475",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__475/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 47/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__47_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 468",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__468/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 467",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__467/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 463",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__463/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 448",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__448/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 441",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__441/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 437",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__437/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 388",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__388/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 228",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__228/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 226",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/18/Chak_No__226/{z}/{x}/{y}.png"
-        }]}
+  "message": "NDVI pixelwise analysis performed",
+  "results": [
+    {
+      "uc_name": "UC-1 Shalimar",
+      "city_name": "Lahore",
+      "error": "0",
+      "tile_url_template": "https://your-bucket.s3.amazonaws.com/tiles/pixelwise/21/ndvi/2024-03-01_2024-03-31/UC-1_Shalimar/{z}/{x}/{y}.png"
+    },
+    {
+      "uc_name": "UC-2 Gulberg",
+      "city_name": "Lahore",
+      "error": "0",
+      "tile_url_template": "https://your-bucket.s3.amazonaws.com/tiles/pixelwise/21/ndvi/2024-03-01_2024-03-31/UC-2_Gulberg/{z}/{x}/{y}.png"
+    }
+  ]
+}
+
 for area_type == "kml"
 {
-    "analysis_type": "aqi",  
+    "analysis_type": "thermal",  
     "start_date": "2023-9-01",
     "end_date": "2023-9-10",
     "area_type": "kml",
@@ -914,158 +659,17 @@ for area_type == "kml"
 Response:
 
 {
-    "message": "THERMAL pixelwise analysis performed",
-    "results": [
-        {
-            "uc_name": "Chak No.44",
-            "city_name": "Sheikhupura",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No_44/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Langowal",
-            "city_name": "Sheikhupura",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Langowal/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Mopalkey",
-            "city_name": "Okara",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Mopalkey/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Bhenian",
-            "city_name": "Narowal",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Bhenian/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Baddomalhi",
-            "city_name": "Narowal",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Baddomalhi/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Lashari",
-            "city_name": "Okara",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Lashari/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Jandraka",
-            "city_name": "Okara",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Jandraka/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Qila Kalar W",
-            "city_name": "Sialkot",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Qila_Kalar_W/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Jamara",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Jamara/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 97/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__97_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 91/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__91_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 647",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__647/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 644",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__644/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 591",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__591/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 58/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__58_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 566",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__566/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 562",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__562/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 54/",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__54_/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 383",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__383/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 378",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__378/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 363",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__363/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 353",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__353/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 283",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__283/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 273",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__273/{z}/{x}/{y}.png"
-        },
-        {
-            "uc_name": "Chak No. 44-",
-            "city_name": "Faisalabad",
-            "error": "0",
-            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise/16/Chak_No__44-/{z}/{x}/{y}.png"
-        }]}
+  "message": "THERMAL pixelwise analysis performed",
+  "results": [
+    {
+      "uc_name": "UC-5 Saddar",
+      "city_name": "Karachi",
+      "error": "0",
+      "tile_url_template": "https://your-bucket.s3.amazonaws.com/tiles/pixelwise/21/thermal/2024-04-01_2024-04-30/UC-5_Saddar/{z}/{x}/{y}.png"
+    }
+  ]
+}
+
 
 Value ranges and color palettes for the legends: 
 1-NDVI:
@@ -1155,125 +759,481 @@ Request Body:
 Response (Pixelwise Mode):
 
 {
-    "message": "NDVI pixelwise analysis for 2024 performed",
-    "year": 2024,
+    "message": "NDVI pixelwise analysis for 2025 performed",
+    "year": 2025,
     "results": [
         {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 454",
+            "city_name": "Faisalabad",
             "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/d5c98a41c2310ba192c62c6db51e7e70-94e7922d5cedc9b0976a828f80f063c0",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__454/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Ameen Pura",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 452",
+            "city_name": "Faisalabad",
             "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/7dc775c8dab6bbb67521a5f49836aa23-6140a89fd4fb10b63e4a313b4f83add2",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__452/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Wassanpura",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 53/",
+            "city_name": "Faisalabad",
             "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/2b16959837c4d9b81da85ec9928329c5-627ad302a3cfc61d4549cc674ec50814",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__53_/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Shahdara",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 490",
+            "city_name": "Faisalabad",
             "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/3e2f982fd4332ff1c6cfdf12157da6d2-36f2f8a8821220c0cbccf1c3c7d9b2b1",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__490/{z}/{x}/{y}.png"
         },
         {
-            "uc_name": "Mozang",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 455",
+            "city_name": "Faisalabad",
             "mode": "pixelwise",
-            "map_layer": {
-                "urlFormat": "https://earthengine.googleapis.com/v1/projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004/tiles/{z}/{x}/{y}",
-                "mapid": "projects/urbananalytics-460415/maps/5f9a47c9db18c914a3a0b7627eb2dc4f-d94b17f2a4b6c1ef52f98d9a13dfe004",
-                "token": "",
-                "palette": [
-                    "#654321",
-                    "#FFA07A",
-                    "#FFFF66",
-                    "#ADFF2F",
-                    "#008000",
-                    "#004B23"
-                ]
-            }
-        }
-    ]
-}
-
-
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__455/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Thatha Baig",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Thatha_Baig/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Tandlianwala",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Tandlianwala/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Pindi Sheikh",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Pindi_Sheikh/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mouza Garh",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Mouza_Garh/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mauza Wali W",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Mauza_Wali_W/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mauza Killia",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Mauza_Killia/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Mamu Kanjan",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Mamu_Kanjan/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Jamara",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Jamara/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 617",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__617/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 603",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__603/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 599",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__599/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 548",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__548/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 514",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__514/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 507",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__507/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 498",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__498/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 429",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__429/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 422",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__422/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 420",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__420/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 619",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__619/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 416",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__416/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 411",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__411/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 405",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__405/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 400",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__400/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 3",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Samundri_-_3/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 2",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Samundri_-_2/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Samundri - 1",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Samundri_-_1/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 527",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__527/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 484",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__484/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 479",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__479/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 475",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__475/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 47/",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__47_/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 468",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__468/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 467",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__467/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 463",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__463/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 448",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__448/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 441",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__441/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 437",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__437/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 388",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__388/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 228",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__228/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 226",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__226/{z}/{x}/{y}.png"
+        },
+        {
+            "uc_name": "Chak No. 225",
+            "city_name": "Faisalabad",
+            "mode": "pixelwise",
+            "tile_url_template": "https://urbananalytics.s3.amazonaws.com/tiles/pixelwise_yearly_analysis/19/Chak_No__225/{z}/{x}/{y}.png"
+        }]}
 
 Response (Annual Stats Mode):
 
 {
-    "message": "NDVI annual_stats analysis for 2024 performed",
-    "year": 2024,
+    "message": "NDVI annual_stats analysis for 2025 performed",
+    "year": 2025,
     "results": [
         {
-            "uc_name": "Androon Texali Gate",
-            "city_name": "Lahore",
+            "uc_name": "Chak No. 454",
+            "city_name": "Faisalabad",
             "mode": "annual_stats",
-            "map_layer": { ... },
             "stats": {
-                "mean": 0.2051,
-                "min": -0.0362,
-                "max": 0.6105,
-                "std_dev": 0.1542
+                "mean": 0.3959,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
             }
         },
-        { ... }
-    ]
-}
+        {
+            "uc_name": "Chak No. 452",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3691,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 53/",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3899,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 490",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3679,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 455",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.379,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Thatha Baig",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3581,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Tandlianwala",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.4004,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Pindi Sheikh",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3644,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Mouza Garh",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.4049,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Mauza Wali W",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3232,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Mauza Killia",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3585,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Mamu Kanjan",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3872,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Jamara",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3404,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 617",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.324,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 603",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3718,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 599",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3389,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        },
+        {
+            "uc_name": "Chak No. 548",
+            "city_name": "Faisalabad",
+            "mode": "annual_stats",
+            "stats": {
+                "mean": 0.3721,
+                "color": "#FFFF00",
+                "status": "success",
+                "source": "Sentinel-2"
+            }
+        }]}
+
+        
 16. Get Yearly Pixel Value API
 
 Endpoint:
@@ -1454,77 +1414,63 @@ Response:
 }
 
 
-18. To view an area of a project
 
-GET projects/<int:project_id>/areas/<int:area_id>/view/
+18. To generate a report(Average analysis report)
 
-Response JSON:
+POST reports/generate/
+
+For area type = uc
+
+Request JSON:
 {
-    "area": {
-        "id": 4,
-        "area_type": "uc",
-        "name": "Greenbelt Sector F",
-        "date_range_start": "2024-01-01",
-        "date_range_end": "2024-01-31",
-        "selected_city": "Islamabad",
-        "custom_geometry": null,
-        "analyses": [
-            {
-                "analysis_type": "ndvi",
-                "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
-                "stats": {
-                    "max": 0.9,
-                    "min": 0.3,
-                    "mean": 0.67
-                }
-            },
-            {
-                "analysis_type": "thermal",
-                "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
-                "stats": {
-                    "max": 37.6,
-                    "min": 28.1,
-                    "mean": 32.4
-                }
-            }
-        ]
-    },
-    "map_state": {
-        "center_coords": {
-            "lat": 33.6844,
-            "lng": 73.0479
-        },
-        "zoom_level": 12.5,
-        "active_layer": "ndvi",
-        "toggle_state": {
-            "aqi": true,
-            "ndvi": true,
-            "thermal": false
-        }
+      "project_id": 2,
+      "analysis_type": "ndvi",
+      "report_type": "average", 
+      "area_type": "uc",
+      "start_date": "2024-07-01",
+      "end_date": "2024-07-30"
+}
+
+Resonse:
+{
+    "message": "Average Ndvi report generated successfully",
+    "report_id": 23,
+    "download_url": "https://urbananalytics.s3.ap-south-1.amazonaws.com/reports/average/2/23/uc_ndvi_average_2_2024-07-01_2024-07-30.pdf"
+}
+
+For area type = kml
+
+Request JSON:
+{
+      "project_id": 2,
+      "analysis_type": "ndvi",
+      "report_type": "average", 
+      "area_type": "kml",
+      "start_date": "2024-07-01",
+      "end_date": "2024-07-30"
     }
-}
 
-19. To delete an area 
+Response:
 
-DELETE project-area/<int:area_id>/delete/
-
-20.  Generate Report
-POST projects/{project_id}/areas/{area_id}/reports/
-
-Generates a PDF report based on analysis.
-
-Response JSON:
 {
-    "id": 6,
-    "report_type": "environmental_summary",
-    "created_at": "2025-05-22T06:20:34.159593Z",
-    "parameters": {},
-    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
-    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
+    "message": "Average Ndvi report generated successfully",
+    "report_id": 23,
+    "download_url": "https://urbananalytics.s3.ap-south-1.amazonaws.com/reports/average/2/23/uc_ndvi_average_2_2024-07-01_2024-07-30.pdf"
 }
 
-Content-Disposition: attachment; filename="report.pdf"
-Content-Type: application/pdf
+
+
+19. To downlaod a report
+
+GET reports/download/<int:report_id>/
+
+
+For all area types
+
+Response:
+{
+    "download_url": "https://urbananalytics.s3.amazonaws.com/https%3A//urbananalytics.s3.ap-south-1.amazonaws.com/reports/average/2/23/uc_ndvi_average_2_2024-07-01_2024-07-30.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAZOHLOYB3VTAFJTE5%2F20251013%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20251013T141545Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=686043cae5fd6d446208c4079b4b9e2b9f3c9d2c1880afc9763f79e28ade2ab4"
+}
 
 
 21. To get the details of a project
@@ -1849,3 +1795,75 @@ map_state: Use this JSON string:
 }
 
 Response:
+
+25.To view an area of a project
+
+GET projects/<int:project_id>/areas/<int:area_id>/view/
+
+Response JSON:
+{
+    "area": {
+        "id": 4,
+        "area_type": "uc",
+        "name": "Greenbelt Sector F",
+        "date_range_start": "2024-01-01",
+        "date_range_end": "2024-01-31",
+        "selected_city": "Islamabad",
+        "custom_geometry": null,
+        "analyses": [
+            {
+                "analysis_type": "ndvi",
+                "tile_url": "https://tileserver.example.com/ndvi/area_1/{z}/{x}/{y}.png",
+                "stats": {
+                    "max": 0.9,
+                    "min": 0.3,
+                    "mean": 0.67
+                }
+            },
+            {
+                "analysis_type": "thermal",
+                "tile_url": "https://tileserver.example.com/thermal/area_1/{z}/{x}/{y}.png",
+                "stats": {
+                    "max": 37.6,
+                    "min": 28.1,
+                    "mean": 32.4
+                }
+            }
+        ]
+    },
+    "map_state": {
+        "center_coords": {
+            "lat": 33.6844,
+            "lng": 73.0479
+        },
+        "zoom_level": 12.5,
+        "active_layer": "ndvi",
+        "toggle_state": {
+            "aqi": true,
+            "ndvi": true,
+            "thermal": false
+        }
+    }
+}
+
+26.To delete an area 
+
+DELETE project-area/<int:area_id>/delete/
+
+20.  Generate Report
+POST projects/{project_id}/areas/{area_id}/reports/
+
+Generates a PDF report based on analysis.
+
+Response JSON:
+{
+    "id": 6,
+    "report_type": "environmental_summary",
+    "created_at": "2025-05-22T06:20:34.159593Z",
+    "parameters": {},
+    "file": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf",
+    "download_url": "http://127.0.0.1:8000/media/reports/environmental_summary_area8_1_PyJJJ3b.pdf"
+}
+
+Content-Disposition: attachment; filename="report.pdf"
+Content-Type: application/pdf

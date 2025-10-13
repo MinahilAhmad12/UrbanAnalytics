@@ -10,9 +10,7 @@ import json
 from fastkml import kml
 from shapely.geometry import shape
 import os
-from urbananalytics.utils import extract_bounds_from_kml
-
-
+from urbananalytics.helpers import extract_bounds_from_kml
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
