@@ -111,31 +111,29 @@ class AreaAnalysis(models.Model):
     
 class YearlyAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")
-    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
-    year = models.IntegerField()                      # the selected year
-    area_type = models.CharField(max_length=20)       # uc/custom/kml
+    analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
+    year = models.IntegerField()                     # the selected year
+    area_type = models.CharField(max_length=20)      # uc/custom/kml
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
-    # Summary statistics
+    # Summary statistics for the year (annual mode)
     stats = models.JSONField(null=True, blank=True)
 
-    # Pixelwise / Annual toggle
+    # Pixelwise toggle
     is_pixelwise = models.BooleanField(default=False)
-    tile_url_template = models.CharField(max_length=500, null=True, blank=True) # saved tile/map URL JSON
-    # GEE live map info
-    map_layer = models.JSONField(null=True, blank=True)
+    # AWS stored tiles URL (if pixelwise)
+    tile_url_template = models.CharField(max_length=500, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ("project", "analysis_type", "year", "area_type", "uc_name", "is_pixelwise")
+        ordering = ["uc_name", "year"]
 
-    def __str__(self):
+    def _str_(self):
         return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
-
-    
 class YearlyPixelValue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
     analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
@@ -166,8 +164,6 @@ class BeforeAfterAnalysis(models.Model):
     stats_after = models.JSONField(null=True, blank=True)
     comparison = models.JSONField(null=True, blank=True)
 
-    tile_url_template_before = models.CharField(max_length=500, null=True, blank=True)
-    tile_url_template_after = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -176,7 +172,7 @@ class BeforeAfterAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.analysis_type.upper()} | {self.before_year}-{self.after_year} | {self.area_type} | {self.uc_name or 'ALL'}"
-    
+
 
 class BeforeAfterPixelwise(models.Model):
     project = models.ForeignKey("Project", on_delete=models.CASCADE)
@@ -189,9 +185,9 @@ class BeforeAfterPixelwise(models.Model):
     before_year = models.IntegerField()
     after_year = models.IntegerField()
 
-    # Required cached file paths for storing map layers (JSON files)
-    map_layer_before_path = models.CharField(max_length=500)
-    map_layer_after_path = models.CharField(max_length=500)
+    # New: S3 tile URL templates
+    tile_url_before = models.CharField(max_length=500, null=True, blank=True)
+    tile_url_after = models.CharField(max_length=500, null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -210,16 +206,14 @@ class BeforeAfterPixelwise(models.Model):
             models.Index(fields=["area_type"]),
         ]
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.analysis_type.upper()} | {self.uc_name or 'Custom Area'} | {self.before_year} vs {self.after_year}"
 
 
 class Report(models.Model):
     REPORT_TYPES = [
         ('average', 'Average'),
-        ('pixelwise', 'Pixelwise'),
         ('1yr_average', '1-Year Average'),
-        ('1yr_pixelwise', '1-Year Pixelwise'),
         ('2yr_comparison', '2-Year Comparison'),
     ]
 
