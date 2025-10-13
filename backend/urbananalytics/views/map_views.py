@@ -1672,7 +1672,7 @@ def per_year_analysis(request):
                                 print(f"Zoom {z} skipped: {e}")
 
                     # 🔹 Upload to S3
-                    s3_prefix = f"tiles/yearly/{project_id}/{uc_safe}"
+                    s3_prefix = f"tiles/yearly_pixelwise/{project_id}/{analysis_type}/{year}/{uc_safe}"
                     for root, dirs, files in os.walk(tiles_dir):
                         for fname in files:
                             if fname.lower().endswith(".png"):
@@ -2244,7 +2244,7 @@ def before_after_comparison_pixelwise(request):
                             print(f"Zoom {z} skipped: {e}")
 
                 # Upload PNG tiles to S3
-                s3_prefix = f"tiles/before_after/{project_id}/{uc_safe}/{year_label}"
+                s3_prefix = f"tiles/2-year comparison/{project_id}/{analysis_type}/{year_label}/{uc_safe}"
                 for root, dirs, files in os.walk(tiles_dir):
                     for fname in files:
                         if fname.lower().endswith(".png"):

@@ -134,6 +134,7 @@ class YearlyAnalysis(models.Model):
 
     def _str_(self):
         return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
+    
 class YearlyPixelValue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
     analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
