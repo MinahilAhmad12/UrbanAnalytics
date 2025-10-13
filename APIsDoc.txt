@@ -978,6 +978,65 @@ Response:
     "download_url": "https://urbananalytics.s3.amazonaws.com/https%3A//urbananalytics.s3.ap-south-1.amazonaws.com/reports/average/2/23/uc_ndvi_average_2_2024-07-01_2024-07-30.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAZOHLOYB3VTAFJTE5%2F20251013%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20251013T141545Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=686043cae5fd6d446208c4079b4b9e2b9f3c9d2c1880afc9763f79e28ade2ab4"
 }
 
+20-Generate Yearly Report
+
+Endpoint:
+POST http://127.0.0.1:8000/api/reports/yearly/
+
+Request Body (JSON):
+
+{
+  "project_id": 1,
+  "analysis_type": "ndvi",
+  "year": 2019,
+  "area_type": "uc",
+  "format": "pdf"
+}
+
+
+Successful Response (200):
+
+{
+  "message": "Yearly PDF report generated and uploaded successfully.",
+  "pdf_url": "https://urbananalytics.s3.amazonaws.com/reports/generate_yearly_report/1/2019/ndvi_2019_uc_20251014030847_d95c8592.pdf"
+}
+
+
+Error Responses:
+
+{ "error": "Missing required parameters" }
+
+{ "error": "No analysis data found for report" }
+
+21-Generate Before–After Report
+
+Endpoint:
+POST http://127.0.0.1:8000/api/reports/before-after/
+
+Request Body (JSON):
+
+{
+  "project_id": 1,
+  "analysis_type": "ndvi",
+  "before_year": 2018,
+  "after_year": 2023,
+  "format": "pdf"
+}
+
+
+Successful Response (200):
+
+{
+  "message": "Before–After Comparison PDF report generated and uploaded successfully.",
+  "pdf_url": "https://urbananalytics.s3.amazonaws.com/reports/before_after_comparison/1/2023/ndvi_2018_2023_20251014031912_39c76b1f.pdf"
+}
+
+
+Error Responses:
+
+{ "error": "Missing required parameters" }
+
+{ "error": "No data found for report" }
 
 21. To get the details of a project
 
