@@ -446,7 +446,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             image = collection.normalizedDifference(['B8', 'B4']).rename('NDVI').clip(polygon)
             band_name = 'NDVI'
             vis_params = {'min': 0, 'max': 1,
-                          "palette": ["#FFFFFF", "#FFFF00", "#90EE90", "#008000", "#006400"]}
+                          "palette": ["#E7E0E0", "#FFFF00", "#90EE90", "#008000", "#006400"]}
             scale = 10
 
             stats = image.reduceRegion(
@@ -540,9 +540,48 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
         
         min_val, max_val = vis_params['min'], vis_params['max']
         palette = vis_params['palette']
-        norm_val = max(0, min(1, (mean_value - min_val) / (max_val - min_val)))
-        idx = int(norm_val * (len(palette) - 1))
-        color = palette[idx]
+        if analysis_type.lower() == "thermal":
+            if mean_value < 295:
+                color = "#87CEEB"  
+            elif 295 <= mean_value < 300:
+                color = "#32CD32"  
+            elif 300 <= mean_value < 305:
+                color = "#FF6347"  
+            elif 305 <= mean_value < 310:
+                color = "#FFA500"  
+            else:
+                color = "#800080"  
+        elif analysis_type.lower() == "aqi":
+            if mean_value < 5:
+                color = "#FFC0CB"  
+            elif mean_value < 10:
+                color = "#FF7F50"  
+            elif mean_value < 15:
+                color = "#FFBF00"  
+            elif mean_value < 20:
+                color = "#FFFFE0"  
+            elif mean_value < 25:
+                color = "#FF00FF"  
+            else:
+                color = "#8A2BE2"  
+        elif analysis_type.lower() == "ndvi":
+            
+            if mean_value < 0.2:
+                color = "#E7E0E0"
+            elif mean_value < 0.4:
+                color = "#FFFF00"  
+            elif mean_value < 0.6:
+                color = "#90EE90"  
+            elif mean_value < 0.8:
+                color = "#008000"  
+            else:
+                color = "#006400"  
+        else:
+            
+            norm_val = max(0, min(1, (mean_value - min_val) / (max_val - min_val)))
+            idx = int(norm_val * (len(palette) - 1))
+            color = palette[idx]
+
 
         return {
             "stats": {

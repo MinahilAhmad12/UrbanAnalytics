@@ -20,7 +20,7 @@ from urbananalytics.models import AreaAnalysis, Project, Report
 
 REPORT_CONFIG = {
     "ndvi": {
-        "palette": ["#FFFFFF", "#FFFF00", "#90EE90", "#008000", "#006400"],
+        "palette": ["#E7E0E0", "#FFFF00", "#90EE90", "#008000", "#006400"],
         "table_border_color": "#006400",
         "heading_color": "#006400",
         "description": (
