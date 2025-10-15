@@ -233,12 +233,27 @@ class Report(models.Model):
     analysis_type = models.CharField(max_length=20, choices=ANALYSIS_TYPES)
     report_type = models.CharField(max_length=30, choices=REPORT_TYPES)
     area_type = models.CharField(max_length=10, choices=AREA_TYPES)
-    start_date = models.DateField()
-    end_date = models.DateField()
+
+    #  For average or range-based reports
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    #  For annual reports
+    year = models.IntegerField(null=True, blank=True)
+
+    #  For before-after reports
+    before_year = models.IntegerField(null=True, blank=True)
+    after_year = models.IntegerField(null=True, blank=True)
+
     file = models.FileField(max_length=500, upload_to="reports/", blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     message = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.project} | {self.analysis_type} | {self.report_type} | {self.area_type} | {self.start_date}→{self.end_date}"
+        if self.before_year and self.after_year:
+            return f"{self.project} | {self.analysis_type.upper()} | {self.before_year}→{self.after_year}"
+        elif self.year:
+            return f"{self.project} | {self.analysis_type.upper()} | Year {self.year}"
+        else:
+            return f"{self.project} | {self.analysis_type.upper()} | {self.start_date}→{self.end_date}"
