@@ -38,8 +38,8 @@ def generate_yearly_report(request):
         if not instances.exists():
             return Response({"error": "No analysis data found for report"}, status=404)
 
-        # ✅ Generate and upload PDF
-        pdf_path = create_annual_report_pdf(instances)
+        # Generate and upload PDF
+        pdf_path = create_annual_report_pdf(instances, created_by=request.user)
         pdf_url = upload_report_to_s3(pdf_path, project_id, year, api_name="generate_yearly_report")
 
         return Response({
@@ -77,8 +77,8 @@ def generate_before_after_report(request):
         if not entries.exists():
             return Response({"error": "No data found for report"}, status=404)
 
-        # ✅ Generate and upload PDF
-        pdf_path = create_before_after_report_pdf(entries)
+        # Generate and upload PDF
+        pdf_path = create_before_after_report_pdf(entries, created_by=request.user)
         pdf_url = upload_report_to_s3(
             local_path=pdf_path,
             project_id=project_id,
