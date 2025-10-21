@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import boto3
 import numpy as np
+from urbananalytics.utils.langgraph_summarizer import run_langgraph_summarizer
+
 
 from urbananalytics.models import AreaAnalysis, Project, Report
 
@@ -168,151 +170,174 @@ def generate_summary_bar(stats_dict, title):
     return fig_to_base64(fig)
 
 
+# def generate_dynamic_insights(analysis_type, stats, counts, categories):
+#     total = sum(counts.values()) or 1
+#     dominant_category = max(counts, key=counts.get) if counts else "N/A"
+#     dominant_percent = (counts.get(dominant_category, 0) / total) * 100 if total else 0
+#     mean_val = stats['mean']
+#     interpretation = ""
+#     recommendations = []
+
+#     if analysis_type == "ndvi":
+#         if mean_val < 0.3:
+#             interpretation = (
+#                 f"Overall vegetation condition across the analyzed area is poor (average NDVI = {mean_val:.2f}). "
+#                 f"A significant portion of the region falls under the '{dominant_category}' category, "
+#                 f"covering nearly {dominant_percent:.1f}% of UCs. The results indicate stressed vegetation, "
+#                 "possibly due to prolonged dry periods, soil degradation, or lack of irrigation infrastructure. "
+#                 "These areas require immediate ecological attention to prevent further decline in green cover."
+#             )
+#             recommendations = [
+#                 "Introduce efficient irrigation systems and adopt drought-resistant crop varieties.",
+#                 "Implement reforestation programs in low-NDVI UCs to restore vegetation density.",
+#                 "Encourage sustainable agricultural practices and soil conservation methods.",
+#                 "Increase public awareness about deforestation and urban encroachment impacts.",
+#                 "Use satellite monitoring every quarter to observe recovery trends."
+#             ]
+#         elif mean_val < 0.6:
+#             interpretation = (
+#                 f"The region exhibits moderately healthy vegetation (average NDVI = {mean_val:.2f}), "
+#                 f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
+#                 "Some localized zones show signs of vegetation stress, indicating uneven agricultural health. "
+#                 "While most parts remain productive, sustained land management and water regulation are required "
+#                 "to prevent degradation over time."
+#             )
+#             recommendations = [
+#                 "Maintain irrigation schedules and monitor soil moisture regularly.",
+#                 "Introduce crop rotation and organic fertilizers to maintain soil fertility.",
+#                 "Encourage precision farming using satellite-based insights.",
+#                 "Identify and support UCs with below-average NDVI values through targeted interventions.",
+#                 "Adopt community-based plantation drives in semi-arid pockets."
+#             ]
+#         else:
+#             interpretation = (
+#                 f"The vegetation condition is excellent (average NDVI = {mean_val:.2f}). "
+#                 f"Most UCs fall within the '{dominant_category}' class, indicating dense and healthy vegetation cover. "
+#                 "This reflects successful agricultural and ecological management. However, continual monitoring "
+#                 "is essential to ensure that expanding urban infrastructure does not reduce these green zones in the future."
+#             )
+#             recommendations = [
+#                 "Preserve forest zones and prevent conversion of green lands into construction sites.",
+#                 "Promote agroforestry and mixed cropping for long-term ecological balance.",
+#                 "Monitor temperature and precipitation trends to safeguard vegetation health.",
+#                 "Use this NDVI dataset to identify high-potential zones for eco-tourism or conservation.",
+#                 "Share success models from high-performing UCs with surrounding communities."
+#             ]
+
+#     elif analysis_type == "thermal":
+#         if mean_val < 300:
+#             interpretation = (
+#                 f"The overall surface temperature is relatively cool (average {mean_val:.1f} K), "
+#                 f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
+#                 "The presence of cooler surfaces indicates healthy vegetation and water bodies acting as natural coolants. "
+#                 "These conditions are favorable for both human comfort and ecological sustainability."
+#             )
+#             recommendations = [
+#                 "Protect and expand vegetated and water-covered areas to maintain cool surface temperatures.",
+#                 "Encourage green roofing and reflective building materials in new developments.",
+#                 "Integrate tree planting along roads and public spaces for better heat regulation.",
+#                 "Monitor land-use changes to prevent loss of natural cooling zones.",
+#                 "Continue observation across multiple seasons to detect early signs of heat buildup."
+#             ]
+#         elif mean_val < 308:
+#             interpretation = (
+#                 f"The analyzed area shows moderate surface temperatures (average {mean_val:.1f} K). "
+#                 f"'{dominant_category}' represents around {dominant_percent:.1f}% of UCs, "
+#                 "indicating balanced conditions but rising urban heat in certain locations. "
+#                 "Built-up surfaces and reduced vegetation could be contributing to localized temperature peaks."
+#             )
+#             recommendations = [
+#                 "Increase vegetation density in built-up areas through pocket parks and rooftop gardens.",
+#                 "Adopt reflective materials and light-colored surfaces in construction to reduce heat absorption.",
+#                 "Expand monitoring to identify consistently hot UCs and assess their contributing factors.",
+#                 "Promote energy-efficient urban planning that reduces heat emissions.",
+#                 "Implement awareness campaigns on heat safety and sustainable city design."
+#             ]
+#         else:
+#             interpretation = (
+#                 f"The area shows high surface temperatures (average {mean_val:.1f} K), "
+#                 f"dominated by '{dominant_category}' ({dominant_percent:.1f}% of UCs). "
+#                 "This suggests a strong urban heat island effect, particularly in highly developed regions. "
+#                 "The heat levels may adversely affect air quality, water evaporation, and human well-being if left unmitigated."
+#             )
+#             recommendations = [
+#                 "Develop urban greening programs targeting the hottest UCs first.",
+#                 "Mandate green spaces in residential and commercial construction projects.",
+#                 "Increase the use of high-albedo and cool pavement technologies.",
+#                 "Establish heat-monitoring networks and provide public heat alerts.",
+#                 "Prioritize afforestation around industrial or densely populated areas."
+#             ]
+#     elif analysis_type == "aqi":
+#         if mean_val < 5:
+#             interpretation = (
+#                 f"The air quality across most UCs is excellent (average AQI = {mean_val:.1f}). "
+#                 f"'{dominant_category}' accounts for approximately {dominant_percent:.1f}% of the region. "
+#                 "This indicates minimal industrial or vehicular pollution, likely due to sufficient greenery and "
+#                 "low emission activity. The atmosphere is well-balanced for public health and environmental safety."
+#             )
+#             recommendations = [
+#                 "Maintain strict emission control standards and encourage renewable energy adoption.",
+#                 "Promote non-motorized and public transport systems to sustain low NO₂ levels.",
+#                 "Continue afforestation programs to absorb airborne pollutants.",
+#                 "Regularly monitor pollutant levels to maintain compliance with air quality standards.",
+#                 "Educate citizens about preserving clean air through community initiatives."
+#             ]
+#         elif mean_val < 15:
+#             interpretation = (
+#                 f"The air quality is moderate (average AQI = {mean_val:.1f}). "
+#                 f"'{dominant_category}' dominates ({dominant_percent:.1f}% of UCs), "
+#                 "indicating a gradual increase in emissions possibly from traffic or small industries. "
+#                 "While still acceptable, air quality must be actively managed to prevent further deterioration."
+#             )
+#             recommendations = [
+#                 "Introduce stricter emissions policies in moderately polluted zones.",
+#                 "Enhance public transport infrastructure to reduce vehicle dependence.",
+#                 "Deploy air quality monitoring sensors at UC level for continuous observation.",
+#                 "Encourage clean-energy adoption in domestic and industrial sectors.",
+#                 "Conduct periodic awareness campaigns on pollution prevention and mitigation."
+#             ]
+#         else:
+#             interpretation = (
+#                 f"The AQI results reveal poor air quality (average AQI = {mean_val:.1f}), "
+#                 f"with '{dominant_category}' covering {dominant_percent:.1f}% of UCs. "
+#                 "These values exceed safe thresholds, signaling heavy pollution from traffic, industry, or open burning. "
+#                 "Immediate regulatory and community-level interventions are essential to protect public health."
+#             )
+#             recommendations = [
+#                 "Implement emergency air pollution control measures such as traffic restrictions.",
+#                 "Ban open burning and impose emission limits on industrial facilities.",
+#                 "Launch public health advisories for sensitive populations.",
+#                 "Promote urban green belts and air-purifying vegetation.",
+#                 "Invest in clean energy transitions and emission-free public transportation."
+#             ]
+#     else:
+#         interpretation = "No dynamic interpretation available."
+#         recommendations = ["No specific recommendations available."]
+
+#     return interpretation, recommendations
 def generate_dynamic_insights(analysis_type, stats, counts, categories):
-    total = sum(counts.values()) or 1
-    dominant_category = max(counts, key=counts.get) if counts else "N/A"
-    dominant_percent = (counts.get(dominant_category, 0) / total) * 100 if total else 0
-    mean_val = stats['mean']
-    interpretation = ""
-    recommendations = []
+    """
+    Uses LangGraph summarizer (LangGraph pipeline) for AI-based insights.
+    """
+    # Prepare text input for summarization
+    report_text = f"""
+    Analysis Type: {analysis_type}
+    Mean: {stats['mean']}
+    Min: {stats['min']}
+    Max: {stats['max']}
+    Std Dev: {stats['std']}
+    Category Counts: {counts}
+    """
 
-    if analysis_type == "ndvi":
-        if mean_val < 0.3:
-            interpretation = (
-                f"Overall vegetation condition across the analyzed area is poor (average NDVI = {mean_val:.2f}). "
-                f"A significant portion of the region falls under the '{dominant_category}' category, "
-                f"covering nearly {dominant_percent:.1f}% of UCs. The results indicate stressed vegetation, "
-                "possibly due to prolonged dry periods, soil degradation, or lack of irrigation infrastructure. "
-                "These areas require immediate ecological attention to prevent further decline in green cover."
-            )
-            recommendations = [
-                "Introduce efficient irrigation systems and adopt drought-resistant crop varieties.",
-                "Implement reforestation programs in low-NDVI UCs to restore vegetation density.",
-                "Encourage sustainable agricultural practices and soil conservation methods.",
-                "Increase public awareness about deforestation and urban encroachment impacts.",
-                "Use satellite monitoring every quarter to observe recovery trends."
-            ]
-        elif mean_val < 0.6:
-            interpretation = (
-                f"The region exhibits moderately healthy vegetation (average NDVI = {mean_val:.2f}), "
-                f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
-                "Some localized zones show signs of vegetation stress, indicating uneven agricultural health. "
-                "While most parts remain productive, sustained land management and water regulation are required "
-                "to prevent degradation over time."
-            )
-            recommendations = [
-                "Maintain irrigation schedules and monitor soil moisture regularly.",
-                "Introduce crop rotation and organic fertilizers to maintain soil fertility.",
-                "Encourage precision farming using satellite-based insights.",
-                "Identify and support UCs with below-average NDVI values through targeted interventions.",
-                "Adopt community-based plantation drives in semi-arid pockets."
-            ]
-        else:
-            interpretation = (
-                f"The vegetation condition is excellent (average NDVI = {mean_val:.2f}). "
-                f"Most UCs fall within the '{dominant_category}' class, indicating dense and healthy vegetation cover. "
-                "This reflects successful agricultural and ecological management. However, continual monitoring "
-                "is essential to ensure that expanding urban infrastructure does not reduce these green zones in the future."
-            )
-            recommendations = [
-                "Preserve forest zones and prevent conversion of green lands into construction sites.",
-                "Promote agroforestry and mixed cropping for long-term ecological balance.",
-                "Monitor temperature and precipitation trends to safeguard vegetation health.",
-                "Use this NDVI dataset to identify high-potential zones for eco-tourism or conservation.",
-                "Share success models from high-performing UCs with surrounding communities."
-            ]
+    # Use 'average' report type for this report
+    summary, interpretation, recommendation = run_langgraph_summarizer(
+        report_text=report_text,
+        report_type="average"
+    )
 
-    elif analysis_type == "thermal":
-        if mean_val < 300:
-            interpretation = (
-                f"The overall surface temperature is relatively cool (average {mean_val:.1f} K), "
-                f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
-                "The presence of cooler surfaces indicates healthy vegetation and water bodies acting as natural coolants. "
-                "These conditions are favorable for both human comfort and ecological sustainability."
-            )
-            recommendations = [
-                "Protect and expand vegetated and water-covered areas to maintain cool surface temperatures.",
-                "Encourage green roofing and reflective building materials in new developments.",
-                "Integrate tree planting along roads and public spaces for better heat regulation.",
-                "Monitor land-use changes to prevent loss of natural cooling zones.",
-                "Continue observation across multiple seasons to detect early signs of heat buildup."
-            ]
-        elif mean_val < 308:
-            interpretation = (
-                f"The analyzed area shows moderate surface temperatures (average {mean_val:.1f} K). "
-                f"'{dominant_category}' represents around {dominant_percent:.1f}% of UCs, "
-                "indicating balanced conditions but rising urban heat in certain locations. "
-                "Built-up surfaces and reduced vegetation could be contributing to localized temperature peaks."
-            )
-            recommendations = [
-                "Increase vegetation density in built-up areas through pocket parks and rooftop gardens.",
-                "Adopt reflective materials and light-colored surfaces in construction to reduce heat absorption.",
-                "Expand monitoring to identify consistently hot UCs and assess their contributing factors.",
-                "Promote energy-efficient urban planning that reduces heat emissions.",
-                "Implement awareness campaigns on heat safety and sustainable city design."
-            ]
-        else:
-            interpretation = (
-                f"The area shows high surface temperatures (average {mean_val:.1f} K), "
-                f"dominated by '{dominant_category}' ({dominant_percent:.1f}% of UCs). "
-                "This suggests a strong urban heat island effect, particularly in highly developed regions. "
-                "The heat levels may adversely affect air quality, water evaporation, and human well-being if left unmitigated."
-            )
-            recommendations = [
-                "Develop urban greening programs targeting the hottest UCs first.",
-                "Mandate green spaces in residential and commercial construction projects.",
-                "Increase the use of high-albedo and cool pavement technologies.",
-                "Establish heat-monitoring networks and provide public heat alerts.",
-                "Prioritize afforestation around industrial or densely populated areas."
-            ]
-    elif analysis_type == "aqi":
-        if mean_val < 5:
-            interpretation = (
-                f"The air quality across most UCs is excellent (average AQI = {mean_val:.1f}). "
-                f"'{dominant_category}' accounts for approximately {dominant_percent:.1f}% of the region. "
-                "This indicates minimal industrial or vehicular pollution, likely due to sufficient greenery and "
-                "low emission activity. The atmosphere is well-balanced for public health and environmental safety."
-            )
-            recommendations = [
-                "Maintain strict emission control standards and encourage renewable energy adoption.",
-                "Promote non-motorized and public transport systems to sustain low NO₂ levels.",
-                "Continue afforestation programs to absorb airborne pollutants.",
-                "Regularly monitor pollutant levels to maintain compliance with air quality standards.",
-                "Educate citizens about preserving clean air through community initiatives."
-            ]
-        elif mean_val < 15:
-            interpretation = (
-                f"The air quality is moderate (average AQI = {mean_val:.1f}). "
-                f"'{dominant_category}' dominates ({dominant_percent:.1f}% of UCs), "
-                "indicating a gradual increase in emissions possibly from traffic or small industries. "
-                "While still acceptable, air quality must be actively managed to prevent further deterioration."
-            )
-            recommendations = [
-                "Introduce stricter emissions policies in moderately polluted zones.",
-                "Enhance public transport infrastructure to reduce vehicle dependence.",
-                "Deploy air quality monitoring sensors at UC level for continuous observation.",
-                "Encourage clean-energy adoption in domestic and industrial sectors.",
-                "Conduct periodic awareness campaigns on pollution prevention and mitigation."
-            ]
-        else:
-            interpretation = (
-                f"The AQI results reveal poor air quality (average AQI = {mean_val:.1f}), "
-                f"with '{dominant_category}' covering {dominant_percent:.1f}% of UCs. "
-                "These values exceed safe thresholds, signaling heavy pollution from traffic, industry, or open burning. "
-                "Immediate regulatory and community-level interventions are essential to protect public health."
-            )
-            recommendations = [
-                "Implement emergency air pollution control measures such as traffic restrictions.",
-                "Ban open burning and impose emission limits on industrial facilities.",
-                "Launch public health advisories for sensitive populations.",
-                "Promote urban green belts and air-purifying vegetation.",
-                "Invest in clean energy transitions and emission-free public transportation."
-            ]
-    else:
-        interpretation = "No dynamic interpretation available."
-        recommendations = ["No specific recommendations available."]
-
-    return interpretation, recommendations
+    # Convert recommendation text into a list (split by newline or bullet)
+    rec_list = [r.strip("-• ").strip() for r in recommendation.split("\n") if r.strip()]
+    return interpretation, rec_list
 
 
 HTML_TEMPLATE = """<!doctype html>
@@ -592,6 +617,12 @@ body {
 </body>
 </html>
 """
+def generate_report_with_ai(report_text, report_type):
+    summary, interpretation, recommendation = run_langgraph_summarizer(
+        report_text=report_text,
+        report_type=report_type
+    )
+    return interpretation, recommendation,summary
 
 
 def generate_average_report(project_id, analysis_type, report_type, area_type, start_date, end_date, created_by):
@@ -657,6 +688,8 @@ def generate_average_report(project_id, analysis_type, report_type, area_type, s
     barh_chart = generate_mean_distribution_chart(values, analysis_type, cfg["palette"], cfg["categories"])
     pie_chart, legend_items = generate_pie_with_legend(counts, categories, cfg.get("palette", []), f"{analysis_type.upper()} category distribution")
     summary_bar = generate_summary_bar({'min': stats['min'], 'mean': stats['mean'], 'max': stats['max'], 'std': stats['std']}, "Summary")
+    
+
 
     
     palette = cfg.get("palette", [])
