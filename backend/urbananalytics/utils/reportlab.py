@@ -996,39 +996,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             os.remove(fpath)
         except Exception:
             pass
-    # -----------------------------
-    # Save annual report record in database
-    # -----------------------------
-    try:
-        report_type = "1yr_average"
 
-        # Get instance data safely
-        instance = instances.first()
-        project = instance.project
-        analysis_type = instance.analysis_type.lower()
-        area_type = instance.area_type
-        year = int(getattr(instance, "year", 0))
-
-        with open(file_path, "rb") as f:
-            Report.objects.create(
-                project=project,
-                analysis_type=analysis_type,
-                report_type=report_type,
-                area_type=area_type,
-                year=year,
-                before_year=None,
-                after_year=None,
-                start_date=None,
-                end_date=None,
-                file=File(f, name=os.path.basename(file_path)),
-                created_by=created_by,  # ✅ Use user passed from API
-                message=f"{analysis_type.upper()} Annual Report ({year})",
-            )
-
-        print(f"Annual report saved successfully: {analysis_type.upper()} | {year}")
-
-    except Exception as e:
-        print(f"Failed to save annual report record: {e}")
 
     return file_path
 
@@ -2086,43 +2054,5 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             os.remove(line_chart_path)
     except Exception:
         pass
-    # -----------------------------
-    # Save before-after report record in database
-    # -----------------------------
-    try:
-        report_type = "2yr_comparison"
-
-        before_year = getattr(instance, "before_year", None)
-        after_year = getattr(instance, "after_year", None)
-        before_year = int(before_year) if before_year else None
-        after_year = int(after_year) if after_year else None
-
-        if (before_year is None or after_year is None) and entries.exists():
-            first_entry = entries.first()
-            before_year = int(getattr(first_entry, "before_year", 0))
-            after_year = int(getattr(first_entry, "after_year", 0))
-
-        print(f"DEBUG — before_year={before_year}, after_year={after_year}")
-
-        with open(file_path, "rb") as f:
-            Report.objects.create(
-                project=instance.project,
-                analysis_type=instance.analysis_type.lower(),
-                report_type=report_type,
-                area_type=instance.area_type,
-                before_year=before_year,
-                after_year=after_year,
-                year=None,
-                start_date=None,
-                end_date=None,
-                file=File(f, name=os.path.basename(file_path)),
-                created_by=created_by,  # ✅ FIXED — use user from API
-                message=f"{instance.analysis_type.upper()} comparison report ({before_year}–{after_year})",
-            )
-
-        print(f"Before–After report saved successfully: {before_year} → {after_year}")
-
-    except Exception as e:
-        print(f"Failed to save before–after report record: {e}")
 
     return file_path

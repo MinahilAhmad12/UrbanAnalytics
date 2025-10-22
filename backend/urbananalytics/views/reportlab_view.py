@@ -2,21 +2,20 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.conf import settings
-from django.shortcuts import get_object_or_404
 from urbananalytics.models import YearlyAnalysis, BeforeAfterAnalysis, Report
 from urbananalytics.utils.reportlab import (
     create_annual_report_pdf,
     create_before_after_report_pdf,
     upload_report_to_s3
 )
-import boto3
 
 
+# -------------------- YEARLY REPORT --------------------
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_yearly_report(request):
     """
-    Generate a Yearly ReportLab PDF and upload to S3 (no DB save).
+    Generate a Yearly ReportLab PDF, upload to S3, and store the full S3 URL in DB.
     """
     try:
         project_id = request.data.get("project_id")
@@ -38,9 +37,28 @@ def generate_yearly_report(request):
         if not instances.exists():
             return Response({"error": "No analysis data found for report"}, status=404)
 
-        # Generate and upload PDF
+        # Generate the local PDF
         pdf_path = create_annual_report_pdf(instances, created_by=request.user)
-        pdf_url = upload_report_to_s3(pdf_path, project_id, year, api_name="generate_yearly_report")
+
+        #  Upload it to S3
+        pdf_url = upload_report_to_s3(
+            local_path=pdf_path,
+            project_id=project_id,
+            year=year,
+            api_name="generate_yearly_report"
+        )
+
+        #  Save Report with full S3 URL (like average reports)
+        Report.objects.create(
+            project_id=project_id,
+            analysis_type=analysis_type.lower(),
+            report_type="1yr_average",
+            area_type=area_type,
+            year=year,
+            file=pdf_url,  # full S3 URL saved directly
+            created_by=request.user,
+            message=f"{analysis_type.upper()} Annual Report ({year})"
+        )
 
         return Response({
             "message": "Yearly PDF report generated and uploaded successfully.",
@@ -52,11 +70,12 @@ def generate_yearly_report(request):
 
 
 
+# -------------------- BEFORE–AFTER REPORT --------------------
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_before_after_report(request):
     """
-    Generate a Before–After ReportLab PDF and upload to S3 (no DB save).
+    Generate a Before–After ReportLab PDF, upload to S3, and store full S3 URL in DB.
     """
     try:
         project_id = request.data.get("project_id")
@@ -77,13 +96,28 @@ def generate_before_after_report(request):
         if not entries.exists():
             return Response({"error": "No data found for report"}, status=404)
 
-        # Generate and upload PDF
+        #  Generate the local PDF
         pdf_path = create_before_after_report_pdf(entries, created_by=request.user)
+
+        #  Upload to S3
         pdf_url = upload_report_to_s3(
             local_path=pdf_path,
             project_id=project_id,
             year=after_year,
             api_name="before_after_comparison"
+        )
+
+        # 3Save Report with full S3 URL
+        Report.objects.create(
+            project_id=project_id,
+            analysis_type=analysis_type.lower(),
+            report_type="2yr_comparison",
+            area_type="uc",
+            before_year=before_year,
+            after_year=after_year,
+            file=pdf_url,  # full S3 URL saved directly
+            created_by=request.user,
+            message=f"{analysis_type.upper()} Comparison Report ({before_year}→{after_year})"
         )
 
         return Response({
