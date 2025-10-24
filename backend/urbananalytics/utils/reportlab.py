@@ -31,6 +31,9 @@ from reportlab.lib.units import inch
 from urbananalytics.models import Report
 from django.core.files import File
 from datetime import datetime
+from urbananalytics.utils.langgraph_summarizer import run_langgraph_summarizer
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
 
 s3_client = boto3.client(
     "s3",
@@ -71,6 +74,33 @@ def upload_report_to_s3(
         os.remove(local_path)
 
     return f"{s3_domain}/{s3_key}"
+
+
+
+class NumberedCanvas(canvas.Canvas):
+    """Canvas subclass that supports Page X of Y numbering."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        """Add page count to each page (Page X of Y)."""
+        total_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(total_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, total_pages):
+        page = self.getPageNumber()
+        text = f"Page {page} of {total_pages}"
+        self.setFont("Helvetica", 9)
+        self.drawRightString(200 * mm, 10 * mm, text)
 
 
 # ---------------- PDF ----------------
@@ -472,7 +502,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     # ✅ Unified with backend & before-after legend colors
     if analysis_type_lower == "ndvi":
         legend_data = [
-            ["#FFFFFF", "Barren / No Vegetation (< 0.1)"],
+            ["#E7E0E0", "Barren / No Vegetation (< 0.1)"],
             ["#FFFF00", "Low Vegetation (0.1 – 0.25)"],
             ["#90EE90", "Moderate Vegetation (0.25 – 0.4)"],
             ["#008000", "Healthy Vegetation (0.4 – 0.6)"],
@@ -530,35 +560,56 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         min_val = round(float(np.min(hist_values)), 4)
         max_val = round(float(np.max(hist_values)), 4)
         hetero_val = round(float(np.std(hist_values)), 4)
+    # -----------------------------
+    # AI-Based Summary Generation using LangGraph
+    # -----------------------------
+    try:
+        # Prepare report text for AI model
+        report_text = f"""
+        Analysis Type: {instance.analysis_type}
+        Year: {instance.year}
+        Mean: {overall_mean}
+        Min: {min_val}
+        Max: {max_val}
+        Std Dev: {hetero_val}
+        UC Count: {len(hist_values)}
+        """
 
-        summary_data = [
-            ["Metric", "Value"],
-            ["Total Urban Units", len(hist_values)],
-            ["Average Value", overall_mean],
-            ["Minimum Value", min_val],
-            ["Maximum Value", max_val],
-            ["Heterogeneity (Std. Dev.)", hetero_val],
-        ]
-        summary_table = Table(summary_data, colWidths=[220, 160])
-        summary_table.setStyle(
-            TableStyle(
-                [
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, 0),
-                        colors.HexColor(table_header_color),
-                    ),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
-                    ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
-                ]
-            )
+        # Run LangGraph summarizer pipeline (3 steps: summarize → interpret → recommend)
+        summary, interpretation, recommendation = run_langgraph_summarizer(
+            report_text=report_text, report_type="annual"
         )
-        story.append(Paragraph("4 Overall Summary Statistics", section_title))
-        story.append(summary_table)
-        story.append(Spacer(1, 14))
+
+    except Exception as e:
+        print("LangGraph summarization failed:", e)
+        summary, interpretation, recommendation = ("", "", "")
+
+    # -----------------------------
+    # Summary Statistics Table
+    # -----------------------------
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total Urban Units", len(hist_values)],
+        ["Average Value", overall_mean],
+        ["Minimum Value", min_val],
+        ["Maximum Value", max_val],
+        ["Heterogeneity (Std. Dev.)", hetero_val],
+    ]
+    summary_table = Table(summary_data, colWidths=[220, 160])
+    summary_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(table_header_color)),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+            ]
+        )
+    )
+    story.append(Paragraph("4. Overall Summary Statistics", section_title))
+    story.append(summary_table)
+    story.append(Spacer(1, 14))
 
     # -----------------------------
     # 6. Summary Statistics Line Chart
@@ -868,41 +919,60 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     except Exception as e:
         print("Dynamic summary section failed:", e)
 
-    # -----------------------------
-    # 7. Interpretation & Recommendations
+    # # -----------------------------
+    # # 7. Interpretation & Recommendations
+    # # -----------------------------
+    # story.append(Paragraph("7. Interpretation", section_title))
+    # story.append(
+    #     Paragraph(
+    #         f"The {instance.analysis_type.upper()} data for {instance.year} highlights spatial variations across the city. "
+    #         "Higher mean values indicate areas of environmental health, while lower values highlight stress or degradation zones.",
+    #         normal,
+    #     )
+    # )
+    # story.append(Spacer(1, 10))
+
+    # story.append(Paragraph("8. Recommendations", section_title))
+
+    # #  Dynamic recommendations based on analysis type
+    # if analysis_type_lower == "ndvi":
+    #     rec_text = (
+    #         "Urban planners should focus on areas with low NDVI for reforestation, park development, "
+    #         "and vegetation restoration to improve green cover and reduce surface temperature."
+    #     )
+    # elif analysis_type_lower == "thermal":
+    #     rec_text = (
+    #         "High thermal zones should be prioritized for cooling strategies such as reflective roofing, "
+    #         "urban tree plantations, and increased permeable surfaces to mitigate heat island effects."
+    #     )
+    # elif analysis_type_lower == "aqi":
+    #     rec_text = (
+    #         "Areas with poor air quality require urgent measures such as emission control, green buffer zones, "
+    #         "traffic regulation, and industrial pollution reduction programs."
+    #     )
+    # else:
+    #     rec_text = "Focus should be on improving low-performing zones based on this indicator’s environmental interpretation."
+
+    # story.append(Paragraph(rec_text, normal))
+    # story.append(Spacer(1, 12))
+     # -----------------------------
+    # 7. AI-Based Interpretation & Recommendations
     # -----------------------------
     story.append(Paragraph("7. Interpretation", section_title))
-    story.append(
-        Paragraph(
-            f"The {instance.analysis_type.upper()} data for {instance.year} highlights spatial variations across the city. "
-            "Higher mean values indicate areas of environmental health, while lower values highlight stress or degradation zones.",
-            normal,
-        )
-    )
+    if interpretation:
+        story.append(Paragraph(interpretation, normal))
+    else:
+        story.append(Paragraph("Interpretation unavailable.", normal))
     story.append(Spacer(1, 10))
 
     story.append(Paragraph("8. Recommendations", section_title))
-
-    #  Dynamic recommendations based on analysis type
-    if analysis_type_lower == "ndvi":
-        rec_text = (
-            "Urban planners should focus on areas with low NDVI for reforestation, park development, "
-            "and vegetation restoration to improve green cover and reduce surface temperature."
-        )
-    elif analysis_type_lower == "thermal":
-        rec_text = (
-            "High thermal zones should be prioritized for cooling strategies such as reflective roofing, "
-            "urban tree plantations, and increased permeable surfaces to mitigate heat island effects."
-        )
-    elif analysis_type_lower == "aqi":
-        rec_text = (
-            "Areas with poor air quality require urgent measures such as emission control, green buffer zones, "
-            "traffic regulation, and industrial pollution reduction programs."
-        )
+    if recommendation:
+        for rec in recommendation.split("\n"):
+            rec = rec.strip("-• ").strip()
+            if rec:
+                story.append(Paragraph(f"• {rec}", normal))
     else:
-        rec_text = "Focus should be on improving low-performing zones based on this indicator’s environmental interpretation."
-
-    story.append(Paragraph(rec_text, normal))
+        story.append(Paragraph("No recommendations available.", normal))
     story.append(Spacer(1, 12))
 
     # -----------------------------
@@ -918,7 +988,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     # -----------------------------
     # Build PDF
     # -----------------------------
-    doc.build(story)
+    doc.build(story, canvasmaker=NumberedCanvas)
 
     # Clean up temp files
     for fpath in temp_files:
@@ -926,39 +996,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             os.remove(fpath)
         except Exception:
             pass
-    # -----------------------------
-    # Save annual report record in database
-    # -----------------------------
-    try:
-        report_type = "1yr_average"
 
-        # Get instance data safely
-        instance = instances.first()
-        project = instance.project
-        analysis_type = instance.analysis_type.lower()
-        area_type = instance.area_type
-        year = int(getattr(instance, "year", 0))
-
-        with open(file_path, "rb") as f:
-            Report.objects.create(
-                project=project,
-                analysis_type=analysis_type,
-                report_type=report_type,
-                area_type=area_type,
-                year=year,
-                before_year=None,
-                after_year=None,
-                start_date=None,
-                end_date=None,
-                file=File(f, name=os.path.basename(file_path)),
-                created_by=created_by,  # ✅ Use user passed from API
-                message=f"{analysis_type.upper()} Annual Report ({year})",
-            )
-
-        print(f"Annual report saved successfully: {analysis_type.upper()} | {year}")
-
-    except Exception as e:
-        print(f"Failed to save annual report record: {e}")
 
     return file_path
 
@@ -1605,7 +1643,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 color=chart_title_color,
             )
 
-            plt.legend(fontsize=8)
+            # plt.legend(fontsize=8)
             plt.grid(axis="y", linestyle="--", alpha=0.3)
             plt.tight_layout()
 
@@ -1656,7 +1694,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             atype = instance.analysis_type.lower()
 
             if atype == "thermal":
-                # 🟡 Dual-axis chart for thermal
+                #  Dual-axis chart for thermal
                 fig, ax1 = plt.subplots(figsize=(6.2, 4.5))
                 ax2 = ax1.twinx()
 
@@ -1725,7 +1763,9 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     )
                 # Labels and layout
                 ax1.set_xlabel("Year", fontsize=9)
-                ax1.set_ylabel("Temperature (Kelvin)", fontsize=9, color=chart_title_color)
+                ax1.set_ylabel(
+                    "Temperature (Kelvin)", fontsize=9, color=chart_title_color
+                )
                 ax2.set_ylabel("Heterogeneity (Std. Dev.)", fontsize=9, color="#F1C40F")
                 ax1.set_title(
                     f"{instance.analysis_type.upper()} Summary Comparison",
@@ -1748,7 +1788,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     frameon=False,
                 )
 
-                # ✅ FIX: Force only 2 years (no extra ticks like 2020/2021)
+                #  FIX: Force only 2 years (no extra ticks like 2020/2021)
                 ax1.set_xticks(years)
                 ax1.set_xticklabels([str(y) for y in years])
 
@@ -1843,102 +1883,102 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             # --- Add chart + summary (keep all together) ---
             avg_before = np.mean(before_vals)
             avg_after = np.mean(after_vals)
-            trend_percent = (
-                ((avg_after - avg_before) / avg_before) * 100 if avg_before else 0
-            )
+            trend_percent = ((avg_after - avg_before) / avg_before) * 100 if avg_before else 0
             trend_direction = "up" if trend_percent > 0 else "down"
 
+            # --- Fix arrow direction to match real trend ---
+            arrow = "↑" if trend_percent > 0 else ("↓" if trend_percent < 0 else "→")
+
+            # --- Smart split layout for chart section (prevents large empty gaps) ---
             story.append(
-                KeepTogether(
-                    [
-                        Paragraph("3. Before–After Summary Chart", section),
-                        Spacer(1, 6),
-                        RLImage(line_chart_path, width=400, height=200),
-                        Spacer(1, 8),
-                        Paragraph(
-                            f"<font size=9 color='gray'>Shows before–after trends in min, max, avg, and heterogeneity "
-                            f"for {instance.analysis_type.upper()} between {instance.before_year} and {instance.after_year}.</font>",
-                            normal,
-                        ),
-                        Spacer(1, 8),
-                        # Added note for clarity (Kelvin units)
-                        Paragraph(
-                            "<font size=8 color='gray'><i>Note: All temperature values are expressed in Kelvin (K).</i></font>",
-                            normal,
-                        ),
-                        Spacer(1, 6),
-                        Paragraph(
-                            f"<b>{instance.analysis_type.upper()}</b> is trending {arrow} <b>{trend_direction}</b> by "
-                            f"<b>{abs(trend_percent):.1f}%</b> between {instance.before_year} and {instance.after_year}.",
-                            ParagraphStyle(
-                                "Trend",
-                                parent=normal,
-                                textColor=colors.HexColor(chart_title_color),
-                            ),
-                        ),
-                        Spacer(1, 6),
-                    ]
+                KeepTogether([
+                    Paragraph("3. Before–After Summary Chart", section),
+                    Spacer(1, 6),
+                    RLImage(line_chart_path, width=400, height=180),  # slightly shorter image
+                ])
+            )
+            story.append(Spacer(1, 6))
+
+            # Caption and note can flow naturally if space is short
+            story.append(
+                Paragraph(
+                    f"<font size=9 color='gray'>Shows before–after trends in min, max, avg, and heterogeneity "
+                    f"for {instance.analysis_type.upper()} between {instance.before_year} and {instance.after_year}.</font>",
+                    normal,
                 )
             )
+            story.append(Spacer(1, 6))
+
+            story.append(
+                Paragraph(
+                    "<font size=8 color='gray'><i>Note: All temperature values are expressed in Kelvin (K).</i></font>",
+                    normal,
+                )
+            )
+            story.append(Spacer(1, 6))
+
+            # --- Trend summary line ---
+            story.append(
+                Paragraph(
+                    f"<b>{instance.analysis_type.upper()}</b> is trending {arrow} <b>{trend_direction}</b> by "
+                    f"<b>{abs(trend_percent):.1f}%</b> between {instance.before_year} and {instance.after_year}.",
+                    ParagraphStyle(
+                        "Trend",
+                        parent=normal,
+                        textColor=colors.HexColor(chart_title_color),
+                    ),
+                )
+            )
+            story.append(Spacer(1, 10))
+
+
 
     except Exception as e:
         print("Line chart generation failed:", e)
 
     # -----------------------------
-    # 4. Interpretation & Recommendations
+    # 4. AI-Based Interpretation & Recommendations
     # -----------------------------
     try:
-        story.append(PageBreak())  # start a new page for clarity
+        # story.append(PageBreak())  # start a new page for clarity
 
-        # 4.1 Interpretation
+        # Collect overall summary stats for AI prompt
+        report_text = f"""
+        Analysis Type: {instance.analysis_type}
+        Before Year: {instance.before_year}
+        After Year: {instance.after_year}
+        Avg Before: {np.mean(before_vals) if before_vals else 0}
+        Avg After: {np.mean(after_vals) if after_vals else 0}
+        Change (%): {((np.mean(after_vals) - np.mean(before_vals)) / (np.mean(before_vals) or 1)) * 100 if before_vals and after_vals else 0}
+        """
+
+        # Generate AI-based insights
+        summary, interpretation, recommendation = run_langgraph_summarizer(
+            report_text=report_text,
+            report_type="before_after"
+        )
+
+        # ---- Display AI Interpretation ----
         story.append(Paragraph("4. Interpretation", section))
-        atype = instance.analysis_type.lower()
-
-        if atype == "ndvi":
-            if np.mean(after_vals) > np.mean(before_vals):
-                interp_text = (
-                    f"Vegetation density improved from {instance.before_year} to {instance.after_year}, "
-                    "indicating positive environmental recovery and green space expansion. "
-                    "Higher NDVI values represent healthier vegetation and lower surface heat stress."
-                )
-            else:
-                interp_text = (
-                    f"Vegetation cover declined between {instance.before_year} and {instance.after_year}, "
-                    "suggesting potential deforestation or unplanned urban expansion affecting ecosystem balance."
-                )
-
-        elif atype == "thermal":
-            if np.mean(after_vals) > np.mean(before_vals):
-                interp_text = (
-                    f"Surface temperature increased between {instance.before_year} and {instance.after_year}, "
-                    "signaling intensifying urban heat island effects due to reduced vegetation and higher built-up density."
-                )
-            else:
-                interp_text = (
-                    f"Surface temperature slightly decreased between {instance.before_year} and {instance.after_year}, "
-                    "indicating improved urban cooling, vegetation recovery, or successful heat mitigation strategies."
-                )
-
-        elif atype == "aqi":
-            if np.mean(after_vals) > np.mean(before_vals):
-                interp_text = (
-                    f"Air quality has deteriorated from {instance.before_year} to {instance.after_year}, "
-                    "likely due to increased emissions, construction activities, or industrial expansion."
-                )
-            else:
-                interp_text = (
-                    f"Air quality improved between {instance.before_year} and {instance.after_year}, "
-                    "reflecting better emission controls, green buffer zones, and improved waste management."
-                )
-
+        if interpretation:
+            story.append(Paragraph(interpretation, normal))
         else:
-            interp_text = (
-                f"The environmental condition for {atype.upper()} shows moderate changes "
-                f"between {instance.before_year} and {instance.after_year}, indicating localized variability."
-            )
-
-        story.append(Paragraph(interp_text, normal))
+            story.append(Paragraph("Interpretation unavailable.", normal))
         story.append(Spacer(1, 10))
+
+        # ---- Display AI Recommendations ----
+        story.append(Paragraph("5. Recommendations", section))
+        if recommendation:
+            for rec in recommendation.split("\n"):
+                rec = rec.strip("-• ").strip()
+                if rec:
+                    story.append(Paragraph(f"• {rec}", normal))
+        else:
+            story.append(Paragraph("No recommendations available.", normal))
+        story.append(Spacer(1, 12))
+
+    except Exception as e:
+        print("Interpretation & Recommendations failed:", e)
 
         # 4.2 Recommendations
         story.append(Paragraph("5. Recommendations", section))
@@ -2004,7 +2044,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     )
 
     # Build PDF FIRST
-    doc.build(story)
+    doc.build(story, canvasmaker=NumberedCanvas)
 
     # Cleanup temporary charts
     try:
@@ -2014,43 +2054,5 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             os.remove(line_chart_path)
     except Exception:
         pass
-     # -----------------------------
-    # Save before-after report record in database
-    # -----------------------------
-    try:
-        report_type = "2yr_comparison"
-
-        before_year = getattr(instance, "before_year", None)
-        after_year = getattr(instance, "after_year", None)
-        before_year = int(before_year) if before_year else None
-        after_year = int(after_year) if after_year else None
-
-        if (before_year is None or after_year is None) and entries.exists():
-            first_entry = entries.first()
-            before_year = int(getattr(first_entry, "before_year", 0))
-            after_year = int(getattr(first_entry, "after_year", 0))
-
-        print(f"DEBUG — before_year={before_year}, after_year={after_year}")
-
-        with open(file_path, "rb") as f:
-            Report.objects.create(
-                project=instance.project,
-                analysis_type=instance.analysis_type.lower(),
-                report_type=report_type,
-                area_type=instance.area_type,
-                before_year=before_year,
-                after_year=after_year,
-                year=None,
-                start_date=None,
-                end_date=None,
-                file=File(f, name=os.path.basename(file_path)),
-                created_by=created_by,  # ✅ FIXED — use user from API
-                message=f"{instance.analysis_type.upper()} comparison report ({before_year}–{after_year})",
-            )
-
-        print(f"Before–After report saved successfully: {before_year} → {after_year}")
-
-    except Exception as e:
-        print(f"Failed to save before–after report record: {e}")
 
     return file_path
