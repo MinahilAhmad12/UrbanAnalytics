@@ -34,7 +34,7 @@ AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
 AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
 
 # Set Google Earth Engine credentials explicitly (for local development)
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json"
+# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\Maryam Afzal\Downloads\urbananalytics-460415-f557e7903d83.json"
 
 # GDAL_LIBRARY_PATH = r"C:\Users\Maryam Afzal\miniconda3\envs\geo_env\Library\bin\gdal.dll"
 GDAL_LIBRARY_PATH = r"C:\Users\user\miniconda3\envs\geo_env\Library\bin\gdal.dll"
@@ -44,9 +44,9 @@ if not os.path.exists(GDAL_LIBRARY_PATH):
 
 
 
-load_dotenv()  # take environment variables from .env.
+load_dotenv() 
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
 
