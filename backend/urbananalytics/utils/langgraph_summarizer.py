@@ -1,5 +1,5 @@
 
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 from typing import TypedDict
@@ -20,8 +20,11 @@ class SummaryState(TypedDict):
 
 
 def summarize_report(state: SummaryState):
-    llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY")
+    llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",  
+    google_api_key=os.getenv("GOOGLE_API_KEY")
 )
+
     text = state["report_text"]
     r_type = state["report_type"]
 
@@ -45,7 +48,9 @@ def summarize_report(state: SummaryState):
 
 
 def generate_interpretations(state: SummaryState):
-    llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
+    llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",  
+    google_api_key=os.getenv("GOOGLE_API_KEY"))
     summary = state["summary"]
     r_type = state["report_type"]
 
@@ -67,8 +72,9 @@ def generate_interpretations(state: SummaryState):
 
 
 def generate_recommendations(state: SummaryState):
-    llm = ChatOpenAI(model="gpt-4o-mini",api_key=os.getenv("OPENAI_API_KEY")
-)
+    llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",  
+    google_api_key=os.getenv("GOOGLE_API_KEY"))
     summary = state["summary"]
     r_type = state["report_type"]
 
@@ -84,6 +90,7 @@ def generate_recommendations(state: SummaryState):
 
     recommendation = llm.invoke(prompt).content
     recommendation = re.sub(r'^\s*\d+[\.\)\-]\s*', '', recommendation, flags=re.MULTILINE)
+    recommendation = re.sub(r"#+\s*", "", recommendation)
     return {"recommendation": recommendation}
 
 
