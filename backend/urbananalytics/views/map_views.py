@@ -1149,13 +1149,13 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
             l8_collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2') \
                 .filterBounds(polygon) \
                 .filterDate(start_date, end_date) \
-                .select(['B5', 'B4'])  
+                .select(['SR_B4', 'SR_B5'])  
 
             l8_size = l8_collection.size().getInfo()
             print(f"[DEBUG] Landsat-8 collection size: {l8_size}")
 
             if l8_size > 0:
-                image = l8_collection.median().normalizedDifference(['B5', 'B4']).rename('NDVI').clip(polygon)
+                image = l8_collection.median().normalizedDifference(['SR_B4', 'SR_B5']).rename('NDVI').clip(polygon)
                 scale = 30
             else:
                 print("[DEBUG] No Landsat-8 images found, creating constant NDVI image")
