@@ -87,7 +87,7 @@ class MapState(models.Model):
 
 
 class AreaAnalysis(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="analyses")
+    project = models.ForeignKey(Project,on_delete=models.CASCADE,related_name="analyses", null=True,blank=True)
     analysis_type = models.CharField(max_length=50)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -95,6 +95,7 @@ class AreaAnalysis(models.Model):
     geometry = models.JSONField(null=True, blank=True)
     stats = models.JSONField(null=True, blank=True)
     tile_url_template = models.CharField(max_length=500, null=True, blank=True)
+    kml_hash = models.CharField(max_length=128, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_pixelwise = models.BooleanField(default=False)
@@ -102,7 +103,7 @@ class AreaAnalysis(models.Model):
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
-        unique_together = ("project", "analysis_type", "start_date", "end_date", "area_type", "uc_name")
+        unique_together = ("project", "analysis_type", "start_date", "end_date", "area_type", "uc_name","kml_hash")
         ordering = ["uc_name", "start_date"]
 
     def __str__(self):
@@ -110,19 +111,20 @@ class AreaAnalysis(models.Model):
 
     
 class YearlyAnalysis(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses")
-    analysis_type = models.CharField(max_length=50)  # ndvi, thermal, aqi
-    year = models.IntegerField()                     # the selected year
-    area_type = models.CharField(max_length=20)      # uc/custom/kml
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_analyses", null=True, blank=True)
+    analysis_type = models.CharField(max_length=50)  
+    year = models.IntegerField()                     
+    area_type = models.CharField(max_length=20)      
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
-    # Summary statistics for the year (annual mode)
+    
     stats = models.JSONField(null=True, blank=True)
+    kml_hash = models.CharField(max_length=64, null=True, blank=True)
 
-    # Pixelwise toggle
+    
     is_pixelwise = models.BooleanField(default=False)
-    # AWS stored tiles URL (if pixelwise)
+    
     tile_url_template = models.CharField(max_length=500, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -137,11 +139,11 @@ class YearlyAnalysis(models.Model):
     
 class YearlyPixelValue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
-    analysis_type = models.CharField(max_length=50)  # ndvi, aqi, etc.
+    analysis_type = models.CharField(max_length=50)  
     year = models.IntegerField()
     lat = models.FloatField()
     lng = models.FloatField()
-    pixel_value = models.JSONField()  # store value like {"NDVI": 0.23} or {"AQI": 12.3}
+    pixel_value = models.JSONField()  
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -153,8 +155,8 @@ class YearlyPixelValue(models.Model):
     
 class BeforeAfterAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="before_after_analyses")
-    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
-    area_type = models.CharField(max_length=20)       # uc/custom/kml
+    analysis_type = models.CharField(max_length=50)   
+    area_type = models.CharField(max_length=20)       
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
@@ -176,17 +178,17 @@ class BeforeAfterAnalysis(models.Model):
 
 
 class BeforeAfterPixelwise(models.Model):
-    project = models.ForeignKey("Project", on_delete=models.CASCADE)
-    analysis_type = models.CharField(max_length=50)   # ndvi, thermal, aqi
-    area_type = models.CharField(max_length=20)       # uc / kml / custom
+    project = models.ForeignKey("Project", on_delete=models.CASCADE,null=True, blank=True)
+    analysis_type = models.CharField(max_length=50)   
+    area_type = models.CharField(max_length=20)       
 
     uc_name = models.CharField(max_length=255, null=True, blank=True)
     city_name = models.CharField(max_length=255, null=True, blank=True)
 
     before_year = models.IntegerField()
     after_year = models.IntegerField()
-
-    # New: S3 tile URL templates
+    kml_hash = models.CharField(max_length=64, null=True, blank=True)
+    
     tile_url_before = models.CharField(max_length=500, null=True, blank=True)
     tile_url_after = models.CharField(max_length=500, null=True, blank=True)
 
@@ -201,10 +203,12 @@ class BeforeAfterPixelwise(models.Model):
             "uc_name",
             "before_year",
             "after_year",
+            "kml_hash",
         )
         indexes = [
             models.Index(fields=["project", "analysis_type", "before_year", "after_year"]),
             models.Index(fields=["area_type"]),
+            models.Index(fields=["kml_hash"]),
         ]
 
     def __str__(self):

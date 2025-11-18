@@ -43,7 +43,7 @@ from rest_framework.permissions import IsAuthenticated
 from concurrent.futures import ThreadPoolExecutor
 import json
 from datetime import datetime
-# from dateutil.relativedelta import relativedelta
+
 import fastkml
 from shapely.geometry import shape, mapping
 import os
@@ -74,21 +74,27 @@ from shapely.geometry import shape, Polygon, MultiPolygon
 import math
 import subprocess
 from pyproj import Transformer
+from functools import partial
+
 
 from rio_tiler.io import COGReader
 
-# from rio_tiler.utils import tile_read
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from PIL import Image
 import mercantile
 import time
+import hashlib
 
 
 DATA_DIR = os.path.join(settings.BASE_DIR, "local_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+from django.core.exceptions import ImproperlyConfigured
 
 from django.contrib.gis.geos import GEOSGeometry
 from shapely.geometry import Polygon as ShapelyPolygon
@@ -154,33 +160,45 @@ def get_ucs(request):
 
         elif project.kml_file:
             kml_path = project.kml_file.path
-            cache_file_path = os.path.join(DATA_DIR, f"project_{project.id}_kml_ucs.json")
+            with open(kml_path, "rb") as f:
+                kml_bytes = f.read()
 
-            if os.path.exists(cache_file_path):
-                with open(cache_file_path, "r") as f:
-                    return Response(json.load(f))
+            
+            kml_hash = hashlib.md5(kml_bytes).hexdigest()
+            content_cache_path = os.path.join(DATA_DIR, f"{kml_hash}_kml_ucs.json")
 
-            with open(kml_path, "r", encoding="utf-8") as f:
-                kml_content = f.read()
+            
+            if not os.path.exists(content_cache_path):
+                kml_content = kml_bytes.decode("utf-8-sig")  
+                polygon = kml_to_geosgeometry(kml_content)
+                ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
 
-            polygon = kml_to_geosgeometry(kml_content)
+                if not ucs.exists():
+                    return Response({"error": "No UCs found in this KML area"}, status=404)
 
+                geojson = serialize(
+                    "geojson", ucs,
+                    geometry_field="geometry",
+                    fields=("uc_name", "city_name")
+                )
+                geojson_data = json.loads(geojson)
 
-            ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
-            if not ucs.exists():
-                return Response({"error": "No UCs found in this area"}, status=404)
+                
+                with open(content_cache_path, "w") as f:
+                    json.dump(geojson_data, f)
+            else:
+                
+                with open(content_cache_path, "r") as f:
+                    geojson_data = json.load(f)
 
-            geojson = serialize(
-                "geojson", ucs,
-                geometry_field="geometry",
-                fields=("uc_name", "city_name")
-            )
-            geojson_data = json.loads(geojson)
-
-            with open(cache_file_path, "w") as f:
-                json.dump(geojson_data, f)
+            
+            project_cache_path = os.path.join(DATA_DIR, f"project_{project.id}_kml_ucs.json")
+            if not os.path.exists(project_cache_path):
+                with open(project_cache_path, "w") as f:
+                    json.dump(geojson_data, f)
 
             return Response(geojson_data)
+            
 
         else:
             return Response({"error": "Project has neither location_name nor KML file"}, status=400)
@@ -192,42 +210,54 @@ os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 os.environ['SSL_CERT_FILE'] = certifi.where()
 
 def init_ee():
-    """Initialize Earth Engine lazily when needed."""
+   
+    
     if ee.data._initialized:
         return
 
-    # Use .env path first (recommended)
+    
     service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-    if not service_account_path or not os.path.exists(service_account_path):
-        # Fallback to local file if env variable not found
+    
+    if not service_account_path:
         service_account_path = os.path.join(settings.BASE_DIR, "service_account.json")
 
-    # Read service account info/
-    with open(service_account_path) as f:
-        import json
+    
+    if not os.path.exists(service_account_path):
+        raise ImproperlyConfigured(
+            f"Service account file not found at: {service_account_path}. "
+            "Please check your GOOGLE_APPLICATION_CREDENTIALS path or upload the key file."
+        )
+
+    
+    with open(service_account_path, "r") as f:
         service_account_info = json.load(f)
-        service_account_email = service_account_info["client_email"]
 
-    credentials = ee.ServiceAccountCredentials(service_account_email, key_file=service_account_path)
+    service_account_email = service_account_info.get("client_email")
+    if not service_account_email:
+        raise ImproperlyConfigured("Invalid service_account.json — missing 'client_email'.")
 
+    
     try:
+        credentials = ee.ServiceAccountCredentials(service_account_email, key_file=service_account_path)
         ee.Initialize(credentials, project="urbananalytics-460415")
-        print("Earth Engine initialized successfully!")
+        print("Earth Engine initialized successfully.")
     except Exception as e:
         print("Failed to initialize Earth Engine:", e)
-        raise RuntimeError("Earth Engine initialization failed. Check credentials.")
+        raise RuntimeError("Earth Engine initialization failed. Check credentials or key file.")
 
 def load_ucs_for_uc(city_name):
-    """Load UC data for a city from local JSON file."""
+    
     file_path = os.path.join(DATA_DIR, f"{city_name.lower()}_ucs.json")
     if not os.path.exists(file_path):
         return None
 
     with open(file_path, "r") as f:
         return json.load(f) 
+    
+    
 def load_ucs_for_kml(project_id):
-    """Load UC and KML data for a project from a local JSON file."""
+    
     file_path = os.path.join(DATA_DIR, f"project_{project_id}_kml_ucs.json")
     if not os.path.exists(file_path):
         return None
@@ -293,7 +323,12 @@ def perform_gee_average_analysis(request):
             city_name = feature["properties"].get("city_name", "unknown_city")
 
             try:
-                polygon = ee.Geometry(feature["geometry"])
+                
+                geom = feature["geometry"]
+                if geom["type"] == "MultiPolygon":
+                    polygon = ee.Geometry.MultiPolygon(geom["coordinates"])
+                else:
+                    polygon = ee.Geometry.Polygon(geom["coordinates"])
                 result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
 
                 if not result or "stats" not in result:
@@ -600,8 +635,21 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                 "status": f"error: {str(e)}"
             }
         }
+        
 
-@api_view(['POST'])
+def compute_file_hash(file_path, length=12):
+    
+    h = hashlib.sha1()
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()[:16]
+
+
+@api_view(['POST']) 
 @permission_classes([IsAuthenticated])
 def pixelwise_analysis(request):
     init_ee()
@@ -617,384 +665,222 @@ def pixelwise_analysis(request):
     if not analysis_type or not start_date or not end_date or not area_type:
         return Response({"error": "Missing required parameters"}, status=400)
 
-    try:
-        results = []
-        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-        
-        if project_id and area_type in ["uc", "kml"]:
-            cached_results = AreaAnalysis.objects.filter(
-                project_id=project_id,
-                analysis_type=analysis_type,
-                start_date=start_date,
-                end_date=end_date,
-                area_type=area_type,
-                is_pixelwise=True
-            ).order_by('uc_name')
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+    results = []
 
-            if cached_results.exists():
-                for cached in cached_results:
-                    results.append({
-                        "uc_name": cached.uc_name,
-                        "city_name": cached.city_name,
-                        "tile_url_template": cached.tile_url_template,
-                        "area_type": cached.area_type
-                    })
+    if project_id:
+        project_cached = AreaAnalysis.objects.filter(
+            project_id=project_id,
+            analysis_type=analysis_type,
+            start_date=start_date,
+            end_date=end_date,
+            area_type=area_type,
+            is_pixelwise=True
+        ).order_by('uc_name')
 
-                return Response({
-                    "message": f"Cached {analysis_type.upper()} pixelwise analysis returned",
-                    "results": results
+        if project_cached.exists():
+            for cached in project_cached:
+                results.append({
+                    "uc_name": cached.uc_name,
+                    "city_name": cached.city_name,
+                    "tile_url_template": cached.tile_url_template,
+                    "area_type": cached.area_type
                 })
+            return Response({
+                "message": f"Cached {analysis_type.upper()} pixelwise analysis returned",
+                "results": results
+            })
 
-        def process_uc(feature):
-            uc_name = feature["properties"].get("uc_name", "unknown_uc")
-            city_name = feature["properties"].get("city_name", "unknown_city")
-            uc_safe = re.sub(r"[^\w\-]", "_", uc_name)
-            local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id), uc_safe)
-            os.makedirs(local_dir, exist_ok=True)
+    features = []
+    kml_hash = None
+    if area_type == "uc":
+        if not project_id:
+            return Response({"error": "project_id is required for UC analysis"}, status=400)
+        project = Project.objects.filter(id=project_id).first()
+        if not project:
+            return Response({"error": "Project not found"}, status=404)
+        city_name = project.location_name
+        uc_data = load_ucs_for_uc(city_name)
+        if not uc_data:
+            db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
+            features = [{"geometry": json.loads(uc.geometry.geojson), "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}} for uc in db_ucs]
+        else:
+            features = uc_data.get("features", [])
+    elif area_type == "kml":
+        if not project_id:
+            return Response({"error": "project_id is required for KML analysis"}, status=400)
+        
+        project = Project.objects.filter(id=project_id).first()
+        if not project or not project.kml_file:
+            return Response({"error": "KML file not found for this project"}, status=404)
 
-            local_tif = os.path.join(local_dir, f"{analysis_type}{start_date}{end_date}.tif")
-            tiles_dir = os.path.join(local_dir, "tiles")
+        kml_path = project.kml_file.path
 
-            try:
+        
+        with open(kml_path, "rb") as f:
+            kml_bytes = f.read()
+
+        
+        kml_content = kml_bytes.decode("utf-8-sig")
+
+        
+        kml_hash = hashlib.md5(kml_bytes).hexdigest()
+
+    
+        content_cache_path = os.path.join(DATA_DIR, f"{kml_hash}_kml_ucs.json")
+
+        
+        if os.path.exists(content_cache_path):
+            kml_data = json.load(open(content_cache_path))
+        else:
+            polygon = kml_to_geosgeometry(kml_content)
+            ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
+            if not ucs.exists():
+                return Response({"error": "No UCs found in this area"}, status=404)
+
+            geojson = serialize(
+                "geojson", ucs,
+                geometry_field="geometry",
+                fields=("uc_name", "city_name")
+            )
+            kml_data = json.loads(geojson)
+            with open(content_cache_path, "w") as f:
+                json.dump(kml_data, f)
+
+        
+        features = kml_data.get("features", [])
+    
+    elif area_type == "custom":
+        if not geometry_data:
+            return Response({"error": "geometry data is required for custom analysis"}, status=400)
+        geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
+        features = [{"geometry": geom_json, "properties": {"uc_name": None, "city_name": None}}]
+
+    
+    def process_feature(feature):
+        uc_name = feature["properties"].get("uc_name", "unknown_uc")
+        city_name_local = feature["properties"].get("city_name", city_name)
+        uc_safe = re.sub(r"[^\w\-]", "_", uc_name).lower()
+        city_name_safe = re.sub(r"[^\w\-]", "_", city_name_local)
+        
+        shared_filter = {
+            "project_id__isnull": True,
+            "analysis_type": analysis_type,
+            "start_date": start_date,
+            "end_date": end_date,
+            "area_type": area_type
+        }
+
+        if area_type == "uc":
+            shared_filter["uc_name"] = uc_safe
+            shared_filter["city_name__iexact"] = city_name_safe
+
+        
+        elif area_type == "kml":
+            if kml_hash:
                 
-                geojson_dict = feature.get("geometry")
-                if not geojson_dict:
-                    raise ValueError("Missing geometry")
-                polygon = ee.Geometry(geojson_dict)
-
-                if analysis_type.lower()!= "aqi":
-                    
-                    area_sq_m = polygon.area().getInfo()
-                    default_scales = {"ndvi": 10, "thermal": 100}
-                    scale = default_scales.get(analysis_type.lower(), 10)
-                    
-                    if area_sq_m > 1e9:          
-                        scale = max(scale, 60)
-                    elif area_sq_m > 5e8:        
-                        scale = max(scale, 40)
-                    elif area_sq_m > 1e8:        
-                        scale = max(scale, 20)
-                        
-                    if area_sq_m < (scale**2):
-                        scale = max(int(area_sq_m**0.5), 1)
-                    if analysis_type.lower() == "ndvi" and area_sq_m < 1e4:
-                        scale = max(scale, 20)
-                    if area_sq_m < 100:
-                        print(f" Skipped {uc_name} — area too small for export ({area_sq_m:.2f} m²)")
-                        return {"uc_name": uc_name, "city_name": city_name, "error": "1",
-                                "error_msg": "Polygon too small for analysis", "tile_url_template": None}
-
-                if analysis_type.lower() == "aqi":
-                    image, vis_params, scale = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-                else:
-                    image, vis_params, _ = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-                
-                if not image:
-                    return {"uc_name": uc_name, "city_name": city_name, "error": "1",
-                            "error_msg": "No image generated", "tile_url_template": None}
-
-                
-                
-                polygon_3857 = polygon.transform("EPSG:3857", maxError=1)
-
-                
-                image = image.clip(polygon_3857)
-                
-                try:
-                    stats = image.reduceRegion(
-                        reducer=ee.Reducer.percentile([5, 95]),
-                        geometry=polygon,
-                        scale=scale,
-                        bestEffort=True,
-                        maxPixels=1e13
-                    ).getInfo()
-
-                    band_name = list(stats.keys())[0]  
-                    vmin = float(stats.get(f'{band_name}_p5', vis_params.get("min", 0)))
-                    vmax = float(stats.get(f'{band_name}_p95', vis_params.get("max", 1)))
-                    
-                    if vmin == vmax:
-                        vmax += 1e-3  
-                except Exception:
-                    vmin = vis_params.get("min", 0)
-                    vmax = vis_params.get("max", 1)
-                
-                vis_image = image.visualize(
-                    min=vmin,
-                    max=vmax,
-                    palette=vis_params.get("palette")
-                )
-
-                
-                data_type = "uint8"  
-                vis_image = vis_image.reproject(crs="EPSG:3857", scale=scale)
-
-                
-                
-                pixel_count = image.reduceRegion(
-                reducer=ee.Reducer.count(),
-                geometry=polygon,
-                scale=scale,
-                maxPixels=1e13
-                ).getInfo()
-                if not pixel_count or all(v == 0 for v in pixel_count.values()):
-                    print(f" No pixel data found for {uc_name}, skipping export.")
-                    return {
-                        "uc_name": uc_name,
-                        "city_name": city_name,
-                        "error": "1",
-                        "error_msg": "Export failed: No valid pixels found (empty data).",
-                        "tile_url_template": None
-                    }
-
-                export_success = False
-                attempt = 0
-                max_attempts = 4
-
-                while not export_success and attempt < max_attempts:
-                    try:
-                        attempt += 1
-                        print(f"Export attempt {attempt} at scale={scale} meters/pixel")
-                        
-                        geemap.ee_export_image(
-                            vis_image,
-                            filename=local_tif,
-                            scale=scale,
-                            file_per_band=False,
-                            crs="EPSG:3857"
-                        )
-
-                        if os.path.exists(local_tif) and os.path.getsize(local_tif) > 0:
-                            export_success = True
-                        else:
-                            raise Exception("Export produced empty or missing file")
-
-                    except Exception as e:
-                        error_msg = str(e)
-                        if "Total request size" in error_msg or "50331648 bytes" in error_msg:
-                            
-                            scale = min(int(scale * 2), 200)
-                            print(f" Export too large, retrying with scale={scale}")
-                        elif "Network" in error_msg or "getaddrinfo" in error_msg:
-                            print(f" Network error, retrying after 5 seconds...")
-                            time.sleep(5)
-                        else:
-                            print(f" Export failed: {error_msg}")
-                            break
-
-                if not export_success:
-                    return {
-                        "uc_name": uc_name,
-                        "city_name": city_name,
-                        "error": "1",
-                        "error_msg": f"Export failed after {attempt} attempts (last scale={scale})",
-                        "tile_url_template": None
+                shared_filter.update({
+                    "kml_hash": kml_hash,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "uc_name": uc_safe,          
+                    "city_name": city_name_safe
+                })
+            else:
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": "KML hash missing for caching.",
+                    "tile_url_before": None,
+                    "tile_url_after": None
                 }
-                
-                
-                with rasterio.open(local_tif, "r+") as src:
-                    width, height = src.width, src.height
-                    factors = [2, 4, 8, 16]
-                    valid_factors = [f for f in factors if f < min(width, height)]
-                    if valid_factors:
-                        src.build_overviews(valid_factors, Resampling.nearest)
-                        src.update_tags(ns="rio_overview", resampling="nearest")
-
-                
-                if os.path.exists(tiles_dir):
-                    shutil.rmtree(tiles_dir)
-                os.makedirs(tiles_dir, exist_ok=True)
-
-                with COGReader(local_tif) as cog:
                     
-                    def scale_to_zoom(scale_m_per_pixel):
-                        z = math.log2(156543.03392804097 / float(scale_m_per_pixel))
-                        return int(round(z))
-
-                    target_zoom = max(0, min(18, scale_to_zoom(scale)))
-                    min_zoom = max(0, target_zoom - 4)
-                    max_zoom = min(18, target_zoom + 2)
-                    
-                    
-                    left, bottom, right, top = cog.bounds
-                    transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
-                    lon_left, lat_bottom = transformer.transform(left, bottom)
-                    lon_right, lat_top = transformer.transform(right, top)
-                    
-                    
-                    for z in range(min_zoom, max_zoom + 1):
-                        n = 2 ** z
-                        try:
-                            
-                            tile_list = list(mercantile.tiles(lon_left, lat_bottom, lon_right, lat_top, [z]))
-                        except Exception as e:
-                            print(f"Zoom {z} skipped: {e}")
-                            continue
-
-                        
-                        tile_list = [t for t in tile_list if 0 <= t.x < n and 0 <= t.y < n]
-
-                        for t in tile_list:
-                            try:
-                                
-                                data, mask = cog.tile(t.x, t.y, t.z)
-                                if data is None:
-                                    continue
-                                img = np.moveaxis(data, 0, 2)
-                                img = (img * 255).astype(np.uint8) if img.max() <= 1 else img
-
-                                if img.shape[2] == 3:
-                                    alpha = np.any(img > 0, axis=2).astype(np.uint8) * 255
-                                    img = np.dstack((img, alpha))
-
-                                pil_img = Image.fromarray(img, mode="RGBA")
 
 
-                                tile_path = os.path.join(tiles_dir, str(z), str(t.x))
-                                os.makedirs(tile_path, exist_ok=True)
-                                pil_img.save(os.path.join(tile_path, f"{t.y}.png"))
-                            except Exception as e:
-                                print(f"Tile x={t.x}, y={t.y}, z={t.z} skipped: {e}")
 
+        shared_cache = AreaAnalysis.objects.filter(**shared_filter).first()
+        if shared_cache:
+            
+            if project_id:
                 
-                s3_tile_prefix = f"tiles/pixelwise/{project_id}/{analysis_type}/{start_date}_{end_date}/{uc_safe}"
-                for root, dirs, files in os.walk(tiles_dir):
-                    for fname in files:
-                        if fname.lower().endswith(".png"):
-                            full_path = os.path.join(root, fname)
-                            rel_path = os.path.relpath(full_path, tiles_dir).replace(os.sep, "/")
-                            s3_key = f"{s3_tile_prefix}/{rel_path}"
-                            s3_client.upload_file(full_path, bucket_name, s3_key)
-
-                
-                tile_url_template = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{s3_tile_prefix}/{{z}}/{{x}}/{{y}}.png"
-
-                
-                if os.path.exists(local_dir):
-                    shutil.rmtree(local_dir)
-
-
                 AreaAnalysis.objects.update_or_create(
                     project_id=project_id,
                     analysis_type=analysis_type,
                     start_date=start_date,
                     end_date=end_date,
                     area_type=area_type,
-                    uc_name=uc_name,
+                    uc_name=uc_safe,
                     defaults={
-                        "city_name": city_name,
+                        "city_name": city_name_local,
+                        "kml_hash": kml_hash,
                         "is_pixelwise": True,
-                        "tile_url_template": tile_url_template
+                        "tile_url_template": shared_cache.tile_url_template
                     }
                 )
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name_local,
+                "tile_url_template": shared_cache.tile_url_template,
+                "cached": True
+            }
 
-                return {
-                    "uc_name": uc_name,
-                    "city_name": city_name,
-                    "error": "0",
-                    "tile_url_template": tile_url_template
-                }
+        
+        local_dir = os.path.join(
+                settings.MEDIA_ROOT, "temp_exports", "pixelwise",
+                "kml" if kml_hash else "uc",
+                kml_hash if kml_hash else str(project_id),
+                uc_safe
+            )
+        os.makedirs(local_dir, exist_ok=True)
 
-            except Exception as e:
-                if os.path.exists(local_dir):
-                    shutil.rmtree(local_dir)
-                return {
-                    "uc_name": uc_name,
-                    "city_name": city_name,
-                    "error": "1",
-                    "error_msg": str(e),
-                    "tile_url_template": None
-                }
-                
-        if area_type == "uc":
-            if not project_id:
-                return Response({"error": "project_id is required for UC analysis"}, status=400)
+        local_tif = os.path.join(local_dir, f"{analysis_type}{start_date}{end_date}.tif")
+        tiles_dir = os.path.join(local_dir, "tiles")
 
-            project = Project.objects.filter(id=project_id).first()
-            if not project:
-                return Response({"error": "Project not found"}, status=404)
+        try:
+            
+            geojson_dict = feature.get("geometry")
+            if not geojson_dict:
+                raise ValueError("Missing geometry")
+            polygon = ee.Geometry(geojson_dict)
 
-            city_name = project.location_name
-            uc_data = load_ucs_for_uc(city_name)
-
-            if not uc_data:
-                db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
-                if not db_ucs.exists():
-                    return Response({"error": f"No UC data found for {city_name}"}, status=404)
-                features = [
-                    {
-                        "geometry": json.loads(uc.geometry.geojson),
-                        "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
-                    } for uc in db_ucs
-                ]
-            else:
-                features = uc_data.get("features", [])
-
-
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                results = list(executor.map(process_uc, features))
-
-        elif area_type == "kml":
-            if not project_id:
-                return Response({"error": "project_id is required for KML analysis"}, status=400)
-
-            local_kml_file = os.path.join(DATA_DIR, f"project_{project_id}_kml_ucs.json")
-            if os.path.exists(local_kml_file):
-                with open(local_kml_file, "r") as f:
-                    kml_data = json.load(f)
-                features = kml_data.get("features", [])
-            else:
-                project = Project.objects.filter(id=project_id).first()
-                if not project:
-                    return Response({"error": "Project not found"}, status=404)
-
-                db_ucs = UnionCouncil.objects.all()
-                features = [
-                    {
-                        "geometry": json.loads(uc.geometry.geojson),
-                        "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
-                    } for uc in db_ucs
-                ]
-
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                results = list(executor.map(process_uc, features))
-
-        elif area_type == "custom":
-            if not geometry_data:
-                return Response({"error": "geometry data is required for custom analysis"}, status=400)
-
-            geom_json = geometry_data if isinstance(geometry_data, dict) else json.loads(geometry_data)
-            polygon = ee.Geometry(geom_json)
             if analysis_type.lower()!= "aqi":
+                
                 area_sq_m = polygon.area().getInfo()
                 default_scales = {"ndvi": 10, "thermal": 100}
                 scale = default_scales.get(analysis_type.lower(), 10)
+                
+                if area_sq_m > 1e9:          
+                    scale = max(scale, 60)
+                elif area_sq_m > 5e8:        
+                    scale = max(scale, 40)
+                elif area_sq_m > 1e8:        
+                    scale = max(scale, 20)
+                    
                 if area_sq_m < (scale**2):
                     scale = max(int(area_sq_m**0.5), 1)
                 if analysis_type.lower() == "ndvi" and area_sq_m < 1e4:
                     scale = max(scale, 20)
                 if area_sq_m < 100:
-                    return {"uc_name": None, "city_name": None, "error": "1",
+                    print(f" Skipped {uc_name} — area too small for export ({area_sq_m:.2f} m²)")
+                    return {"uc_name": uc_name, "city_name": city_name, "error": "1",
                             "error_msg": "Polygon too small for analysis", "tile_url_template": None}
-                    
+                
+
             if analysis_type.lower() == "aqi":
                 image, vis_params, scale = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
             else:
                 image, vis_params, _ = run_pixelwise_analysis(analysis_type, polygon, start_date, end_date)
-    
+            
             if not image:
-                return {
-                    "error": "1",
-                    "error_msg": "No image generated for custom area",
-                    "cog_https_url": None
-                }
+                return {"uc_name": uc_name, "city_name": city_name, "error": "1",
+                        "error_msg": "No image generated", "tile_url_template": None}
 
-            custom_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id))
-            os.makedirs(custom_dir, exist_ok=True)
-
-            local_tif = os.path.join(custom_dir, f"{analysis_type}{start_date}{end_date}.tif")
-            tiles_dir = os.path.join(custom_dir, "tiles")
+            
+            
             polygon_3857 = polygon.transform("EPSG:3857", maxError=1)
+
+            
             image = image.clip(polygon_3857)
             
             try:
@@ -1025,30 +911,68 @@ def pixelwise_analysis(request):
             
             data_type = "uint8"  
             vis_image = vis_image.reproject(crs="EPSG:3857", scale=scale)
+
             
-            if analysis_type.lower() == "aqi":
-                geemap.ee_export_image(
-                    vis_image,
-                    filename=local_tif,
-                    scale=scale,
-                    region=polygon.geometry().getInfo(),  
-                    file_per_band=False,
-                    crs="EPSG:3857"
-                )
-            else:
-                
-                geemap.ee_export_image(
-                    vis_image,
-                    filename=local_tif,
-                    scale=scale,
-                    file_per_band=False,
-                    crs="EPSG:3857"
-                )
+            
+            pixel_count = image.reduceRegion(
+            reducer=ee.Reducer.count(),
+            geometry=polygon,
+            scale=scale,
+            maxPixels=1e13
+            ).getInfo()
+            if not pixel_count or all(v == 0 for v in pixel_count.values()):
+                print(f" No pixel data found for {uc_name}, skipping export.")
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": "Export failed: No valid pixels found (empty data).",
+                    "tile_url_template": None
+                }
 
-            if not os.path.exists(local_tif):
-                return {"uc_name": None, "city_name": None, "error": "1",
-                        "error_msg": "Export failed", "tile_url_template": None}
+            export_success = False
+            attempt = 0
+            max_attempts = 4
 
+            while not export_success and attempt < max_attempts:
+                try:
+                    attempt += 1
+                    print(f"Export attempt {attempt} at scale={scale} meters/pixel")
+                    
+                    geemap.ee_export_image(
+                        vis_image,
+                        filename=local_tif,
+                        scale=scale,
+                        file_per_band=False,
+                        crs="EPSG:3857"
+                    )
+
+                    if os.path.exists(local_tif) and os.path.getsize(local_tif) > 0:
+                        export_success = True
+                    else:
+                        raise Exception("Export produced empty or missing file")
+
+                except Exception as e:
+                    error_msg = str(e)
+                    
+                    scale = min(int(scale * 2), 200)
+                    print(f"[EXPORT ERROR] {error_msg} → Retrying with scale={scale}")
+
+                    time.sleep(2)
+                    continue
+                            
+                            
+
+
+            if not export_success:
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": f"Export failed after {attempt} attempts (last scale={scale})",
+                    "tile_url_template": None
+            }
+            
             
             with rasterio.open(local_tif, "r+") as src:
                 width, height = src.width, src.height
@@ -1094,11 +1018,10 @@ def pixelwise_analysis(request):
 
                     for t in tile_list:
                         try:
-                        
+                            
                             data, mask = cog.tile(t.x, t.y, t.z)
                             if data is None:
                                 continue
-
                             img = np.moveaxis(data, 0, 2)
                             img = (img * 255).astype(np.uint8) if img.max() <= 1 else img
 
@@ -1115,8 +1038,12 @@ def pixelwise_analysis(request):
                         except Exception as e:
                             print(f"Tile x={t.x}, y={t.y}, z={t.z} skipped: {e}")
 
-            
-                s3_tile_prefix = f"tiles/pixelwise/custom/{project_id}/{analysis_type}/{start_date}_{end_date}"
+           
+            if area_type == "kml":
+                s3_tile_prefix = f"tiles/pixelwise/shared/kml/{kml_hash}/{analysis_type}/{start_date}_{end_date}/{uc_safe}"
+            else:
+                s3_tile_prefix = f"tiles/pixelwise/shared/uc/{analysis_type}/{start_date}_{end_date}/{city_name_safe}/{uc_safe}"
+
             for root, dirs, files in os.walk(tiles_dir):
                 for fname in files:
                     if fname.lower().endswith(".png"):
@@ -1129,38 +1056,61 @@ def pixelwise_analysis(request):
             tile_url_template = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{s3_tile_prefix}/{{z}}/{{x}}/{{y}}.png"
 
             
-            if os.path.exists(custom_dir):
-                shutil.rmtree(custom_dir)
+            if os.path.exists(local_dir):
+                shutil.rmtree(local_dir)
 
-            
+
             AreaAnalysis.objects.update_or_create(
-                project_id=project_id,
+                project_id=None,
                 analysis_type=analysis_type,
                 start_date=start_date,
                 end_date=end_date,
                 area_type=area_type,
-                uc_name=None,
+                uc_name=uc_safe,
                 defaults={
-                    "city_name": None,
+                    "city_name": city_name_safe,
+                    "kml_hash": kml_hash,
                     "is_pixelwise": True,
                     "tile_url_template": tile_url_template
                 }
             )
+            if project_id:
+                AreaAnalysis.objects.update_or_create(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                    area_type=area_type,
+                    uc_name=uc_safe,
+                    defaults={
+                        "city_name": city_name_safe,
+                        "kml_hash": kml_hash,
+                        "is_pixelwise": True,
+                        "tile_url_template": tile_url_template
+                    }
+                )
+            return {"uc_name": uc_name, "city_name": city_name_local, "tile_url_template": tile_url_template, "cached": False}
+        
+        except Exception as e:
+                if os.path.exists(local_dir):
+                    shutil.rmtree(local_dir)
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": str(e),
+                    "tile_url_template": None
+                }
+                
 
-            return {"uc_name": None, "city_name": None, "error": "0", "tile_url_template": tile_url_template}
-        
-        return Response({
-            "message": f"{analysis_type.upper()} pixelwise analysis performed",
-            "results": results
-        }, status=200)
-        
-    except Exception as e:
-        if 'custom_dir' in locals() and os.path.exists(custom_dir):
-            shutil.rmtree(custom_dir)
-        return Response({"uc_name": None, "city_name": None, "error": "1",
-                "error_msg": str(e), "tile_url_template": None}, status=500)
-    
-    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(process_feature, features))
+
+    return Response({
+        "message": f"{analysis_type.upper()} pixelwise analysis performed",
+        "results": results
+    }, status=200)
+
 
 def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
     init_ee()
@@ -1400,11 +1350,7 @@ def per_year_analysis(request):
     area_type = request.data.get("area_type")
     project_id = request.data.get("project_id")
     city_name = request.data.get("city_name")
-    mode = request.data.get("mode", "pixelwise")  # default: pixelwise
-
-    # -------------------------
-    # Basic input validation
-    # -------------------------
+    mode = request.data.get("mode", "pixelwise") 
     if not all([analysis_type, year, area_type]):
         return Response({"error": "Missing required parameters"}, status=400)
     
@@ -1415,25 +1361,24 @@ def per_year_analysis(request):
         selected_year = int(year)
         note = None
 
-        # ⚠️ Block future years
+        
         if selected_year > current_year:
             return Response({
                 "error": f"Future year {selected_year} cannot be analyzed yet.",
                 "message": f"Data for {selected_year} will be available once the year begins."
             }, status=400)
 
-        # ⚠️ Add note for ongoing year
+        
         elif selected_year == current_year:
-            note = f"⚠️ Data for {selected_year} includes satellite observations available up to {current_month} only."
+            note = f" Data for {selected_year} includes satellite observations available up to {current_month} only."
 
         project = Project.objects.get(id=project_id) if project_id else None
         results = []
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
-        # -------------------------
-        # Load features (UCs / KML)
-        # -------------------------
+        
         features = []
+        kml_hash = None
         if area_type == "uc" and project and project.location_name:
             uc_data = load_ucs_for_uc(project.location_name)
             if uc_data:
@@ -1447,18 +1392,54 @@ def per_year_analysis(request):
                 ]
 
         elif area_type == "kml" and project and project.kml_file:
-            cache_file = os.path.join(settings.BASE_DIR, "local_data", f"project_{project.id}_kml_ucs.json")
-            if os.path.exists(cache_file):
-                with open(cache_file, "r") as f:
-                    kml_data = json.load(f)
-                features = kml_data.get("features", [])
+             
+            if not project_id:
+                return Response({"error": "project_id is required for KML analysis"}, status=400)
+            
+            project = Project.objects.filter(id=project_id).first()
+            if not project or not project.kml_file:
+                return Response({"error": "KML file not found for this project"}, status=404)
+
+            kml_path = project.kml_file.path
+
+            
+            with open(kml_path, "rb") as f:
+                kml_bytes = f.read()
+
+            
+            kml_content = kml_bytes.decode("utf-8-sig")
+
+            
+            kml_hash = hashlib.md5(kml_bytes).hexdigest()
+
+        
+            content_cache_path = os.path.join(DATA_DIR, f"{kml_hash}_kml_ucs.json")
+
+            
+            if os.path.exists(content_cache_path):
+                kml_data = json.load(open(content_cache_path))
+            else:
+                polygon = kml_to_geosgeometry(kml_content)
+                ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
+                if not ucs.exists():
+                    return Response({"error": "No UCs found in this area"}, status=404)
+
+                geojson = serialize(
+                    "geojson", ucs,
+                    geometry_field="geometry",
+                    fields=("uc_name", "city_name")
+                )
+                kml_data = json.loads(geojson)
+                with open(content_cache_path, "w") as f:
+                    json.dump(kml_data, f)
+
+            
+            features = kml_data.get("features", [])
 
         if not features and area_type != "custom":
             return Response({"error": "No features found for analysis"}, status=404)
 
-        # -------------------------
-        # Cached results check
-        # -------------------------
+        
         cached_results = YearlyAnalysis.objects.filter(
             project_id=project_id,
             analysis_type=analysis_type,
@@ -1478,7 +1459,7 @@ def per_year_analysis(request):
                         "color": cached.stats.get("color") if cached.stats else "#000000",
                         "area_type": area_type
                     })
-                else:  # pixelwise
+                else:  
                     results.append({
                         "uc_name": cached.uc_name,
                         "city_name": cached.city_name,
@@ -1492,9 +1473,7 @@ def per_year_analysis(request):
                 "results": results
             })
 
-        # -------------------------
-        # Annual Stats Mode
-        # -------------------------
+        
         if mode == "annual_stats":
             def analyze_feature_stats(feature):
                 uc_name = feature["properties"].get("uc_name", "unknown_uc")
@@ -1559,47 +1538,116 @@ def per_year_analysis(request):
                 "results": results
             })
 
-        # -------------------------
-        # Pixelwise Mode
-        # -------------------------
+        
         elif mode == "pixelwise":
             def process_feature(feature):
                 uc_name = feature["properties"].get("uc_name", "custom_uc")
                 city_name = feature["properties"].get("city_name", project.location_name if project else "unknown")
-                uc_safe = re.sub(r"[^\w\-]", "_", uc_name)
-                local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "pixelwise", str(project_id), uc_safe)
+                def normalize_name(name):
+                    return re.sub(r"[^\w\-]", "_", name.strip().lower())
+
+                
+
+                uc_safe = normalize_name(uc_name)
+                city_safe = normalize_name(city_name)
+
+                shared_filter = {
+                    "project_id__isnull": True,
+                    "analysis_type": analysis_type,
+                    "year": selected_year,
+                    "area_type": area_type,
+                    
+                }
+                if area_type == "uc":
+                    shared_filter["city_name"] = city_safe
+                    shared_filter["uc_name"] = uc_safe
+
+                
+                elif area_type == "kml":
+                    if kml_hash:
+                        
+                        shared_filter.update({
+                            "kml_hash": kml_hash,
+                            "year": int(selected_year),
+                            "uc_name": uc_safe,          
+                            "city_name": city_safe 
+                        })
+                    else:
+                        return {
+                            "uc_name": uc_name,
+                            "city_name": city_name,
+                            "error": "1",
+                            "error_msg": "KML hash missing for caching.",
+                            "tile_url_before": None,
+                            "tile_url_after": None
+                        }
+                        
+
+
+                shared_cache = YearlyAnalysis.objects.filter(**shared_filter).first()
+                if shared_cache and shared_cache.tile_url_template:
+                    
+                    if project_id:
+                        YearlyAnalysis.objects.update_or_create(
+                            project_id=project_id,
+                            analysis_type=analysis_type,
+                            year=selected_year,
+                            area_type=area_type,
+                            uc_name=uc_safe,
+                            defaults={
+                                "city_name": city_name,
+                                "kml_hash": kml_hash,
+                                "is_pixelwise": True,
+                                "tile_url_template": shared_cache.tile_url_template
+                            }
+                        )
+                    return {
+                        "uc_name": uc_name,
+                        "city_name": city_name,
+                        "tile_url_template": shared_cache.tile_url_template,
+                        "cached": True
+                    }
+                local_dir = os.path.join(settings.MEDIA_ROOT, "temp_exports", "yearly_pixelwise", str(project_id), uc_safe)
                 os.makedirs(local_dir, exist_ok=True)
                 local_tif = os.path.join(local_dir, f"{analysis_type}_{selected_year}.tif")
                 tiles_dir = os.path.join(local_dir, "tiles")
 
                 try:
-                    # 🔹 Check for cached result first
-                    cached_pixel = YearlyAnalysis.objects.filter(
-                        project_id=project_id,
-                        analysis_type=analysis_type,
-                        year=selected_year,
-                        area_type=area_type,
-                        uc_name=uc_name,
-                        is_pixelwise=True
-                    ).first()
-                    if cached_pixel and cached_pixel.tile_url_template:
-                        return {
-                            "uc_name": uc_name,
-                            "city_name": city_name,
-                            "tile_url_template": cached_pixel.tile_url_template,
-                            "error": "0"
-                        }
-
+                    
                     polygon = ee.Geometry(feature["geometry"])
+                    polygon = polygon.simplify(30)
+                    area_sq_m = polygon.area().getInfo()
+                    if area_sq_m > 2e8:
+                        polygon = polygon.simplify(100)  
+                    elif area_sq_m > 5e7:
+                        polygon = polygon.simplify(50)
+                    else:
+                        polygon = polygon.simplify(30)
+                        
+                    if area_sq_m > 2e8:
+                        base_scale = 50
+                    elif area_sq_m > 5e7:
+                        base_scale = 30
+                    else:
+                        base_scale = 10
 
-                    # 🔹 Run main GEE analysis
-                    image, vis_params, scale = run_pixelwise_analysis(
+
+                    
+                
+
+                    if analysis_type.lower() == "aqi":
+                        image, vis_params, scale = run_pixelwise_analysis(
                         analysis_type, polygon, f"{selected_year}-01-01", f"{selected_year}-12-31"
-                    )
-                    if not image:
-                        raise ValueError("No image generated")
+                        )
+                        
 
-                    # 🔹 Check if there are valid pixels before export
+                    else:
+                        image, vis_params,scale = run_pixelwise_analysis(
+                        analysis_type, polygon, f"{selected_year}-01-01", f"{selected_year}-12-31"
+                        )
+
+
+                    
                     pixel_count = image.reduceRegion(
                         reducer=ee.Reducer.count(),
                         geometry=polygon,
@@ -1621,7 +1669,7 @@ def per_year_analysis(request):
                         palette=vis_params.get("palette")
                     )
 
-                    # 🔹 Retry export if it fails
+                    
                     export_success = False
                     attempt = 0
                     max_attempts = 4
@@ -1642,15 +1690,13 @@ def per_year_analysis(request):
                                 raise Exception("Export produced empty or missing file")
                         except Exception as e:
                             error_msg = str(e)
-                            if "Total request size" in error_msg or "50331648 bytes" in error_msg:
-                                scale = min(int(scale * 2), 200)
-                                print(f"Export too large, retrying with scale={scale}")
-                            elif "Network" in error_msg or "getaddrinfo" in error_msg:
-                                print(f"Network issue — retrying after 5s...")
-                                time.sleep(5)
-                            else:
-                                print(f"Export failed: {error_msg}")
-                                break
+                            scale = min(int(scale * 2), 200)
+                            print(f"[EXPORT ERROR] {error_msg} → Retrying with scale={scale}")
+
+                            time.sleep(2)
+                            continue
+                            
+                            
 
                     if not export_success:
                         return {
@@ -1661,7 +1707,7 @@ def per_year_analysis(request):
                             "tile_url_template": None
                         }
 
-                    # 🔹 Build overviews for efficient tiling
+                    
                     with rasterio.open(local_tif, "r+") as src:
                         factors = [2, 4, 8, 16]
                         valid_factors = [f for f in factors if f < min(src.width, src.height)]
@@ -1669,12 +1715,12 @@ def per_year_analysis(request):
                             src.build_overviews(valid_factors, Resampling.nearest)
                             src.update_tags(ns="rio_overview", resampling="nearest")
 
-                    # 🔹 Prepare tile directory
+                    
                     if os.path.exists(tiles_dir):
                         shutil.rmtree(tiles_dir)
                     os.makedirs(tiles_dir, exist_ok=True)
 
-                    # 🔹 Dynamic zoom based on scale
+                    
                     with COGReader(local_tif) as cog:
                         def scale_to_zoom(scale_m_per_pixel):
                             z = math.log2(156543.03392804097 / float(scale_m_per_pixel))
@@ -1710,8 +1756,10 @@ def per_year_analysis(request):
                             except Exception as e:
                                 print(f"Zoom {z} skipped: {e}")
 
-                    # 🔹 Upload to S3
-                    s3_prefix = f"tiles/yearly_pixelwise/{project_id}/{analysis_type}/{year}/{uc_safe}"
+                    if area_type == "kml":
+                        s3_prefix = f"tiles/yearly_pixelwise/shared/kml/{kml_hash}/{analysis_type}/{year}/{uc_safe}"
+                    else:
+                        s3_prefix = f"tiles/yearly_pixelwise/shared/uc/{analysis_type}/{year}/{city_safe}/{uc_safe}"
                     for root, dirs, files in os.walk(tiles_dir):
                         for fname in files:
                             if fname.lower().endswith(".png"):
@@ -1722,23 +1770,42 @@ def per_year_analysis(request):
 
                     tile_url_template = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{s3_prefix}/{{z}}/{{x}}/{{y}}.png"
 
-                    # 🔹 Clean up
+                    
                     if os.path.exists(local_dir):
                         shutil.rmtree(local_dir)
 
-                    # 🔹 Save in DB
+                    
+                    shared_defaults = {
+                        "city_name": city_safe,
+                        "is_pixelwise": True,
+                        "tile_url_template": tile_url_template
+                    }
+
+                    if area_type == "kml" and kml_hash:
+                        shared_defaults["kml_hash"] = kml_hash
+
                     YearlyAnalysis.objects.update_or_create(
-                        project_id=project_id,
+                        project_id=None,
                         analysis_type=analysis_type,
                         year=selected_year,
                         area_type=area_type,
-                        uc_name=uc_name,
-                        defaults={
-                            "city_name": city_name,
-                            "is_pixelwise": True,
-                            "tile_url_template": tile_url_template
-                        }
+                        uc_name=uc_safe,
+                        defaults=shared_defaults
                     )
+
+                    if project_id:
+                        YearlyAnalysis.objects.update_or_create(
+                            project_id=project_id,
+                            analysis_type=analysis_type,
+                            year=selected_year,
+                            area_type=area_type,
+                            uc_name=uc_safe,
+                            defaults={
+                                "city_name": city_name,
+                                "is_pixelwise": True,
+                                "tile_url_template": tile_url_template
+                            }
+                        )
 
                     return {
                         "uc_name": uc_name,
@@ -1757,7 +1824,7 @@ def per_year_analysis(request):
                         "error_msg": str(e)
                     }
 
-            # Run analysis in parallel
+            
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = [executor.submit(process_feature, f) for f in features]
                 for future in as_completed(futures):
@@ -1906,7 +1973,7 @@ def before_after_comparison_stats(request):
     city_name = project.location_name
     results = []
 
-    # ---------------- Determine features ---------------- #
+    
     features = []
     if area_type == "uc":
         uc_data = load_ucs_for_uc(city_name)
@@ -1937,7 +2004,7 @@ def before_after_comparison_stats(request):
     else:
         return Response({"error": "Invalid area_type"}, status=400)
 
-    # ---------------- Check cached data ---------------- #
+   
     cached_data = BeforeAfterAnalysis.objects.filter(
         project_id=project_id,
         analysis_type=analysis_type,
@@ -1948,7 +2015,7 @@ def before_after_comparison_stats(request):
 
     cached_map = {c.uc_name: c for c in cached_data}
 
-    # ---------------- Main computation ---------------- #
+    
     def process_feature(feature):
         uc_name = feature.get("uc_name")
         city_name = feature.get("city_name")
@@ -1980,7 +2047,7 @@ def before_after_comparison_stats(request):
             before_mean = before_result.get("stats", {}).get("mean")
             after_mean = after_result.get("stats", {}).get("mean")
 
-            # Clamp values for safety
+            
             if analysis_type.lower() == "ndvi":
                 before_mean = max(0, min(1, before_mean or 0))
                 after_mean = max(0, min(1, after_mean or 0))
@@ -1991,7 +2058,7 @@ def before_after_comparison_stats(request):
                 before_mean = max(0, min(30, before_mean or 0))
                 after_mean = max(0, min(30, after_mean or 0))
 
-            # Determine change status
+            
             if before_mean is None or after_mean is None:
                 status = "no_data"
             elif after_mean > before_mean:
@@ -2040,13 +2107,13 @@ def before_after_comparison_stats(request):
                 "area_type": area_type
             }
 
-    # ---------------- Run multithreaded ---------------- #
+    
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(process_feature, f) for f in features]
         for future in as_completed(futures):
             results.append(future.result())
 
-    # ---------------- Summary stats ---------------- #
+    
     before_vals = [r["before_mean"] for r in results if r["before_mean"] is not None]
     after_vals = [r["after_mean"] for r in results if r["after_mean"] is not None]
     change_counts = {"increase": 0, "decrease": 0, "no_change": 0}
@@ -2082,14 +2149,6 @@ def before_after_comparison_stats(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def before_after_comparison_pixelwise(request):
-    """
-    Pixelwise before-after comparison (NDVI / Thermal / AQI).
-    For each UC/KML feature:
-      - runs GEE analysis for both years,
-      - generates PNG tiles,
-      - uploads to S3,
-      - caches results in BeforeAfterPixelwise.
-    """
     init_ee()
     data = request.data
     project_id = data.get("project_id")
@@ -2108,6 +2167,7 @@ def before_after_comparison_pixelwise(request):
 
     
     features = []
+    kml_hash = None
     if area_type == "uc":
         uc_data = load_ucs_for_uc(city_name)
         if not uc_data:
@@ -2124,35 +2184,78 @@ def before_after_comparison_pixelwise(request):
                 for f in uc_data.get("features", [])
             ]
     elif area_type == "kml":
-        kml_data = load_ucs_for_kml(project.id)
-        if not kml_data and project.kml_file:
-            features = [{"uc_name": None, "city_name": None, "geometry": None}]
+        if not project_id:
+            return Response({"error": "project_id is required for KML analysis"}, status=400)
+        if not project or not project.kml_file:
+            return Response({"error": "KML file not found for this project"}, status=404)
+
+        kml_path = project.kml_file.path
+
+        
+        with open(kml_path, "rb") as f:
+            kml_bytes = f.read()
+
+        
+        kml_content = kml_bytes.decode("utf-8-sig")
+
+        
+        kml_hash = hashlib.md5(kml_bytes).hexdigest()
+
+    
+        content_cache_path = os.path.join(DATA_DIR, f"{kml_hash}_kml_ucs.json")
+
+        
+        if os.path.exists(content_cache_path):
+            kml_data = json.load(open(content_cache_path))
         else:
-            features = [
-                {"uc_name": f["properties"].get("uc_name"),
-                 "city_name": f["properties"].get("city_name"),
-                 "geometry": f["geometry"]}
-                for f in kml_data.get("features", [])
-            ]
+            polygon = kml_to_geosgeometry(kml_content)
+            ucs = UnionCouncil.objects.filter(geometry__intersects=polygon)
+            if not ucs.exists():
+                return Response({"error": "No UCs found in this area"}, status=404)
+
+            geojson = serialize(
+                "geojson", ucs,
+                geometry_field="geometry",
+                fields=("uc_name", "city_name")
+            )
+            kml_data = json.loads(geojson)
+            with open(content_cache_path, "w") as f:
+                json.dump(kml_data, f)
+
+        features = [
+            {
+                "uc_name": f["properties"].get("uc_name"),
+                "city_name": f["properties"].get("city_name"),
+                "geometry": f["geometry"]
+            }
+            for f in kml_data.get("features", [])
+        ]
+
     else:
         return Response({"error": "Invalid area_type"}, status=400)
 
     bucket_name = settings.AWS_STORAGE_BUCKET_NAME
     s3_domain = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}"
-
-    # ---------------- Helper: process one feature ---------------- #
+    before_year = int(before_year)
+    after_year = int(after_year)
+    def normalize_name(name):
+            if not name:
+                return "custom"    
+            return re.sub(r"[^\w\-]", "_", name.strip().lower())
+        
     def process_feature(feature):
         uc_name = feature.get("uc_name")
-        uc_safe = re.sub(r"[^\w\-]", "_", uc_name)
         city_name = feature.get("city_name")
-        uc_safe = re.sub(r"[^\w\-]", "_", uc_name or "custom")
+        geometry = feature.get("geometry")
 
-        # Check DB cache
+        uc_safe = normalize_name(uc_name)
+        city_safe = normalize_name(city_name)
+        
         cached = BeforeAfterPixelwise.objects.filter(
             project_id=project_id,
             analysis_type=analysis_type,
             area_type=area_type,
-            uc_name=uc_name,
+            uc_name=uc_safe,
             before_year=before_year,
             after_year=after_year
         ).first()
@@ -2165,29 +2268,117 @@ def before_after_comparison_pixelwise(request):
                 "tile_url_after": cached.tile_url_after,
                 "error": "0"
             }
+            
+        shared_filter = {
+            "project_id__isnull": True,
+            "analysis_type": analysis_type,
+            "before_year": before_year,
+            "after_year": after_year,
+            "area_type": area_type
+        }
+
+        if area_type == "uc":
+            shared_filter["uc_name"] = uc_safe
+            shared_filter["city_name"] = city_safe
+        elif area_type == "kml":
+            if kml_hash:
+                
+                shared_filter.update({
+                    "kml_hash": kml_hash,
+                    "before_year": int(before_year),
+                    "after_year": int(after_year),
+                    "uc_name": uc_safe,          
+                    "city_name": city_safe 
+                })
+            else:
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "error": "1",
+                    "error_msg": "KML hash missing for caching.",
+                    "tile_url_before": None,
+                    "tile_url_after": None
+                }
+            
+
+
+
+        shared_cache = BeforeAfterPixelwise.objects.filter(**shared_filter).first()
+        if shared_cache:
+            
+            if project_id:
+                
+                BeforeAfterPixelwise.objects.update_or_create(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    before_year=before_year,
+                    after_year=after_year,
+                    area_type=area_type,
+                    uc_name=uc_safe,
+                    defaults={
+                        "city_name": city_name,
+                        "kml_hash": kml_hash,
+                        "tile_url_before": shared_cache.tile_url_before,
+                        "tile_url_after": shared_cache.tile_url_after
+                    }
+                )
+            return {
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "tile_url_before": shared_cache.tile_url_before,
+                "tile_url_after": shared_cache.tile_url_after,
+                "cached": True
+            }
 
         try:
             polygon = ee.Geometry(feature.get("geometry"))
+            polygon = polygon.simplify(30)
+            area_sq_m = polygon.area().getInfo()
+            if area_sq_m > 2e8:
+                polygon = polygon.simplify(100)  
+            elif area_sq_m > 5e7:
+                polygon = polygon.simplify(50)
+            else:
+                polygon = polygon.simplify(30)
+                
+            if area_sq_m > 2e8:
+                base_scale = 50
+            elif area_sq_m > 5e7:
+                base_scale = 30
+            else:
+                base_scale = 10
 
-            # Run pixelwise analysis for both years
-            before_image, before_vis, before_scale = run_pixelwise_analysis(
+            
+            if analysis_type.lower() == "aqi":
+                before_image, before_vis, before_scale = run_pixelwise_analysis(
                 analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
-            )
-            after_image, after_vis, after_scale = run_pixelwise_analysis(
-                analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
-            )
+                )
+                after_image, after_vis, after_scale = run_pixelwise_analysis(
+                    analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
+                )
 
-            # Helper for exporting each year's image
+            else:
+                before_image, before_vis,before_scale = run_pixelwise_analysis(
+                analysis_type, polygon, f"{before_year}-01-01", f"{before_year}-12-31"
+                )
+                after_image, after_vis, after_scale = run_pixelwise_analysis(
+                    analysis_type, polygon, f"{after_year}-01-01", f"{after_year}-12-31"
+                )
+
+            
             def export_to_s3(image, vis_params, year_label, scale):
                 local_dir = os.path.join(
                     settings.MEDIA_ROOT, "temp_exports", "before_after_pixelwise",
-                    str(project_id), uc_safe, str(year_label)
+                    "kml" if kml_hash else "uc",
+                    kml_hash if kml_hash else str(project_id),
+                    uc_safe,str(year_label)
                 )
                 os.makedirs(local_dir, exist_ok=True)
                 local_tif = os.path.join(local_dir, f"{analysis_type}_{year_label}.tif")
                 tiles_dir = os.path.join(local_dir, "tiles")
+                os.makedirs(tiles_dir, exist_ok=True)
 
-                # Check valid pixels
+                
                 pixel_count = image.reduceRegion(
                     reducer=ee.Reducer.count(),
                     geometry=polygon,
@@ -2203,7 +2394,7 @@ def before_after_comparison_pixelwise(request):
                     palette=vis_params.get("palette")
                 )
 
-                # Retry export
+                
                 export_success = False
                 attempt = 0
                 max_attempts = 4
@@ -2224,7 +2415,15 @@ def before_after_comparison_pixelwise(request):
                             raise Exception("Empty or missing export")
                     except Exception as e:
                         err = str(e)
-                        if "Total request size" in err or "50331648 bytes" in err:
+                        if "Empty or missing export" in err or "No valid pixels" in err:
+                            scale = min(int(scale * 2), 200)
+                            print(f"[INFO] Retrying export with larger scale={scale} due to empty result.")
+                            time.sleep(2)
+                        elif "memory" in err.lower() or "limit exceeded" in err.lower():
+                            scale = min(int(scale * 2), 200)
+                            print(f"[INFO] Retrying due to memory limit exceeded, new scale={scale}")
+                            time.sleep(2)
+                        elif "Total request size" in err or "50331648 bytes" in err:
                             scale = min(int(scale * 2), 200)
                             print(f"Retrying with larger scale={scale}")
                         elif "Network" in err or "getaddrinfo" in err:
@@ -2236,7 +2435,7 @@ def before_after_comparison_pixelwise(request):
                 if not export_success:
                     raise Exception(f"Export failed after {attempt} attempts")
 
-                # Build overviews
+                
                 with rasterio.open(local_tif, "r+") as src:
                     factors = [2, 4, 8, 16]
                     valid_factors = [f for f in factors if f < min(src.width, src.height)]
@@ -2248,7 +2447,7 @@ def before_after_comparison_pixelwise(request):
                     shutil.rmtree(tiles_dir)
                 os.makedirs(tiles_dir, exist_ok=True)
 
-                # Generate PNG tiles
+                
                 with COGReader(local_tif) as cog:
                     def scale_to_zoom(scale_m_per_pixel):
                         z = math.log2(156543.03392804097 / float(scale_m_per_pixel))
@@ -2277,13 +2476,24 @@ def before_after_comparison_pixelwise(request):
                                     img = np.dstack((img, alpha))
                                 pil_img = Image.fromarray(img, mode="RGBA")
                                 tile_path = os.path.join(tiles_dir, str(z), str(t.x))
-                                os.makedirs(tile_path, exist_ok=True)
-                                pil_img.save(os.path.join(tile_path, f"{t.y}.png"))
+                                try:
+                                    os.makedirs(tile_path, exist_ok=True)
+                                    save_path = os.path.join(tile_path, f"{t.y}.png")
+                                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                                    pil_img.save(save_path)
+                                except FileNotFoundError as e:
+                                    print(f"[WARN] Skipped tile ({z}/{t.x}/{t.y}) — folder missing: {e}")
+                                except Exception as e:
+                                    print(f"[WARN] Failed to save tile ({z}/{t.x}/{t.y}): {e}")
+
+                                
                         except Exception as e:
                             print(f"Zoom {z} skipped: {e}")
 
-                # Upload PNG tiles to S3
-                s3_prefix = f"tiles/2-year comparison/{project_id}/{analysis_type}/{year_label}/{uc_safe}"
+                if area_type == "kml":
+                    s3_prefix = f"tiles/2-year comparison/shared/kml/{kml_hash}/{analysis_type}/{year_label}/{uc_safe}"
+                else:
+                    s3_prefix = f"tiles/2-year comparison/shared/uc/{analysis_type}/{year_label}/{city_safe}/{uc_safe}"
                 for root, dirs, files in os.walk(tiles_dir):
                     for fname in files:
                         if fname.lower().endswith(".png"):
@@ -2292,38 +2502,58 @@ def before_after_comparison_pixelwise(request):
                             s3_key = f"{s3_prefix}/{rel_path}"
                             s3_client.upload_file(full_path, bucket_name, s3_key)
 
-                # Cleanup local
-                if os.path.exists(local_dir):
-                    shutil.rmtree(local_dir)
+                
+                
+                if os.path.exists(tiles_dir):
+                    shutil.rmtree(tiles_dir)
+                os.makedirs(tiles_dir, exist_ok=True)
+
 
                 return f"{s3_domain}/{s3_prefix}/{{z}}/{{x}}/{{y}}.png"
 
-            # Export both years
+            
             tile_url_before = export_to_s3(before_image, before_vis, before_year, before_scale)
             tile_url_after = export_to_s3(after_image, after_vis, after_year, after_scale)
 
-            # Save to DB
             BeforeAfterPixelwise.objects.update_or_create(
-                project_id=project_id,
+                project_id=None,
                 analysis_type=analysis_type,
-                area_type=area_type,
-                uc_name=uc_name,
                 before_year=before_year,
                 after_year=after_year,
+                area_type=area_type,
+                uc_name=uc_safe,
                 defaults={
-                    "city_name": city_name,
+                    "city_name": city_safe,
+                    "kml_hash": kml_hash,
                     "tile_url_before": tile_url_before,
                     "tile_url_after": tile_url_after
                 }
             )
+            if project_id:
+               
+                BeforeAfterPixelwise.objects.update_or_create(
+                    project_id=project_id,
+                    analysis_type=analysis_type,
+                    area_type=area_type,
+                    uc_name=uc_safe,
+                    before_year=before_year,
+                    after_year=after_year,
+                    defaults={
+                        "city_name": city_name,
+                        "kml_hash": kml_hash,
+                        "tile_url_before": tile_url_before,
+                        "tile_url_after": tile_url_after
+                    }
+                )
 
-            return {
-                "uc_name": uc_name,
-                "city_name": city_name,
-                "tile_url_before": tile_url_before,
-                "tile_url_after": tile_url_after,
-                "error": "0"
-            }
+                return {
+                    "uc_name": uc_name,
+                    "city_name": city_name,
+                    "tile_url_before": tile_url_before,
+                    "tile_url_after": tile_url_after,
+                    "error": "0",
+                    "cached": False
+                }
 
         except Exception as e:
             print(f"Error processing {uc_name}: {e}")
@@ -2336,7 +2566,7 @@ def before_after_comparison_pixelwise(request):
                 "tile_url_after": None
             }
 
-    # ---------------- Run multithreaded ---------------- #
+    
     results = []
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(process_feature, f) for f in features]

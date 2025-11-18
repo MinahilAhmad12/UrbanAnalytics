@@ -619,6 +619,7 @@ Response JSON:
 
 13. For pixel-wise analysis
 Request: POST
+api/pixelwiseanalysis/
 for area_type == "uc"
 {
     "analysis_type": "ndvi",  
