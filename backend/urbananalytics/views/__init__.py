@@ -3,3 +3,4 @@ from .project_views import *
 from .report_views import *
 from .map_views import *
 from .reportlab_view import *
+from .chatbot_views import *
