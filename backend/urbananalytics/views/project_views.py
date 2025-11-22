@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from urbananalytics.models import Project,ProjectArea, MapState,AreaAnalysis,UnionCouncil
+from urbananalytics.models import Project, MapState,AreaAnalysis,UnionCouncil,YearlyAnalysis,BeforeAfterAnalysis,BeforeAfterPixelwise, Report
 from rest_framework.response import Response
 from rest_framework import status
 from urbananalytics.serializers import ProjectSerializer,ProjectWithAreasSerializer,ProjectAreaSerializer, MapStateSerializer
@@ -11,6 +11,11 @@ from fastkml import kml
 from shapely.geometry import shape
 import os
 from urbananalytics.helpers import extract_bounds_from_kml
+from django.core.exceptions import ObjectDoesNotExist
+import os
+from django.conf import settings
+import boto3
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -35,182 +40,379 @@ def create_project(request):
 
 
 
-
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def get_user_projects(request):
-    projects = Project.objects.filter(owner=request.user).prefetch_related('areas__analyses')
-    serializer = ProjectWithAreasSerializer(projects, many=True)
-    return Response(serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def view_project_area(request, project_id, area_id):
+def save_project(request):
     
-    try:
-        area = ProjectArea.objects.select_related('project__owner') \
-                .get(id=area_id, project__id=project_id, project__owner=request.user)
-    except ProjectArea.DoesNotExist:
-        return Response({"error": "Area not found"}, status=status.HTTP_404_NOT_FOUND)
+    data = request.data
+    project_id = data.get("project_id")
+    area_type = data.get("area_type")
 
-    map_state = MapState.objects.filter(project_area=area).first()
+    if not project_id:
+        return Response({"error": "project_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({
-        "area": ProjectAreaSerializer(area).data,
-        "map_state": MapStateSerializer(map_state).data if map_state else None
-    })
-    
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_project_details(request, project_id):
+    if not area_type:
+        return Response({"error": "area_type is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+    if area_type == "uc" and not data.get("city_name"):
+        return Response({"error": "city_name is required for area_type 'uc'"}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         project = Project.objects.get(id=project_id, owner=request.user)
-    except Project.DoesNotExist:
-        return Response({'detail': 'Project not found'}, status=404)
+    except ObjectDoesNotExist:
+        return Response({"error": "Project not found or you don't have permission"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = ProjectWithAreasSerializer(project)
-    return Response(serializer.data)
+    
+    map_state_fields = {
+        "selected_analysis_type": data.get("selected_analysis_type"),
+        "selected_mode": data.get("selected_mode"),
+        "start_date": data.get("start_date"),
+        "end_date": data.get("end_date"),
+        "selected_year": data.get("selected_year"),
+        "before_year": data.get("before_year"),
+        "after_year": data.get("after_year"),
+        "map_center": data.get("map_center"),
+        "zoom_level": data.get("zoom_level"),
+        "area_type": area_type,
+        "city_name": data.get("city_name") if area_type == "uc" else None,
+    }
+
+    
+    map_state_fields = {k: v for k, v in map_state_fields.items() if v is not None}
+
+    
+    map_state, created = MapState.objects.update_or_create(
+        project=project,
+        defaults=map_state_fields
+    )
+
+    return Response({
+        "message": "Project saved successfully",
+        "created": created,
+        "map_state": {
+            "selected_analysis_type": map_state.selected_analysis_type,
+            "selected_mode": map_state.selected_mode,
+            "start_date": map_state.start_date,
+            "end_date": map_state.end_date,
+            "selected_year": map_state.selected_year,
+            "before_year": map_state.before_year,
+            "after_year": map_state.after_year,
+            "map_center": map_state.map_center,
+            "zoom_level": map_state.zoom_level,
+            "area_type": map_state.area_type,
+            "city_name": map_state.city_name,
+            "updated_at": map_state.updated_at
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_user_projects(request):
+   
+    projects = Project.objects.filter(owner=request.user).order_by('-created_at')
+
+    project_list = []
+    for project in projects:
+        if project.kml_file: 
+            filename = os.path.basename(project.kml_file.name) 
+            location_display = filename.split('_')[0] 
+        else:  
+            location_display = project.location_name
+
+        project_list.append({
+            "id": project.id,
+            "project_name": project.project_name,
+            "location_name": location_display,
+            "created_at": project.created_at
+        })
+
+    return Response({"projects": project_list})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def view_project(request, project_id):
+    
+    try:
+        project = Project.objects.get(id=project_id)
+    except ObjectDoesNotExist:
+        return Response({"error": "Project not found or you don't have permission"}, status=404)
+
+    
+    try:
+        map_state = project.map_state
+    except ObjectDoesNotExist:
+        return Response({"error": "Map state not found for this project"}, status=404)
+
+    results = []
+    mode = map_state.selected_mode
+
+    
+    uc_pairs = []
+
+    if mode in ["average", "pixelwise"]:
+        qs = AreaAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            start_date__gte=map_state.start_date,
+            end_date__lte=map_state.end_date
+        )
+        uc_pairs = qs.values_list("uc_name", "city_name").distinct()
+    elif mode in ["per-year average", "per-year pixelwise"]:
+        qs = YearlyAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            year=map_state.selected_year
+        )
+        uc_pairs = qs.values_list("uc_name", "city_name").distinct()
+    elif mode == "before-after pixelwise":
+        qs = BeforeAfterPixelwise.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            before_year=map_state.before_year,
+            after_year=map_state.after_year
+        )
+        uc_pairs = qs.values_list("uc_name", "city_name").distinct()
+
+    
+    def fetch_average(uc_name, city_name):
+        objs = AreaAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            start_date__gte=map_state.start_date,
+            end_date__lte=map_state.end_date,
+            is_pixelwise=False
+        )
+        return [
+            {
+                "uc_name": o.uc_name,
+                "city_name": o.city_name,
+                "stats": o.stats,
+                "tile_url": o.tile_url_template
+            } for o in objs
+        ]
+
+    def fetch_pixelwise(uc_name, city_name):
+        objs = AreaAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            start_date__gte=map_state.start_date,
+            end_date__lte=map_state.end_date,
+            is_pixelwise=True
+        )
+        return [
+            {
+                "uc_name": o.uc_name,
+                "city_name": o.city_name,
+                "tile_url": o.tile_url_template
+            } for o in objs
+        ]
+
+    def fetch_yearly_average(uc_name, city_name):
+        objs = YearlyAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            year=map_state.selected_year,
+            is_pixelwise=False
+        )
+        return [
+            {
+                "uc_name": o.uc_name,
+                "city_name": o.city_name,
+                "stats": o.stats,
+                "tile_url": o.tile_url_template
+            } for o in objs
+        ]
+
+    def fetch_yearly_pixelwise(uc_name, city_name):
+        objs = YearlyAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            year=map_state.selected_year,
+            is_pixelwise=True
+        )
+        return [
+            {
+                "uc_name": o.uc_name,
+                "city_name": o.city_name,
+                "tile_url": o.tile_url_template
+            } for o in objs
+        ]
+
+    def fetch_before_after_pixelwise(uc_name, city_name):
+        ba_stats = BeforeAfterAnalysis.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            before_year=map_state.before_year,
+            after_year=map_state.after_year
+        ).first()
+        ba_pixelwise = BeforeAfterPixelwise.objects.filter(
+            project=project,
+            analysis_type=map_state.selected_analysis_type,
+            area_type=map_state.area_type,
+            uc_name=uc_name,
+            city_name=city_name,
+            before_year=map_state.before_year,
+            after_year=map_state.after_year
+        ).first()
+        return {
+            "uc_name": uc_name,
+            "city_name": city_name,
+            "before_stats": ba_stats.stats_before if ba_stats else None,
+            "after_stats": ba_stats.stats_after if ba_stats else None,
+            "comparison": ba_stats.comparison if ba_stats else None,
+            "tile_url_before": ba_pixelwise.tile_url_before if ba_pixelwise else None,
+            "tile_url_after": ba_pixelwise.tile_url_after if ba_pixelwise else None
+        }
+
+
+    for uc_name, city_name in uc_pairs:
+        if mode == "average":
+            results.extend(fetch_average(uc_name, city_name))
+        elif mode == "pixelwise":
+            results.extend(fetch_pixelwise(uc_name, city_name))
+        elif mode == "per-year average":
+            results.extend(fetch_yearly_average(uc_name, city_name))
+        elif mode == "per-year pixelwise":
+            results.extend(fetch_yearly_pixelwise(uc_name, city_name))
+        elif mode == "before-after pixelwise":
+            results.append(fetch_before_after_pixelwise(uc_name, city_name))
+
+    return Response({
+        "project": {
+            "id": project.id,
+            "project_name": project.project_name,
+            "location_name": project.location_name,
+            "created_at": project.created_at
+        },
+        "map_state": {
+            "selected_analysis_type": map_state.selected_analysis_type,
+            "selected_mode": map_state.selected_mode,
+            "start_date": map_state.start_date,
+            "end_date": map_state.end_date,
+            "selected_year": map_state.selected_year,
+            "before_year": map_state.before_year,
+            "after_year": map_state.after_year,
+            "map_center": map_state.map_center,
+            "zoom_level": map_state.zoom_level,
+            "area_type": map_state.area_type,
+            "city_name": map_state.city_name,
+            "updated_at": map_state.updated_at
+        },
+        "uc_layers": results
+    })
+
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def delete_project_area(request, area_id):
+def delete_project(request, project_id):
+    
     try:
-        area = ProjectArea.objects.get(id=area_id)
-    except ProjectArea.DoesNotExist:
-        return Response({"detail": "Project area not found."}, status=status.HTTP_404_NOT_FOUND)
-    
-    
-    if area.project.owner != request.user:
-        return Response({"detail": "Not authorized to delete this project area."}, status=status.HTTP_403_FORBIDDEN)
-    
-    area.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+        
+        project = Project.objects.get(id=project_id, owner=request.user)
+    except ObjectDoesNotExist:
+        return Response({"error": "Project not found or you don't have permission"}, status=404)
+
+    project.delete()
+
+    return Response({"success": f"Project '{project.project_name}' has been deleted successfully."})
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def save_area_with_analyses(request):
-    data = request.data
-    user = request.user
+def list_project_reports(request, project_id):
+    
+    try:
+        project = Project.objects.get(id=project_id, owner=request.user)
+    except ObjectDoesNotExist:
+        return Response({"error": "Project not found or you don't have permission"}, status=404)
+
+    reports = Report.objects.filter(project=project).order_by('-created_at')
+
+    report_list = []
+    for report in reports:
+        
+        if report.before_year and report.after_year:
+            period = f"{report.before_year}→{report.after_year}"
+        elif report.year:
+            period = f"Year {report.year}"
+        else:
+            period = f"{report.start_date}→{report.end_date}" if report.start_date and report.end_date else None
+
+        report_list.append({
+            "id": report.id,
+            "analysis_type": report.analysis_type,
+            "report_type": report.report_type,
+            "area_type": report.area_type,
+            "period": period,
+            "message": report.message,
+            "created_by": report.created_by.username,
+            "created_at": report.created_at
+        })
+
+    return Response({"project_id": project.id, "project_name": project.project_name, "reports": report_list})
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_report(request, project_id, report_id):
 
     try:
-        project = Project.objects.get(id=data['project_id'], owner=user)
-    except Project.DoesNotExist:
-        return Response({'detail': 'Project not found'}, status=404)
+        project = Project.objects.get(id=project_id ,owner=request.user)
+    except ObjectDoesNotExist:
+        return Response({"error": "Project not found"}, status=404)
 
-    area_type = data.get('area_type')
-    name = data.get('name', 'Unnamed Area')
-    date_range_start = data.get('date_range_start')
-    date_range_end = data.get('date_range_end')
+    try:
+        report = Report.objects.get(id=report_id, project=project)
+    except ObjectDoesNotExist:
+        return Response({"error": "Report not found for this project"}, status=404)
 
-    if area_type not in ['uc', 'custom', 'kml']:
-        return Response({'detail': 'Invalid area_type.'}, status=400)
+    
+    if report.file and report.file.name:
+        file_key = report.file.name 
 
-    created_area_ids = []
+       
+        if file_key.startswith("http://") or file_key.startswith("https://"):
+            file_key = file_key.split(".com/")[-1]
 
-    if area_type == 'uc':
-        selected_city = data.get('selected_city')
-        uc_ids_list = data.get('uc_ids', [])
-        uc_analyses = data.get('analyses', {})
-        map_states = data.get('map_state', {})
-
-        if not selected_city or not uc_ids_list:
-            return Response({'detail': 'selected_city and uc_ids are required for area_type "uc".'}, status=400)
-
-        for uc_id in uc_ids_list:
-            try:
-                uc = UnionCouncil.objects.get(id=uc_id)
-            except UnionCouncil.DoesNotExist:
-                continue
-
-            area = ProjectArea.objects.create(
-                project=project,
-                area_type='uc',
-                name=f"{name} - {uc.uc_name}",
-                date_range_start=date_range_start,
-                date_range_end=date_range_end,
-                selected_city=selected_city
-            )
-            area.uc_ids.set([uc])
-
-            uc_analysis = uc_analyses.get(str(uc_id), [])
-            for analysis in uc_analysis:
-                AreaAnalysis.objects.create(
-                    project_area=area,
-                    analysis_type=analysis['analysis_type'],
-                    tile_url=analysis['tile_url'],
-                    stats=analysis['stats']
-                )
-
-            map_data = map_states.get(str(uc_id))
-            if map_data:
-                MapState.objects.create(
-                    project_area=area,
-                    center_coords=map_data.get('center_coords'),
-                    zoom_level=map_data.get('zoom_level'),
-                    active_layer=map_data.get('active_layer'),
-                    toggle_state=map_data.get('toggle_state', {}),
-                    basemap_style=map_data.get('basemap_style', 'streets')
-                )
-
-            created_area_ids.append(area.id)
-
-    elif area_type in ['custom', 'kml']:
-        custom_geometry = data.get('custom_geometry') if area_type == 'custom' else None
-        kml_file = request.FILES.get('kml_file') if area_type == 'kml' else None
-
-        if area_type == 'custom' and not custom_geometry:
-            return Response({'detail': 'custom_geometry is required for area_type "custom".'}, status=400)
-        if area_type == 'kml' and not kml_file:
-            return Response({'detail': 'kml_file is required for area_type "kml".'}, status=400)
-
-        area = ProjectArea.objects.create(
-            project=project,
-            area_type=area_type,
-            name=name,
-            date_range_start=date_range_start,
-            date_range_end=date_range_end,
-            custom_geometry=custom_geometry,
-            kml_file=kml_file
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME
         )
-        analyses = data.get('analyses')
-        if isinstance(analyses, str):
-            try:
-                analyses = json.loads(analyses)
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON format inside analyses list"}, status=400)
 
-        map_data = data.get('map_state')
-
-        if isinstance(map_data, str):
-            try:
-                map_data = json.loads(map_data)
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON format for 'map_state'"}, status=400)
-        for analysis in analyses:
-            AreaAnalysis.objects.create(
-                    project_area=area,
-                    analysis_type=analysis['analysis_type'],
-                    tile_url=analysis['tile_url'],
-                    stats=analysis['stats']
-                )
-
-        if map_data:
-            MapState.objects.create(
-                project_area=area,
-                center_coords=map_data.get('center_coords'),
-                zoom_level=map_data.get('zoom_level'),
-                active_layer=map_data.get('active_layer'),
-                toggle_state=map_data.get('toggle_state', {}),
-                basemap_style=map_data.get('basemap_style', 'streets')
+        try:
+            s3_client.delete_object(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                Key=file_key
             )
+        except Exception as e:
+            print("S3 delete error:", e)
+            
 
-        created_area_ids.append(area.id)
+    
+    report.delete()
 
-
-    return Response({
-        'detail': 'Area(s) and analyses saved successfully.',
-        'created_area_ids': created_area_ids
-    })
+    return Response({"message": "Report deleted successfully"})

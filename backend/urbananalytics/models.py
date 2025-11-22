@@ -70,22 +70,6 @@ class ProjectArea(models.Model):
 
 
 
-class MapState(models.Model):
-    project_area = models.OneToOneField(ProjectArea, on_delete=models.CASCADE, related_name="map_state")
-    active_layer = models.CharField(max_length=20, choices=[
-        ('ndvi', 'NDVI'),
-        ('thermal', 'Thermal'),
-        ('aqi', 'AQI'),
-    ], blank=True, null=True)
-    toggle_state = models.JSONField(default=dict)
-    zoom_level = models.FloatField(blank=True, null=True)
-    center_coords = models.JSONField(blank=True, null=True)
-    basemap_style = models.CharField(max_length=50, default='streets')
-
-    def str(self):
-        return f"MapState for Area {self.project_area.id}"
-
-
 class AreaAnalysis(models.Model):
     project = models.ForeignKey(Project,on_delete=models.CASCADE,related_name="analyses", null=True,blank=True)
     analysis_type = models.CharField(max_length=50)
@@ -238,14 +222,14 @@ class Report(models.Model):
     report_type = models.CharField(max_length=30, choices=REPORT_TYPES)
     area_type = models.CharField(max_length=10, choices=AREA_TYPES)
 
-    #  For average or range-based reports
+    
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
 
-    #  For annual reports
+    
     year = models.IntegerField(null=True, blank=True)
 
-    #  For before-after reports
+    
     before_year = models.IntegerField(null=True, blank=True)
     after_year = models.IntegerField(null=True, blank=True)
 
@@ -261,3 +245,29 @@ class Report(models.Model):
             return f"{self.project} | {self.analysis_type.upper()} | Year {self.year}"
         else:
             return f"{self.project} | {self.analysis_type.upper()} | {self.start_date}→{self.end_date}"
+
+
+class MapState(models.Model):
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="map_state")
+
+    selected_analysis_type = models.CharField(max_length=50, null=True, blank=True)
+    selected_mode = models.CharField(max_length=50, null=True, blank=True)   
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    
+    selected_year = models.IntegerField(null=True, blank=True)
+
+    
+    before_year = models.IntegerField(null=True, blank=True)
+    after_year = models.IntegerField(null=True, blank=True)
+
+    
+    map_center = models.JSONField(null=True, blank=True)  
+    zoom_level = models.IntegerField(null=True, blank=True)
+
+    
+    area_type = models.CharField(max_length=20, null=True, blank=True)  
+    city_name = models.CharField(max_length=255, null=True, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
