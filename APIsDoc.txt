@@ -1259,3 +1259,97 @@ Response (Success - 200 OK):
 {
   "message": "Report deleted successfully"
 }
+
+28. Endpoint
+
+POST /api/chatbot/
+
+Content-Type
+
+application/json
+
+ Request Body Format
+{
+  "query": "Your question here"
+}
+
+ Example Queries (Supported by API)
+[
+  "How is vegetation, pollution and surface heating changing from 2021 to 2024?",
+  "Tell me the NDVI + AQI + temperature of Minhala UC for 2023.",
+  "What is the average temperature,aqi, NDVI from 2023,2024?",
+  "What is the average NDVI from 2021 to 2024 and Aqi also?",
+  "tell me ndvi trend over years ?",
+  "tell me ndvi ,air quality and thermal trend over years ?",
+  "tell me thermal 2020 and paji uc and aqi 2024 ndvi 2021,2023",
+  "give me minhala uc, kot lakhpat uc, and township uc ndvi 2022 aqi 2021,2024 thermal 2020",
+  "show me stats data of minhala, johar town, paji uc from aqi 2023, 2022 and thermal 2024 and ndvi 2025",
+  "What is the thermal trend for Lahore from 2020 to 2025?",
+  "What is the vegetation trend from 2020 to 2025?",
+  "What is thermal trend from 2020 to 2025 for the entire city?",
+  "What is the AQI trend from 2020 to 2025?",
+  "Which year was the hottest between 2020 and 2025?",
+  "Did Minhala’s greenery improve over 5 years?",
+  "How did heat islands change over the years?",
+  "What is AQI improvement/worsening trend from 2020 to 2025?",
+  "Did air quality get better or worse over time in Lahore?",
+  "Did Johar Town become hotter or cooler over time?",
+  "Give me Tajpura UC stats for 2021 thermal analysis",
+  "Summarize the ndvi analysis for 2023",
+  "Interpret the thermal analysis trends for 2024,2025,2023",
+  "What recommendations were made in the 2023 thermal report?",
+  "Which UC values suggest urban heat islands?",
+  "What are the main temperature trends in 2023 according to the thermal report?",
+  "Which UC has the highest mean thermal value and average thermal value in lahore in 2023?",
+  "What is the standard deviation of thermal analysis 2023?",
+  "Tell me about Bibi Pak Daman UC air quality condition in 2023",
+  "Which temperature range covered the largest area in 2023?",
+  "Which areas are hotspots in 2023?",
+  "How many urban units were analyzed in thermal report?",
+  "What project was this aqi report generated for?",
+  "When was the thermal report generated?",
+  "What is the maximum temperature value recorded in 2023?",
+  "Which UC in Lahore was the coolest in 2023?",
+  "What does color #90EE90 mean?",
+  "What is the meaning of the purple color in the thermal map?",
+  "which areas had heat islands from 2021 to 2025?",
+  "Tell me about Zaman Park ndvi stats data in 2023",
+  "Tell me min value of thermal report 2022",
+  "Which thermal category does Johar Town, Paji and Minhala UC fall under for 2020 and 2024?",
+  "Give thermal average values of Johar Town, Paji and Minhala for 2020 and 2024.",
+  "Compare thermal values of Shamke Bhattian and Green Town for 2020 and 2024.",
+  "What is the change in thermal mean value of Johar Town from 2020 to 2024?",
+  "Whats the thermal minimum value for 2020 and 2024?",
+  "Give thermal heterogeneity for 2020, 2023 and 2024.",
+  "What is the thermal maximum temperature for 2023?",
+  "What is the overall thermal average value for 2020 and 2024?",
+  "Which aqi category does Johar Town, Paji and Minhala UC fall under for 2020 and 2024?",
+  "Give aqi stats of Shahdara and Samanabad for 2020 and 2024.",
+  "Compare AQI mean values of Minhala, Johar Town and Paji for 2020, 2023 and 2024.",
+  "What is the AQI change from 2020 to 2024 for Paji?",
+  "Whats the aqi average value for 2020 and 2024?",
+  "What is the AQI minimum and maximum for 2020 and 2024?",
+  "Give AQI heterogeneity value for 2020 and 2024.",
+  "What does the AQI summary say for 2023?",
+  "Which ndvi category does Johar Town, Paji and Minhala UC fall under for 2020 and 2024?",
+  "Give NDVI stats of Shamke Bhattian and Johar Town for 2020 and 2024.",
+  "Compare NDVI values of Paji UC between 2020 and 2024.",
+  "What is the change in NDVI of Minhala from 2020 to 2024?",
+  "Whats the ndvi average value for 2020 and 2024?",
+  "What is the NDVI heterogeneity for 2020 and 2024?",
+  "Whats the ndvi minimum value for 2020 and 2024?",
+  "Whats the ndvi maximum value for 2020 and 2024?",
+  "Give NDVI average values for 2020, 2024 and 2025.",
+  "Which UC had the highest thermal value in 2023?",
+  "Which UC had the lowest NDVI in 2020?",
+  "Which UC had the highest AQI in 2024?",
+  "Tell me the UC with best vegetation condition in 2024.",
+  "Which UCs fall in very hot thermal category for 2023?",
+  "Which UCs have moderate vegetation in 2020?",
+  "Show me UCs that fall into unhealthy AQI category in 2024.",
+  "List UCs that were hot in 2023.",
+  "Which UCs were warm in 2023?",
+  "Which UCs had NDVI above 0.4 in 2020?",
+  "Which UCs had AQI value below 10 in 2020?",
+  "Give thermal, AQI and NDVI summary of Johar Town for 2020."
+]

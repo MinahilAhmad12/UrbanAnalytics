@@ -8,13 +8,12 @@ from supabase import create_client
 from django.conf import settings
 from urbananalytics.models import Report
 
-
 # -------------------------------
 # Helper: UC row detector
-# Example line: "Paji Lahore 0.2653 #FFFF00"
 # -------------------------------
 UC_ROW_PATTERN = re.compile(
-    r"([A-Za-zÀ-ÖØ-öø-ÿ\s\'\-]+)\s+Lahore\s+([\d\.]+)\s+(#[A-F0-9]{6})", re.IGNORECASE
+    r"^\s*([A-Za-z0-9\s'\-\(\)]+?)\s+([A-Za-z]+)\s+([0-9]+\.[0-9]+)\s+(#[A-Fa-f0-9]{6})\s*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -30,14 +29,13 @@ def split_text(text, chunk_size=800, overlap=100):
         start += chunk_size - overlap
     return chunks
 
-
 # -------------------------------
 # Helper: extract text + tables + UC rows
 # -------------------------------
 def extract_pdf_text_and_tables(pdf_path):
-    """Extract text, tables, and UC-level rows."""
     full_text = []
     uc_rows = []
+    seen = set()  # Track unique UC rows
 
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
@@ -45,49 +43,137 @@ def extract_pdf_text_and_tables(pdf_path):
             full_text.append(f"\n--- Page {i} Text ---\n{text}")
 
             # Extract UC rows from text
-            matches = UC_ROW_PATTERN.findall(text)
-            for match in matches:
-                uc_name, mean_val, color = match
-                uc_rows.append({
-                    "uc_name": uc_name.strip(),
-                    "city": "Lahore",
-                    "value": float(mean_val),
-                    "color": color
-                })
+                        # Extract UC rows from text
+                        # Extract UC rows from text
+            for line in text.split("\n"):
+                m = UC_ROW_PATTERN.match(line.strip())
+                if m:
+                    uc_name, city, mean_val, color = m.groups()
 
-            # Extract tables
+                    # normalize fields
+                    uc_name_norm = uc_name.strip().lower()
+                    city_norm = city.strip().lower()
+                    value_norm = float(mean_val)
+                    color_norm = color.upper()
+
+                    key = (uc_name_norm, city_norm, value_norm, color_norm)
+
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    uc_rows.append({
+                        "uc_name": uc_name.strip(),
+                        "city": city.strip(),
+                        "value": value_norm,
+                        "color": color_norm,
+                    })
+
+
+            # Extract UC rows from tables
             tables = page.extract_tables()
-            for t_index, table in enumerate(tables, start=1):
-                full_text.append(f"\n--- Page {i} Table {t_index} ---\n")
+            for table in tables:
                 for row in table:
-                    row_text = " | ".join([str(cell) if cell else "" for cell in row])
-                    full_text.append(row_text)
+                    row = [str(c).strip() if c else "" for c in row]
+
+                    if len(row) >= 4:
+                        name, city, val, color = row[:4]
+                        
+                        if not re.match(r"^[0-9]+\.[0-9]+$", val):
+                            continue
+                        if not re.match(r"^#[A-Fa-f0-9]{6}$", color):
+                            continue
+                        if name.lower().startswith("uc name"):
+                            continue
+
+                                    # normalize fields
+                        name_norm = name.strip().lower()
+                        city_norm = city.strip().lower()
+                        val_norm = float(val)
+                        color_norm = color.upper()
+
+                        key = (name_norm, city_norm, val_norm, color_norm)
+
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        
+                        uc_rows.append({
+                            "uc_name": name.strip(),
+                            "city": city,
+                            "value": float(val),
+                            "color": color.upper(),
+                        })
 
     return "\n".join(full_text), uc_rows
 
 
 # -------------------------------
-# Main function
+# Main upload function
 # -------------------------------
 def upload_report_to_supabase(report_id):
-    """
-    Fetches a Report by ID, downloads its PDF, extracts UC rows + text,
-    generates embeddings, and uploads them to Supabase.
-    """
+    """Download, extract, embed, and upload report data to Supabase."""
     genai.configure(api_key=settings.GOOGLE_API_KEY)
     supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
     report = Report.objects.get(id=report_id)
     pdf_url = report.file.url
+    report_type_raw = (report.report_type or "").lower()
 
-    # Fix broken or encoded URLs
+    # --------------------------------------------------
+    # STRICT RULE: Only yearly reports can store embeddings
+    # --------------------------------------------------
+
+    # Skip if no year (means range or comparison)
+    if not report.year:
+        print(" Skipping embeddings:(range/comparison report).")
+        return
+
+    if any(keyword in report_type_raw for keyword in [
+        "before", "after", "comparison", "compare", "range", "2yr", "two year", "start", "end"
+    ]):
+     return 
+    year = report.year
+    raw_type = report.analysis_type.lower() if report.analysis_type else ""
+
+    # Normalize analysis type
+    if "aqi" in raw_type or "air" in raw_type:
+        normalized_type = "aqi"
+    elif "thermal" in raw_type or "temperature" in raw_type:
+        normalized_type = "thermal"
+    else:
+        normalized_type = "ndvi"
+
+    # --------------------------------------------------
+    # Step 0: Skip upload if embeddings already exist
+    # --------------------------------------------------
+    check = (
+        supabase.table("documents")
+        .select("id")
+        .eq("metadata->>analysis_type", normalized_type)
+        .eq("metadata->>year", str(year))
+        .limit(1)
+        .execute()
+    )
+
+    if check.data:
+        print(f"Embeddings already exist for {normalized_type} {year} — skipping upload.")
+        return
+
+    print(f"Uploading new embeddings for {normalized_type} {year} ...")
+
+    # --------------------------------------------------
+    # Step 1: Download the PDF
+    # --------------------------------------------------
     from urllib.parse import unquote
     pdf_url = unquote(pdf_url)
+
     if pdf_url.startswith("/media/https"):
         pdf_url = pdf_url.replace("/media/", "").replace("https:/", "https://")
 
-    print(f" Downloading report from {pdf_url}")
+    print(f"Downloading report from {pdf_url}")
     response = requests.get(pdf_url)
+
     if response.status_code != 200:
         raise Exception(f"Failed to download PDF (status {response.status_code})")
 
@@ -96,55 +182,98 @@ def upload_report_to_supabase(report_id):
         pdf_path = tmp_file.name
 
     combined_text, uc_rows = extract_pdf_text_and_tables(pdf_path)
-    os.remove(pdf_path)
 
     if not combined_text.strip():
         raise ValueError("No readable text or tables found in the PDF.")
 
+    # --------------------------------------------------
+    # Step 2: Build metadata
+    # --------------------------------------------------
     metadata = {
-        "project": report.project.project_name if report.project else None,
-        "analysis_type": report.analysis_type.lower(),
+        "analysis_type": normalized_type,
         "report_type": report.report_type,
         "area_type": report.area_type,
-        "year": report.year,
+        "year": year,
     }
 
     model = "models/embedding-001"
 
-    #  Upload UC-level rows (fine-grained)
+    # --------------------------------------------------
+    # Step 3: Extract and upload Overall Summary
+    # --------------------------------------------------
+    summary_match = re.search(
+        r"(Overall Summary Statistics|Average Value)[\s\S]*?Average Value\s+([0-9.]+)",
+        combined_text,
+        re.IGNORECASE,
+    )
+
+    if summary_match:
+        avg_val = float(summary_match.group(2))
+        summary_text = (
+            f"Overall Summary for {year} ({normalized_type.upper()}):\n"
+            f"Average Value: {avg_val}"
+        )
+
+        result = genai.embed_content(model=model, content=summary_text)
+        embedding = result["embedding"]
+
+        supabase.table("documents").insert({
+            "content": summary_text,
+            "metadata": {
+                **metadata,
+                "area_type": "city",
+                "report_type": "summary",
+                "mean_value": avg_val,
+            },
+            "embedding": embedding,
+        }).execute()
+
+        print(f"Uploaded summary stats for {year} (avg={avg_val})")
+
+    # --------------------------------------------------
+    # Step 4: Upload UC-level rows
+    # --------------------------------------------------
     if uc_rows:
-        print(f"📊 Found {len(uc_rows)} UC rows — uploading individually.")
+        print(f"Found {len(uc_rows)} UC rows — uploading individually.")
         for i, uc in enumerate(uc_rows, start=1):
-            uc_text = f"UC: {uc['uc_name']}, City: {uc['city']}, Mean Value: {uc['value']}, Color: {uc['color']}"
+            uc_text = (
+                f"UC: {uc['uc_name']}, City: {uc['city']}, "
+                f"Mean Value: {uc['value']}, Color: {uc['color']}"
+            )
+
             result = genai.embed_content(model=model, content=uc_text)
             embedding = result["embedding"]
 
-            record = {
+            supabase.table("documents").insert({
                 "content": uc_text,
                 "metadata": {
                     **metadata,
                     "uc_name": uc["uc_name"],
                     "mean_value": uc["value"],
-                    "color": uc["color"]
+                    "color": uc["color"],
                 },
                 "embedding": embedding,
-            }
-            supabase.table("documents").insert(record).execute()
-            print(f" Uploaded UC {i}/{len(uc_rows)}: {uc['uc_name']}")
-    else:
-        print(" No UC-level rows found.")
+            }).execute()
 
-    #  Upload full report (for summaries)
+            print(f" Uploaded UC {i}/{len(uc_rows)}: {uc['uc_name']}")
+
+    # --------------------------------------------------
+    # Step 5: Upload full report text chunks
+    # --------------------------------------------------
     chunks = split_text(combined_text)
-    print(f" Uploading {len(chunks)} general text chunks.")
+    print(f"Uploading {len(chunks)} general text chunks.")
+
     for i, chunk in enumerate(chunks, start=1):
         result = genai.embed_content(model=model, content=chunk)
         embedding = result["embedding"]
+
         supabase.table("documents").insert({
             "content": chunk,
             "metadata": metadata,
             "embedding": embedding,
         }).execute()
-        print(f" Uploaded report chunk {i}/{len(chunks)}")
 
-    print(" Report fully indexed (UC-level + general text).")
+        print(f" Uploaded report chunk {i}/{len(chunks)}")
+    os.remove(pdf_path)
+
+    print("Report fully indexed (UC-level + legend + general text + summary).")
