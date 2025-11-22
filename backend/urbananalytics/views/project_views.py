@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from urbananalytics.models import Project, MapState,AreaAnalysis,UnionCouncil,YearlyAnalysis,BeforeAfterAnalysis,BeforeAfterPixelwise, Report
 from rest_framework.response import Response
 from rest_framework import status
-from urbananalytics.serializers import ProjectSerializer,ProjectWithAreasSerializer,ProjectAreaSerializer, MapStateSerializer
+from urbananalytics.serializers import ProjectSerializer
 import json
 from fastkml import kml
 from shapely.geometry import shape

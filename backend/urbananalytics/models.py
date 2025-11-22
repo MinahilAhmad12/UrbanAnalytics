@@ -50,25 +50,6 @@ class UnionCouncil(models.Model):
 
 
 
-class ProjectArea(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="areas")
-    name = models.CharField(max_length=100, blank=True, null=True)
-    area_type = models.CharField(max_length=10, choices=[
-        ('uc', 'Union Council'),
-        ('custom', 'Custom Drawn'),
-        ('kml', 'KML Uploaded'),
-    ])
-    selected_city = models.CharField(max_length=100, blank=True, null=True)
-    uc_ids = models.ManyToManyField(UnionCouncil, blank=True)
-    custom_geometry = models.JSONField(blank=True, null=True)
-    kml_file = models.FileField(upload_to='kml_files/', blank=True, null=True)
-    date_range_start = models.DateField(blank=True, null=True)
-    date_range_end = models.DateField(blank=True, null=True)
-
-    def str(self):
-        return self.name or f"Area {self.id} for Project: {self.project.name}"
-
-
 
 class AreaAnalysis(models.Model):
     project = models.ForeignKey(Project,on_delete=models.CASCADE,related_name="analyses", null=True,blank=True)
