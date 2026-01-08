@@ -477,245 +477,66 @@ def perform_gee_average_analysis(request):
         return Response({"error": str(e)}, status=500)
 
 
-# @api_view(['POST'])
-# def perform_gee_average_analysis(request):
-#     init_ee()
 
-#     analysis_type = request.data.get("analysis_type")
-#     start_date = request.data.get("start_date")
-#     end_date = request.data.get("end_date")
-#     area_type = request.data.get("area_type")
-#     project_id = request.data.get("project_id")
+def compute_aqi(concentration, breakpoints):
+    """Calculate AQI using EPA linear interpolation formula."""
+    if concentration is None or math.isnan(concentration) or concentration < 0:
+        return None
 
-#     if not all([analysis_type, start_date, end_date, area_type]):
-#         return Response({"error": "Missing required parameters"}, status=400)
+    for bp_lo, bp_hi, aqi_lo, aqi_hi in breakpoints:
+        if bp_lo <= concentration <= bp_hi:
+            aqi = ((aqi_hi - aqi_lo) / (bp_hi - bp_lo)) * (concentration - bp_lo) + aqi_lo
+            return round(aqi)
 
-#     try:
-#         # -------------------------------
-#         # Handle cached results
-#         # -------------------------------
-#         results = []
-#         if project_id and area_type in ["uc", "kml"]:
-#             cached_results = AreaAnalysis.objects.filter(
-#                 project_id=project_id,
-#                 analysis_type=analysis_type,
-#                 start_date=start_date,
-#                 end_date=end_date,
-#                 area_type=area_type,
-#                 is_pixelwise=False
-#             ).order_by('uc_name')
+    
+    if concentration > breakpoints[-1][1]:
+        return 500
 
-#             if cached_results.exists():
-#                 for cached in cached_results:
-#                     mean_value = cached.stats.get("mean", None)
-#                     if mean_value is not None:
-#                         mean_value = round(mean_value, 4)
-#                     results.append({
-#                         "uc_name": cached.uc_name,
-#                         "city_name": cached.city_name,
-#                         "mean_value": mean_value,
-#                         "color": cached.stats.get("color"),
-#                         "area_type": cached.area_type
-#                     })
-#                 return Response({
-#                     "message": f"Cached {analysis_type.upper()} average analysis returned",
-#                     "results": results
-#                 })
-
-#         # -------------------------------
-#         # Load features (UCs) depending on area_type
-#         # -------------------------------
-#         features = []
-#         if area_type == "uc":
-#             if not project_id:
-#                 return Response({"error": "project_id is required for UC analysis"}, status=400)
-#             project = Project.objects.filter(id=project_id).first()
-#             if not project:
-#                 return Response({"error": "Project not found"}, status=404)
-#             city_name = project.location_name
-#             uc_data = load_ucs_for_uc(city_name)
-#             if not uc_data:
-#                 db_ucs = UnionCouncil.objects.filter(city_name__iexact=city_name)
-#                 if not db_ucs.exists():
-#                     return Response({"error": f"No UC data found for {city_name}"}, status=404)
-#                 features = [
-#                     {
-#                         "geometry": json.loads(uc.geometry.geojson),
-#                         "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
-#                     } for uc in db_ucs
-#                 ]
-#             else:
-#                 features = uc_data.get("features", [])
-
-#         elif area_type == "kml":
-#             if not project_id:
-#                 return Response({"error": "project_id is required for KML analysis"}, status=400)
-#             local_kml_file = os.path.join(DATA_DIR, f"project_{project_id}_kml_ucs.json")
-#             if os.path.exists(local_kml_file):
-#                 with open(local_kml_file, "r") as f:
-#                     kml_data = json.load(f)
-#                 features = kml_data.get("features", [])
-#             else:
-#                 project = Project.objects.filter(id=project_id).first()
-#                 if not project:
-#                     return Response({"error": "Project not found"}, status=404)
-#                 db_ucs = UnionCouncil.objects.all()
-#                 if not db_ucs.exists():
-#                     return Response({"error": "No UC data in database"}, status=404)
-#                 features = [
-#                     {
-#                         "geometry": json.loads(uc.geometry.geojson),
-#                         "properties": {"uc_name": uc.uc_name, "city_name": uc.city_name}
-#                     } for uc in db_ucs
-#                 ]
-#         else:
-#             return Response({"error": "Invalid area_type"}, status=400)
-
-#         if not features:
-#             return Response({"error": "No Union Councils found"}, status=404)
-
-#         # -------------------------------
-#         # Handle AQI differently
-#         # -------------------------------
-#         if analysis_type.lower() == "aqi":
-#             results = []
-
-#             for feature in features:
-#                 uc_name = feature["properties"].get("uc_name")
-#                 city_name = feature["properties"].get("city_name")
-#                 geom = GEOSGeometry(json.dumps(feature["geometry"]))
-
-#                 res = analyze_feature_aqi_monthly(feature, start_date, end_date)
-#                 if "data" in res and res["data"]:
-#                     # Use color of the first period as representative
-#                     color = res["data"][0]["color"]
-#                     aqi_value = res["data"][0]["aqi"]
-#                 else:
-#                     color = "#000000"
-#                     aqi_value = None
-#                 AreaAnalysis.objects.update_or_create(
-#                     project_id=project_id,
-#                     analysis_type="aqi",
-#                     start_date=start_date,
-#                     end_date=end_date,
-#                     area_type=area_type,
-#                     uc_name=uc_name,
-#                     defaults={
-#                         "city_name": city_name,
-#                         "stats": {"mean": aqi_value, "color": color},
-#                         "is_pixelwise": False
-#                     }
-#                 )
-
-#                 results.append({
-#                     "uc_name": uc_name,
-#                     "city_name": city_name,
-#                     "mean_value": aqi_value,
-#                     "color": color,
-#                     "area_type": area_type
-#                 })
-
-#             return Response({
-#                 "message": "UC-level AQI computed using OpenAQ",
-#                 "results": results
-#             })
-
-
-#         # -------------------------------
-#         # NDVI / Thermal processing
-#         # -------------------------------
-#         def analyze_feature(feature):
-#             uc_name = feature["properties"].get("uc_name", "unknown_uc")
-#             city_name = feature["properties"].get("city_name", "unknown_city")
-
-#             try:
-#                 geom = feature["geometry"]
-#                 if geom["type"] == "MultiPolygon":
-#                     polygon = ee.Geometry.MultiPolygon(geom["coordinates"])
-#                 else:
-#                     polygon = ee.Geometry.Polygon(geom["coordinates"])
-
-#                 result = perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date)
-#                 if not result or "stats" not in result:
-#                     return {"mean": None, "color": "#000000", "status": "error"}
-
-#                 mean_value = result["stats"].get("mean", 0)
-#                 if mean_value is None or (isinstance(mean_value, float) and math.isnan(mean_value)):
-#                     mean_value = 0
-#                 mean_value = round(mean_value, 4)
-#                 color = result["stats"].get("color", "#000000")
-
-#                 AreaAnalysis.objects.update_or_create(
-#                     project_id=project_id,
-#                     analysis_type=analysis_type,
-#                     start_date=start_date,
-#                     end_date=end_date,
-#                     area_type=area_type,
-#                     uc_name=uc_name,
-#                     defaults={
-#                         "city_name": city_name,
-#                         "stats": {"mean": mean_value, "color": color},
-#                         "is_pixelwise": False,
-#                         "tile_url_template": None
-#                     }
-#                 )
-
-#                 return {
-#                     "uc_name": uc_name,
-#                     "city_name": city_name,
-#                     "mean_value": mean_value,
-#                     "area_type": area_type,
-#                     "color": color
-#                 }
-
-#             except Exception as e:
-#                 return {
-#                     "uc_name": uc_name,
-#                     "city_name": city_name,
-#                     "error": "1",
-#                     "error_msg": str(e),
-#                     "mean_value": None,
-#                     "color": "#000000",
-#                 }
-
-#         # -------------------------------
-#         # Parallel processing for NDVI / Thermal
-#         # -------------------------------
-#         results = []
-#         with ThreadPoolExecutor(max_workers=5) as executor:
-#             futures = [executor.submit(analyze_feature, feature) for feature in features]
-#             for future in as_completed(futures):
-#                 res = future.result()
-#                 if res:
-#                     results.append(res)
-
-#         return Response({
-#             "message": f"{analysis_type.upper()} average analysis completed",
-#             "results": results
-#         })
-
-#     except Exception as e:
-#         return Response({"error": str(e)}, status=500)
-
-
-def compute_aqi(conc, breakpoints):
-    for Cl, Ch, Il, Ih in breakpoints:
-        if Cl <= conc <= Ch:
-            return ((Ih - Il) / (Ch - Cl)) * (conc - Cl) + Il
     return None
 
+
+
 AQI_BREAKPOINTS = {
-    "PM25": [(0,12,0,50),(12.1,35.4,51,100),(35.5,55.4,101,150),
-             (55.5,150.4,151,200),(150.5,250.4,201,300),(250.5,500,301,500)],
-
-    "PM10": [(0,54,0,50),(55,154,51,100),(155,254,101,150),
-             (255,354,151,200),(355,424,201,300),(425,604,301,500)],
-
-    "NO2": [(0,53,0,50),(54,100,51,100),(101,360,101,150),(361,649,151,200)],
-
-    "SO2": [(0,35,0,50),(36,75,51,100),(76,185,101,150)],
-
-    "O3": [(0,54,0,50),(55,70,51,100),(71,85,101,150)]
+    "PM25": [  
+        (0.0, 12.0, 0, 50),
+        (12.1, 35.4, 51, 100),
+        (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200),
+        (150.5, 250.4, 201, 300),
+        (250.5, 500.4, 301, 500),
+    ],
+    "PM10": [  
+        (0, 54, 0, 50),
+        (55, 154, 51, 100),
+        (155, 254, 101, 150),
+        (255, 354, 151, 200),
+        (355, 424, 201, 300),
+        (425, 604, 301, 500),
+    ],
+    "NO2": [  
+        (0, 53, 0, 50),
+        (54, 100, 51, 100),
+        (101, 360, 101, 150),
+        (361, 649, 151, 200),
+        (650, 1249, 201, 300),
+        (1250, 2049, 301, 500),
+    ],
+    "SO2": [  
+        (0, 35, 0, 50),
+        (36, 75, 51, 100),
+        (76, 185, 101, 150),
+        (186, 304, 151, 200),
+        (305, 604, 201, 300),
+        (605, 1004, 301, 500),
+    ],
+    "O3": [  
+        (0, 54, 0, 50),
+        (55, 70, 51, 100),
+        (71, 85, 101, 150),
+        (86, 105, 151, 200),
+        (106, 200, 201, 300),
+        (201, 604, 301, 500),
+    ],
 }
 
 
@@ -726,8 +547,8 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
     try:
         
         if analysis_type.lower() == "ndvi":
-            scale = 10  # Default scale for NDVI analysis
-            source = "Sentinel-2 (temporal mean NDVI)"  # Default source
+            scale = 10 
+            source = "Sentinel-2 (temporal mean NDVI)"  
 
             def mask_s2_sr(image):
                 qa = image.select('QA60')
@@ -803,22 +624,22 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                 image = mean_ndvi_image
                 band_name = "NDVI"
                 source = "Landsat-8 (temporal mean NDVI)"
-                scale = 30  # Update scale for Landsat-8
+                scale = 30  
                     
             if mean_value < 0.2:
-                color = "#ffffcc"  # No vegetation
+                color = "#ffffcc"  
             elif mean_value < 0.4:
-                color = "#c2e699"  # Sparse vegetation
+                color = "#c2e699"  
             elif mean_value < 0.6:
-                color = "#78c679"  # Moderate vegetation
+                color = "#78c679"  
             elif mean_value < 0.8:
-                color = "#31a354"  # Dense vegetation
+                color = "#31a354"  
             else:
-                color = "#006837"  # Very dense vegetation
+                color = "#006837"  
 
         elif analysis_type.lower() == "thermal":
 
-            # Step 1: Load Landsat 9 thermal images
+            
             collection = (
                 ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
                 .filterBounds(polygon)
@@ -826,7 +647,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                 .filter(ee.Filter.lt('CLOUD_COVER', 60))
             )
 
-            # Step 2: If no Landsat 9 images, fallback to Landsat 8
+            
             if collection.size().getInfo() == 0:
                 print("[THERMAL] No Landsat 9 images found. Using Landsat 8.")
                 collection = (
@@ -836,7 +657,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                     .filter(ee.Filter.lt('CLOUD_COVER', 60))
                 )
 
-            # Step 3: If STILL no images → return default "no data" response
+        
             if collection.size().getInfo() == 0:
                 print("[THERMAL] No Landsat 8/9 images found for this date range.")
                 mean_value = 0
@@ -855,18 +676,18 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                     }
                 }
 
-            # Step 4: Per-image LST Conversion
+            
             def per_image_lst(img):
                 return img.select('ST_B10').multiply(0.00341802).add(149.0).rename('LST') \
                         .copyProperties(img, ['system:time_start'])
 
-            # Step 5: Apply LST conversion
+            
             lst_images = collection.map(per_image_lst)
 
-            # Step 6: Temporal mean
+            
             mean_lst_image = lst_images.mean().rename("LST").clip(polygon)
 
-            # Step 7: Reduce region safely
+            
             stats = mean_lst_image.reduceRegion(
                 reducer=ee.Reducer.mean(),
                 geometry=polygon,
@@ -874,17 +695,17 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                 maxPixels=1e13
             )
 
-            # get() may fail if band does not exist → safe get
+            
             mean_value = stats.get("LST").getInfo() if stats else None
 
-            # Step 8: Handle missing or invalid mean_value
+            
             if mean_value is None or isinstance(mean_value, float) and (mean_value != mean_value):
                 print("[THERMAL] LST returned None/NaN. Using 0.")
                 mean_value = 0
 
             print("Mean LST:", mean_value)
 
-            # Step 9: Color scale (Kelvin)
+        
             if mean_value < 288:
                 color = "#00008B"
             elif mean_value < 293:
@@ -900,7 +721,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             else:
                 color = "#FF0000"
 
-            # Step 10: Final output
+            
             image = mean_lst_image
             band_name = "LST"
             scale = 30
@@ -1017,7 +838,7 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             aqi_values = []
             if pm25_val is not None:
                 aqi_values.append(compute_aqi(pm25_val, AQI_BREAKPOINTS["PM25"]))
-                aqi_values.append(compute_aqi(pm25_val * 1.5, AQI_BREAKPOINTS["PM10"]))  # optional
+                aqi_values.append(compute_aqi(pm25_val * 1.5, AQI_BREAKPOINTS["PM10"]))  
             if no2 is not None: aqi_values.append(compute_aqi(no2, AQI_BREAKPOINTS["NO2"]))
             if so2 is not None: aqi_values.append(compute_aqi(so2, AQI_BREAKPOINTS["SO2"]))
             if o3 is not None:  aqi_values.append(compute_aqi(o3, AQI_BREAKPOINTS["O3"]))
@@ -1365,18 +1186,11 @@ def pixelwise_analysis(request):
             maxPixels=1e13
             ).getInfo()
             if not pixel_count or all(v == 0 for v in pixel_count.values()):
-                # print(f" No pixel data found for {uc_name}, skipping export.")
-                # return {
-                #     "uc_name": uc_name,
-                #     "city_name": city_name,
-                #     "error": "1",
-                #     "error_msg": "Export failed: No valid pixels found (empty data).",
-                #     "tile_url_template": None
-                # }
+                
             
                 print(f"Empty pixels for {uc_name}, trying larger buffer")
-                polygon = polygon.buffer(50)  # increase buffer
-                scale = 5  # reduce scale to get more pixels
+                polygon = polygon.buffer(50)  
+                scale = 5  
 
             export_success = False
             attempt = 0
@@ -1585,9 +1399,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
             cloud = qa.bitwiseAnd(1 << 10).Or(qa.bitwiseAnd(1 << 11))
             return image.updateMask(cloud.Not())
 
-        # -----------------------
-        # Sentinel-2 (PRIMARY SOURCE)
-        # -----------------------
+        
         s2 = (
             ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(polygon)
@@ -1601,20 +1413,18 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
 
         if s2_size > 0:
 
-            # Per-image NDVI (pixel-wise)
+            
             def per_image_ndvi(img):
                 ndvi = img.normalizedDifference(['B8', 'B4']).rename('NDVI')
                 return ndvi.unmask(0).copyProperties(img, ['system:time_start'])
 
             ndvi_images = s2.map(per_image_ndvi)
 
-            # Pixel-wise **median** NDVI
+            
             image = ndvi_images.median().rename('NDVI').clip(polygon)
             scale = 10
 
-        # -----------------------
-        # Landsat-8 fallback
-        # -----------------------
+        
         else:
             print("[DEBUG] No S2 images → Falling back to Landsat-8")
 
@@ -1634,7 +1444,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
                 scale = 30
 
             else:
-                # Landsat-8 reflectance scaling + NDVI
+                
                 def per_image_ndvi_l8(img):
                     nir = img.select('SR_B5').multiply(0.0000275).add(-0.2).unmask(0)
                     red = img.select('SR_B4').multiply(0.0000275).add(-0.2).unmask(0)
@@ -1646,18 +1456,16 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
                 image = ndvi_images.median().rename('NDVI').clip(polygon)
                 scale = 30
 
-        # -----------------------
-        # FINAL NDVI visualization (fixed convention)
-        # -----------------------
+        
         vis_params = {
             'min': 0,
             'max': 1,
             'palette': [
-                "#ffffcc",  # NDVI < 0.2   (No vegetation)
-                "#c2e699",  # < 0.4        (Sparse vegetation)
-                "#78c679",  # < 0.6        (Moderate vegetation)
-                "#31a354",  # < 0.8        (Dense vegetation)
-                "#006837"   # >= 0.8  
+                "#ffffcc", 
+                "#c2e699",  
+                "#78c679",  
+                "#31a354",  
+                "#006837"   
             ]
         }
 
@@ -1666,7 +1474,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
      
     elif analysis_type.lower() == "thermal":
 
-        # Step 1: Load Landsat 9 thermal images
+        
         collection = (
             ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
             .filterBounds(polygon)
@@ -1674,7 +1482,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
             .filter(ee.Filter.lt('CLOUD_COVER', 60))
         )
 
-        # Step 2: Fallback to Landsat 8 if none found
+        
         if collection.size().getInfo() == 0:
             print("[THERMAL] No Landsat 9 images found. Using Landsat 8.")
             collection = (
@@ -1684,7 +1492,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
                 .filter(ee.Filter.lt('CLOUD_COVER', 60))
             )
 
-        # Step 3: If still empty → fallback constant
+        
         if collection.size().getInfo() == 0:
             print("[THERMAL] No Landsat images found for this date range.")
             image = ee.Image.constant(0).rename("LST").clip(polygon)
@@ -1695,7 +1503,7 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
             scale = 30
             return image, vis_params, scale
 
-        # Step 4: Convert each image to LST
+        
         def per_image_lst(img):
             return img.select('ST_B10') \
                     .multiply(0.00341802).add(149.0) \
@@ -1704,10 +1512,10 @@ def run_pixelwise_analysis(analysis_type, polygon, start_date, end_date):
 
         lst_images = collection.map(per_image_lst)
 
-        # Step 5: Pixel-wise temporal median
+        
         image = lst_images.median().rename("LST").clip(polygon)
 
-        # Step 6: Fixed visualization parameters (Kelvin ranges)
+        
         vis_params = {
             'min': 288,
             'max': 313,
@@ -2173,6 +1981,12 @@ def per_year_analysis(request):
                         scale=scale,
                         maxPixels=1e13
                     ).getInfo()
+                    
+                    if not pixel_count or all(v == 0 for v in pixel_count.values()):
+                        print(f"Empty pixels for {uc_name}, trying larger buffer")
+                        polygon = polygon.buffer(50)  
+                        scale = 5  
+
                     if not pixel_count or all(v == 0 for v in pixel_count.values()):
                         return {
                             "uc_name": uc_name,

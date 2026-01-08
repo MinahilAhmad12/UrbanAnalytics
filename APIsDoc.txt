@@ -1469,3 +1469,65 @@ Response Example:
     }
   ]
 }
+
+
+Info for the legends
+For average
+
+NDVI
+
+< 0.2	#ffffcc (Light Yellow)	No vegetation – bare soil, urban areas, water, or sand
+0.2 – 0.39	#c2e699 (Light Green)	Sparse vegetation – few plants, grassland, low crop coverage
+0.4 – 0.59	#78c679 (Green)	Moderate vegetation – healthy plants, crop fields
+0.6 – 0.79	#31a354 (Dark Green)	Dense vegetation – forests, parks, thick crops
+>= 0.8	#006837 (Very Dark Green)	Very dense vegetation – tropical forest, extremely healthy canopy
+
+
+Thermal
+
+< 288	< 14.85 °C	#00008B (Dark Blue)	Very cold / coolest surfaces
+288 – 292.99	14.85 – 19.85 °C	#00FFFF (Cyan)	Cool surfaces
+293 – 297.99	19.85 – 24.85 °C	#00FF00 (Green)	Moderate / mild surfaces
+298 – 302.99	24.85 – 29.85 °C	#FFFF00 (Yellow)	Warm surfaces
+303 – 307.99	29.85 – 34.85 °C	#FFA500 (Orange)	Hot surfaces
+308 – 312.99	34.85 – 39.85 °C	#FF4500 (Orange-Red)	Very hot surfaces
+>= 313	>= 39.85 °C	#FF0000 (Red)	Extremely hot / highest LST
+
+AQI
+0 – 50	#00E400 (Green)	Good – Air quality is satisfactory, little or no health risk
+51 – 100	#FFFF00 (Yellow)	Moderate – Air quality acceptable, but sensitive groups may be affected
+101 – 150	#FF7E00 (Orange)	Unhealthy for Sensitive Groups – Sensitive people may experience health effects
+151 – 200	#FF0000 (Red)	Unhealthy – Everyone may begin to experience health effects
+201 – 300	#8F3F97 (Purple)	Very Unhealthy – Health alert: everyone may experience more serious effects
+>300	#7E0023 (Maroon)	Hazardous – Health warnings of emergency conditions, entire population at risk
+
+
+
+For pixel-wise
+
+NDVI
+
+0 – 0.19	#ffffcc (Light Yellow)	No vegetation – bare soil, urban areas, water, sand
+0.2 – 0.39	#c2e699 (Light Green)	Sparse vegetation – few plants, grassland, low crop coverage
+0.4 – 0.59	#78c679 (Green)	Moderate vegetation – healthy crops, mixed vegetation
+0.6 – 0.79	#31a354 (Dark Green)	Dense vegetation – forests, parks, thick crop fields
+0.8 – 1.0	#006837 (Very Dark Green)	Very dense vegetation – tropical forest or highly healthy canopy
+
+
+Thermal
+
+288 – 292	14.85 – 18.85 °C	#00008B (Dark Blue)	Very cool surfaces – shaded areas, vegetation, water
+293 – 296	19.85 – 22.85 °C	#00FFFF (Cyan)	Cool surfaces
+297 – 300	24.85 – 26.85 °C	#00FF00 (Green)	Moderate temperature surfaces
+301 – 304	27.85 – 30.85 °C	#FFFF00 (Yellow)	Warm surfaces – urban areas, exposed soil
+305 – 308	31.85 – 34.85 °C	#FFA500 (Orange)	Hot surfaces – roads, rooftops
+309 – 313	35.85 – 40 °C	#FF4500 (Orange-Red)	Very hot surfaces – highly built-up areas, bare concrete
+
+AQI
+
+0 – 50	#00E400 (Green)	Good – Air quality is satisfactory, little or no risk
+51 – 100	#FFFF00 (Yellow)	Moderate – Air quality acceptable, some pollutants may affect very sensitive people
+101 – 150	#FF7E00 (Orange)	Unhealthy for Sensitive Groups – Sensitive people may experience health effects
+151 – 200	#FF0000 (Red)	Unhealthy – Everyone may begin to experience health effects
+201 – 300	#8F3F97 (Purple)	Very Unhealthy – Health alert: everyone may experience more serious health effects
+301 – 500	#7E0023 (Maroon)	Hazardous – Health warnings of emergency conditions, entire population at risk
