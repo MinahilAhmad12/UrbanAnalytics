@@ -12,6 +12,9 @@ import json
 from urbananalytics.serializers import MyTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from urbananalytics.serializers import MyTokenObtainPairSerializer
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
 
 User = get_user_model()
 
@@ -30,8 +33,12 @@ def signup(request):
             return JsonResponse({'error': 'Username already exists.'}, status=400)
         if User.objects.filter(email=email).exists():
             return JsonResponse({'error': 'Email already exists.'}, status=400)
+        temp_user = User(username=username)
 
-
+        try:
+            validate_password(password,temp_user)
+        except ValidationError as e:
+            return JsonResponse({'error': e.messages}, status=400)
         user = User.objects.create_user(username=username, email=email, password=password)
         
         
@@ -192,7 +199,11 @@ def reset_password(request):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return JsonResponse({'error': 'User not found.'}, status=404)
-
+        
+        try:
+            validate_password(new_password, user)
+        except ValidationError as e:
+            return JsonResponse({'error': e.messages}, status=400)
         user.set_password(new_password)
         user.save()
 

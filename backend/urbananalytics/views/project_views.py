@@ -43,18 +43,14 @@ def create_project(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_project(request):
-    
     data = request.data
     project_id = data.get("project_id")
     area_type = data.get("area_type")
 
     if not project_id:
         return Response({"error": "project_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-
     if not area_type:
         return Response({"error": "area_type is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-
     if area_type == "uc" and not data.get("city_name"):
         return Response({"error": "city_name is required for area_type 'uc'"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -67,11 +63,6 @@ def save_project(request):
     map_state_fields = {
         "selected_analysis_type": data.get("selected_analysis_type"),
         "selected_mode": data.get("selected_mode"),
-        "start_date": data.get("start_date"),
-        "end_date": data.get("end_date"),
-        "selected_year": data.get("selected_year"),
-        "before_year": data.get("before_year"),
-        "after_year": data.get("after_year"),
         "map_center": data.get("map_center"),
         "zoom_level": data.get("zoom_level"),
         "area_type": area_type,
@@ -79,7 +70,32 @@ def save_project(request):
     }
 
     
-    map_state_fields = {k: v for k, v in map_state_fields.items() if v is not None}
+    mode = data.get("selected_mode")
+    if mode in ["average", "pixelwise"]:  
+        map_state_fields["start_date"] = data.get("start_date")
+        map_state_fields["end_date"] = data.get("end_date")
+        map_state_fields["selected_year"] = None
+        map_state_fields["before_year"] = None
+        map_state_fields["after_year"] = None
+    elif mode in ["per-year average", "per-year pixelwise"]:
+        map_state_fields["selected_year"] = data.get("selected_year")
+        map_state_fields["start_date"] = None
+        map_state_fields["end_date"] = None
+        map_state_fields["before_year"] = None
+        map_state_fields["after_year"] = None
+    elif mode == "before-after pixelwise":
+        map_state_fields["before_year"] = data.get("before_year")
+        map_state_fields["after_year"] = data.get("after_year")
+        map_state_fields["start_date"] = None
+        map_state_fields["end_date"] = None
+        map_state_fields["selected_year"] = None
+    else:
+        
+        map_state_fields["start_date"] = None
+        map_state_fields["end_date"] = None
+        map_state_fields["selected_year"] = None
+        map_state_fields["before_year"] = None
+        map_state_fields["after_year"] = None
 
     
     map_state, created = MapState.objects.update_or_create(
@@ -87,7 +103,8 @@ def save_project(request):
         defaults=map_state_fields
     )
 
-    return Response({
+    
+    response_data = {
         "message": "Project saved successfully",
         "created": created,
         "map_state": {
@@ -104,8 +121,9 @@ def save_project(request):
             "city_name": map_state.city_name,
             "updated_at": map_state.updated_at
         }
-    })
+    }
 
+    return Response(response_data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -416,3 +434,91 @@ def delete_report(request, project_id, report_id):
     report.delete()
 
     return Response({"message": "Report deleted successfully"})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_projects(request):
+    user = request.user
+    total = Project.objects.filter(owner=user).count()
+    return Response({"total_projects": total})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_reports(request):
+    user = request.user
+    total = Report.objects.filter(created_by=user).count()
+    return Response({"total_reports": total})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_areas_analysed(request):
+    user = request.user
+    
+    projects = Project.objects.filter(owner=user)
+    
+    total_ucs = AreaAnalysis.objects.filter(project__in=projects).values('city_name', 'uc_name').distinct().count()
+    return Response({"total_areas_analysed": total_ucs})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recent_projects(request):
+    user = request.user
+    recent = Project.objects.filter(owner=user).order_by('-created_at')[:5]
+
+    project_list = []
+    for project in recent:
+        if project.kml_file: 
+            filename = os.path.basename(project.kml_file.name) 
+            location_display = filename.split('_')[0] 
+        else:  
+            location_display = project.location_name
+
+        project_list.append({
+            "id": project.id,
+            "project_name": project.project_name,
+            "location_name": location_display,
+            "created_at": project.created_at
+        })
+
+    return Response({"recent_projects": project_list})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def saved_projects(request):
+    user = request.user
+
+    
+    projects = Project.objects.filter(owner=user, map_state__isnull=False).order_by('-map_state__updated_at')
+
+    project_list = []
+    for project in projects:
+        map_state = project.map_state
+        if project.kml_file:
+            filename = os.path.basename(project.kml_file.name)
+            location_display = filename.split('_')[0]
+        else:
+            location_display = project.location_name
+
+        project_list.append({
+            "id": project.id,
+            "project_name": project.project_name,
+            "location_name": location_display,
+            "saved_at": map_state.updated_at,
+            "map_state": {
+                "selected_analysis_type": map_state.selected_analysis_type,
+                "selected_mode": map_state.selected_mode,
+                "start_date": map_state.start_date,
+                "end_date": map_state.end_date,
+                "selected_year": map_state.selected_year,
+                "before_year": map_state.before_year,
+                "after_year": map_state.after_year,
+                "map_center": map_state.map_center,
+                "zoom_level": map_state.zoom_level,
+                "area_type": map_state.area_type,
+                "city_name": map_state.city_name,
+            }
+        })
+
+    return Response({"saved_projects": project_list})
