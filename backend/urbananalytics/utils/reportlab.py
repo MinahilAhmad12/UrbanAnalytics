@@ -1,6 +1,8 @@
 import os
 import uuid
 import matplotlib
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib.enums import TA_LEFT
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -500,35 +502,40 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     story.append(Paragraph("3. Color Legend", section_title))
 
     # ✅ Unified with backend & before-after legend colors
+    # ✅ Unified with backend & yearly-average legend colors
     if analysis_type_lower == "ndvi":
         legend_data = [
-            ["#E7E0E0", "Barren / No Vegetation (< 0.1)"],
-            ["#FFFF00", "Low Vegetation (0.1 – 0.25)"],
-            ["#90EE90", "Moderate Vegetation (0.25 – 0.4)"],
-            ["#008000", "Healthy Vegetation (0.4 – 0.6)"],
-            ["#006400", "Very Dense Vegetation (> 0.6)"],
+            ["#ffffcc", "No vegetation – bare soil, urban areas, water, sand (< 0.2)"],
+            ["#c2e699", "Sparse vegetation – grassland, low crop cover (0.2 – 0.39)"],
+            ["#78c679", "Moderate vegetation – healthy crops (0.4 – 0.59)"],
+            ["#31a354", "Dense vegetation – forests, parks (0.6 – 0.79)"],
+            ["#006837", "Very dense vegetation – extremely healthy canopy (≥ 0.8)"],
         ]
 
     elif analysis_type_lower == "thermal":
         legend_data = [
-            ["#87CEEB", "Cool (< 295K)"],
-            ["#32CD32", "Mild (295–300K)"],
-            ["#FF6347", "Warm (300–305K)"],
-            ["#FFA500", "Hot (305–310K)"],
-            ["#800080", "Very Hot (> 310K)"],
+            ["#00008B", "Very cold (< 288 K | < 14.85 °C)"],
+            ["#00FFFF", "Cool (288 – 292.99 K | 14.85 – 19.85 °C)"],
+            ["#00FF00", "Moderate / Mild (293 – 297.99 K | 19.85 – 24.85 °C)"],
+            ["#FFFF00", "Warm (298 – 302.99 K | 24.85 – 29.85 °C)"],
+            ["#FFA500", "Hot (303 – 307.99 K | 29.85 – 34.85 °C)"],
+            ["#FF4500", "Very Hot (308 – 312.99 K | 34.85 – 39.85 °C)"],
+            ["#FF0000", "Extremely Hot (≥ 313 K | ≥ 39.85 °C)"],
         ]
 
     elif analysis_type_lower == "aqi":
         legend_data = [
-            ["#FFC0CB", "Good Air Quality (< 5)"],
-            ["#FF7F50", "Moderate Pollution (5–10)"],
-            ["#FFBF00", "Unhealthy (10–20)"],
-            ["#FFFFE0", "Very Unhealthy (20–30)"],
-            ["#8A2BE2", "Hazardous (> 30)"],
+            ["#00E400", "Good (0 – 50)"],
+            ["#FFFF00", "Moderate (51 – 100)"],
+            ["#FF7E00", "Unhealthy for Sensitive Groups (101 – 150)"],
+            ["#FF0000", "Unhealthy (151 – 200)"],
+            ["#8F3F97", "Very Unhealthy (201 – 300)"],
+            ["#7E0023", "Hazardous (> 300)"],
         ]
 
     else:
         legend_data = [["#FFFFFF", "Legend not available for this analysis type."]]
+
 
     legend_table = Table(legend_data, colWidths=[80, 320])
     legend_table.setStyle(
@@ -786,53 +793,62 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                     else:
                         categories["Excellent"] += 1
                 chart_title = f"NDVI Quality Distribution ({instance.year})"
-                colors_used = ["#FF4C4C", "#FFB84C", "#FFD93D", "#B1E693", "#4CAF50"]
+                colors_used = ["#ffffcc", "#c2e699", "#78c679", "#31a354", "#006837"]
                 ylabel = "Percentage (%)"
 
             elif analysis_type_lower == "thermal":
                 categories = {
-                    "< 295K": 0,
-                    "295–300K": 0,
-                    "300–305K": 0,
-                    "305–310K": 0,
-                    "> 310K": 0,
+                    "<288K": 0,
+                    "288–292.99K": 0,
+                    "293–297.99K": 0,
+                    "298–302.99K": 0,
+                    "303–307.99K": 0,
+                    "308–312.99K": 0,
+                    "≥313K": 0,
                 }
                 for val in hist_values:
-                    if val < 295:
-                        categories["< 295K"] += 1
-                    elif val < 300:
-                        categories["295–300K"] += 1
-                    elif val < 305:
-                        categories["300–305K"] += 1
-                    elif val < 310:
-                        categories["305–310K"] += 1
+                    if val < 288:
+                        categories["<288K"] += 1
+                    elif val < 293:
+                        categories["288–292.99K"] += 1
+                    elif val < 298:
+                        categories["293–297.99K"] += 1
+                    elif val < 303:
+                        categories["298–302.99K"] += 1
+                    elif val < 308:
+                        categories["303–307.99K"] += 1
+                    elif val < 313:
+                        categories["308–312.99K"] += 1
                     else:
-                        categories["> 310K"] += 1
+                        categories["≥313K"] += 1
                 chart_title = f"Thermal Range Distribution ({instance.year})"
-                colors_used = ["#85C1E9", "#F4D03F", "#E67E22", "#E74C3C", "#C0392B"]
-                ylabel = "Pixel Count (%)"
+                colors_used = ["#00008B", "#00FFFF", "#00FF00", "#FFFF00", "#FFA500", "#FF4500", "#FF0000"]
+                ylabel = "Percentage (%)"
 
             else:  # AQI
                 categories = {
                     "Good": 0,
                     "Moderate": 0,
+                    "Unhealthy for Sensitive Groups": 0,
                     "Unhealthy": 0,
                     "Very Unhealthy": 0,
                     "Hazardous": 0,
                 }
                 for val in hist_values:
-                    if val < 5:
+                    if val <= 50:
                         categories["Good"] += 1
-                    elif val < 10:
+                    elif val <= 100:
                         categories["Moderate"] += 1
-                    elif val < 15:
+                    elif val <= 150:
+                        categories["Unhealthy for Sensitive Groups"] += 1
+                    elif val <= 200:
                         categories["Unhealthy"] += 1
-                    elif val < 20:
+                    elif val <= 300:
                         categories["Very Unhealthy"] += 1
                     else:
                         categories["Hazardous"] += 1
                 chart_title = f"AQI Category Distribution ({instance.year})"
-                colors_used = ["#58D68D", "#F4D03F", "#E67E22", "#E74C3C", "#922B21"]
+                colors_used = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"]
                 ylabel = "Percentage (%)"
 
             # Compute %
@@ -899,7 +915,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                     f"The thermal analysis for {instance.year} identifies spatial heat variations. "
                     f"Higher temperatures (>305K) indicate urban heat islands, while cooler areas (<295K) "
                     f"often correspond to vegetated or water-rich zones. "
-                    f"A total of {percentages['> 310K']:.1f}% regions recorded extreme heat levels. "
+                    f"A total of {percentages['≥313K']:.1f}% regions recorded extreme heat levels. "
                     f"The dominant temperature range is <b>{max(percentages, key=percentages.get)}</b> "
                     f"covering <b>{max(percentages.values()):.1f}%</b> of areas."
                 )
@@ -919,45 +935,49 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     except Exception as e:
         print("Dynamic summary section failed:", e)
 
-    # # -----------------------------
-    # # 7. Interpretation & Recommendations
-    # # -----------------------------
-    # story.append(Paragraph("7. Interpretation", section_title))
-    # story.append(
-    #     Paragraph(
-    #         f"The {instance.analysis_type.upper()} data for {instance.year} highlights spatial variations across the city. "
-    #         "Higher mean values indicate areas of environmental health, while lower values highlight stress or degradation zones.",
-    #         normal,
-    #     )
-    # )
-    # story.append(Spacer(1, 10))
-
-    # story.append(Paragraph("8. Recommendations", section_title))
-
-    # #  Dynamic recommendations based on analysis type
-    # if analysis_type_lower == "ndvi":
-    #     rec_text = (
-    #         "Urban planners should focus on areas with low NDVI for reforestation, park development, "
-    #         "and vegetation restoration to improve green cover and reduce surface temperature."
-    #     )
-    # elif analysis_type_lower == "thermal":
-    #     rec_text = (
-    #         "High thermal zones should be prioritized for cooling strategies such as reflective roofing, "
-    #         "urban tree plantations, and increased permeable surfaces to mitigate heat island effects."
-    #     )
-    # elif analysis_type_lower == "aqi":
-    #     rec_text = (
-    #         "Areas with poor air quality require urgent measures such as emission control, green buffer zones, "
-    #         "traffic regulation, and industrial pollution reduction programs."
-    #     )
-    # else:
-    #     rec_text = "Focus should be on improving low-performing zones based on this indicator’s environmental interpretation."
-
-    # story.append(Paragraph(rec_text, normal))
-    # story.append(Spacer(1, 12))
-     # -----------------------------
+    # -----------------------------
     # 7. AI-Based Interpretation & Recommendations
     # -----------------------------
+    disclaimer_text = (
+    "<b>DISCLAIMER</b><br/>"
+    "The following interpretation and recommendations are generated using "
+    "AI-assisted analysis of environmental data. These insights are indicative "
+    "and intended to support planning and decision-making. They should be "
+    "validated using field data, local expertise, and applicable regulatory "
+    "standards before implementation."
+)
+
+    disclaimer_table = Table(
+        [[
+            Paragraph(
+                disclaimer_text,
+                ParagraphStyle(
+                    "DisclaimerText",
+                    parent=normal,
+                    fontSize=9,
+                    leading=12,
+                    textColor=colors.HexColor("#856404"),
+                    alignment=TA_LEFT,
+                )
+            )
+        ]],
+        colWidths=[460],
+    )
+
+    disclaimer_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF3CD")),  # light yellow
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#FFEEBA")),
+            ("LINEBEFORE", (0, 0), (0, -1), 4, colors.HexColor("#FFC107")),  # left accent
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ])
+    )
+
+    story.append(disclaimer_table)
+    story.append(Spacer(1, 14))
     story.append(Paragraph("7. Interpretation", section_title))
     if interpretation:
         story.append(Paragraph(interpretation, normal))
@@ -1507,40 +1527,56 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                         return "Very Good"
                     else:
                         return "Excellent"
-
             elif atype == "thermal":
-                categories = ["<295K", "295–300K", "300–305K", "305–310K", ">310K"]
+                categories = [
+                    "<288K",
+                    "288–292.99K",
+                    "293–297.99K",
+                    "298–302.99K",
+                    "303–307.99K",
+                    "308–312.99K",
+                    "≥313K",
+                ]
                 colors_palette_before = [
+                    "#D6EAF8",
                     "#AED6F1",
                     "#A9CCE3",
                     "#F9E79F",
                     "#EDBB99",
                     "#F5B7B1",
+                    "#F1948A",
                 ]
                 colors_palette_after = [
-                    "#5DADE2",
                     "#85C1E9",
+                    "#5DADE2",
+                    "#3498DB",
                     "#F4D03F",
                     "#E67E22",
+                    "#FF7043",
                     "#E74C3C",
                 ]
 
                 def classify(v):
-                    if v < 295:
-                        return "<295K"
-                    elif v < 300:
-                        return "295–300K"
-                    elif v < 305:
-                        return "300–305K"
-                    elif v < 310:
-                        return "305–310K"
+                    if v < 288:
+                        return "<288K"
+                    elif v < 293:
+                        return "288–292.99K"
+                    elif v < 298:
+                        return "293–297.99K"
+                    elif v < 303:
+                        return "298–302.99K"
+                    elif v < 308:
+                        return "303–307.99K"
+                    elif v < 313:
+                        return "308–312.99K"
                     else:
-                        return ">310K"
+                        return "≥313K"
 
             elif atype == "aqi":
                 categories = [
                     "Good",
                     "Moderate",
+                    "Unhealthy for Sensitive Groups",
                     "Unhealthy",
                     "Very Unhealthy",
                     "Hazardous",
@@ -1548,26 +1584,30 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 colors_palette_before = [
                     "#ABEBC6",
                     "#F9E79F",
+                    "#FAD7A0",
                     "#F5CBA7",
                     "#F1948A",
                     "#C39BD3",
                 ]
                 colors_palette_after = [
-                    "#27AE60",
-                    "#F4D03F",
-                    "#E67E22",
-                    "#E74C3C",
-                    "#922B21",
+                    "#00E400",
+                    "#FFFF00",
+                    "#FF7E00",
+                    "#FF0000",
+                    "#8F3F97",
+                    "#7E0023",
                 ]
 
                 def classify(v):
-                    if v < 5:
+                    if v <= 50:
                         return "Good"
-                    elif v < 10:
+                    elif v <= 100:
                         return "Moderate"
-                    elif v < 15:
+                    elif v <= 150:
+                        return "Unhealthy for Sensitive Groups"
+                    elif v <= 200:
                         return "Unhealthy"
-                    elif v < 20:
+                    elif v <= 300:
                         return "Very Unhealthy"
                     else:
                         return "Hazardous"
@@ -1957,6 +1997,47 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             report_text=report_text,
             report_type="before_after"
         )
+        
+        disclaimer_text = (
+            "<b>DISCLAIMER</b><br/>"
+            "The following interpretation and recommendations are generated using "
+            "AI-assisted analysis of environmental data. These insights are indicative "
+            "and intended to support planning and decision-making. They should be "
+            "validated using field data, local expertise, and applicable regulatory "
+            "standards before implementation."
+        )
+
+        disclaimer_table = Table(
+            [[
+                Paragraph(
+                    disclaimer_text,
+                    ParagraphStyle(
+                        "DisclaimerText",
+                        parent=normal,
+                        fontSize=9,
+                        leading=12,
+                        textColor=colors.HexColor("#856404"),
+                        alignment=TA_LEFT,
+                    )
+                )
+            ]],
+            colWidths=[460],
+        )
+
+        disclaimer_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF3CD")),  # light yellow
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#FFEEBA")),
+                ("LINEBEFORE", (0, 0), (0, -1), 4, colors.HexColor("#FFC107")),  # left accent
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ])
+        )
+
+        story.append(disclaimer_table)
+        story.append(Spacer(1, 14))
 
         # ---- Display AI Interpretation ----
         story.append(Paragraph("4. Interpretation", section))

@@ -9,6 +9,12 @@ import re
 
 load_dotenv()
 
+DISCLAIMER = (
+    "The interpretations and recommendations are derived from a robust analysis "
+    "of environmental data using AI-assisted tools. They provide indicative insights "
+    "and are intended to support decision-making, but should be validated by domain experts "
+    "before implementation."
+)
 
 class SummaryState(TypedDict):
     report_text: str
@@ -117,8 +123,12 @@ def run_langgraph_summarizer(report_text: str, report_type: str):
         "report_type": report_type
     })
 
-    return (
-        result.get("summary", ""),
-        result.get("interpretation", ""),
-        result.get("recommendation", "")
-    )
+    summary = result.get("summary", "")
+    interpretation = result.get("interpretation", "")
+    recommendation = result.get("recommendation", "")
+
+    
+    interpretation = f"{DISCLAIMER}\n\n{interpretation}"
+    recommendation = f"{DISCLAIMER}\n\n{recommendation}"
+
+    return summary, interpretation, recommendation

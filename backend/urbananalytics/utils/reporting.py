@@ -22,7 +22,7 @@ from urbananalytics.models import AreaAnalysis, Project, Report
 
 REPORT_CONFIG = {
     "ndvi": {
-        "palette": ["#E7E0E0", "#FFFF00", "#90EE90", "#008000", "#006400"],
+        "palette": ["#ffffcc", "#c2e699", "#78c679", "#31a354", "#006837"],
         "table_border_color": "#006400",
         "heading_color": "#006400",
         "description": (
@@ -33,15 +33,15 @@ REPORT_CONFIG = {
             "urbanization on green cover during the selected date range."
         ),
         "categories": [
-            ("No vegetation / bare soil", 0.00, 0.20),
-            ("Sparse vegetation / stressed crops", 0.20, 0.40),
-            ("Moderately healthy vegetation", 0.40, 0.60),
-            ("Dense healthy vegetation", 0.60, 0.80),
-            ("Very dense & healthy vegetation (forests)", 0.80, 1.00)
+            ("No vegetation – bare soil, urban areas, water, or sand", None, 0.20),
+            ("Sparse vegetation – few plants, grassland, low crop coverage", 0.20, 0.40),
+            ("Moderate vegetation – healthy plants, crop fields", 0.40, 0.60),
+            ("Dense vegetation – forests, parks, thick crops", 0.60, 0.80),
+            ("Very dense vegetation – tropical forest, extremely healthy canopy", 0.80, None)
         ],
     },
     "thermal": {
-        "palette": ["#87CEEB", "#32CD32", "#FF6347", "#FFA500", "#800080"],
+        "palette": ["#00008B", "#00FFFF", "#00FF00", "#FFFF00","#FFA500","#FF4500", "#FF0000"],
         "table_border_color": "#FF6347",
         "heading_color": "#FF6347",
         "description": (
@@ -51,15 +51,18 @@ REPORT_CONFIG = {
             "Understanding this helps in addressing heat stress, improving urban design, and mitigating climate-related risks."
         ),
         "categories": [
-            ("Cool (water bodies, shaded regions)", 290, 295),
-            ("Slightly cool, vegetated zones", 295, 300),
-            ("Moderate temperature: mixed land use", 300, 305),
-            ("Hot zones: built-up areas, roads", 305, 310),
-            ("Very hot: urban heat islands, deserts", 310, 320),
-        ],
+            ("Very cold / coolest surfaces (shaded areas, water bodies)", None, 288),        
+            ("Cool surfaces (vegetated zones, mild areas)", 288, 293),                        
+            ("Moderate / mild surfaces (mixed land use)", 293, 298),                           
+            ("Warm surfaces (built-up areas, roads)", 298, 303),                               
+            ("Hot surfaces (urban heat islands, industrial zones)", 303, 308),                
+            ("Very hot surfaces (deserts, bare soil)", 308, 313),                             
+            ("Extremely hot / highest LST (rooftops, concrete)", 313, None),                 
+        ]
+
     },
     "aqi": {
-        "palette": ["#FFC0CB", "#FF7F50", "#FFBF00", "#FFFFE0", "#FF00FF", "#8A2BE2"],
+        "palette": ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"],
         "table_border_color": "#8A2BE2",
         "heading_color": "#8A2BE2",
         "description": (
@@ -69,12 +72,12 @@ REPORT_CONFIG = {
             "urban livability, respiratory health risks, and the need for emission control strategies."
         ),
         "categories": [
-            ("Good air quality", 0, 5),
-            ("Moderate, acceptable", 5, 10),
-            ("Unhealthy for sensitive groups", 10, 15),
-            ("Unhealthy", 15, 20),
-            ("Very unhealthy", 20, 25),
-            ("Hazardous air quality", 25, 30)
+            ("Good – Air quality is satisfactory, little or no health risk", None, 51),
+            ("Moderate – Air quality acceptable, but sensitive groups may be affected", 51, 101),
+            ("Unhealthy for Sensitive Groups – Sensitive people may experience health effects", 101, 151),
+            ("Unhealthy – Everyone may begin to experience health effects", 151, 201),
+            ("Very Unhealthy – Health alert: everyone may experience more serious effects", 201, 301),
+            ("Hazardous – Health warnings of emergency conditions, entire population at risk", 301, None)
         ],
     }
 }
@@ -90,28 +93,47 @@ def fig_to_base64(fig):
 
 
 
+
+
 def generate_mean_distribution_chart(values, analysis_type, palette, categories):
-   
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
-    
-    bin_edges = [cat[1] for cat in categories] + [categories[-1][2]]  
-    bin_labels = [f"{categories[i][1]:.2f}–{categories[i][2]:.2f}" for i in range(len(categories))]
-    
-    counts, _ = np.histogram(values, bins=bin_edges)
-    
-    
-    colors = []
-    for i in range(len(counts)):
-        if i < len(palette):
-            colors.append(palette[i])
-        else:
-            colors.append("#cccccc")
+    if not values:
+        values = [0]  
+
+    min_val = min(values)
+    max_val = max(values)
 
     
+    bin_edges = []
+    for i, (label, lo, hi) in enumerate(categories):
+        
+        if lo is None:
+            lo_safe = min_val - 1
+        else:
+            lo_safe = lo
+        bin_edges.append(lo_safe)
+    
+    last_hi = categories[-1][2] if categories[-1][2] is not None else max_val + 1
+    bin_edges.append(last_hi)
+
+    
+    for i in range(1, len(bin_edges)):
+        if bin_edges[i] <= bin_edges[i-1]:
+            bin_edges[i] = bin_edges[i-1] + 0.01 
+
+    
+    def format_edge(val):
+        return f"{val:.2f}" if val is not None else "∞"
+
+    bin_labels = [f"{format_edge(categories[i][1])}–{format_edge(categories[i][2])}" for i in range(len(categories))]
+
+    counts, _ = np.histogram(values, bins=bin_edges)
+
+    colors = [palette[i] if i < len(palette) else "#cccccc" for i in range(len(counts))]
+
     bars = ax.bar(bin_labels, counts, color=colors, edgecolor="black", alpha=0.9)
 
-    
     ax.set_title(f"{analysis_type.upper()} Mean Value Distribution", fontsize=14, fontweight="bold", pad=10)
     ax.set_xlabel("Mean Value Range", fontsize=12)
     ax.set_ylabel("Number of UCs", fontsize=12)
@@ -119,13 +141,14 @@ def generate_mean_distribution_chart(values, analysis_type, palette, categories)
     ax.tick_params(axis='y', labelsize=10)
     ax.grid(axis='y', linestyle='--', alpha=0.5)
 
-    
     for bar, count in zip(bars, counts):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1, 
                 str(count), ha='center', va='bottom', fontsize=9, fontweight='bold')
 
     fig.tight_layout()
     return fig_to_base64(fig)
+
+
 
 
 def generate_pie_with_legend(counts, categories, palette, title):
@@ -170,156 +193,12 @@ def generate_summary_bar(stats_dict, title):
     return fig_to_base64(fig)
 
 
-# def generate_dynamic_insights(analysis_type, stats, counts, categories):
-#     total = sum(counts.values()) or 1
-#     dominant_category = max(counts, key=counts.get) if counts else "N/A"
-#     dominant_percent = (counts.get(dominant_category, 0) / total) * 100 if total else 0
-#     mean_val = stats['mean']
-#     interpretation = ""
-#     recommendations = []
 
-#     if analysis_type == "ndvi":
-#         if mean_val < 0.3:
-#             interpretation = (
-#                 f"Overall vegetation condition across the analyzed area is poor (average NDVI = {mean_val:.2f}). "
-#                 f"A significant portion of the region falls under the '{dominant_category}' category, "
-#                 f"covering nearly {dominant_percent:.1f}% of UCs. The results indicate stressed vegetation, "
-#                 "possibly due to prolonged dry periods, soil degradation, or lack of irrigation infrastructure. "
-#                 "These areas require immediate ecological attention to prevent further decline in green cover."
-#             )
-#             recommendations = [
-#                 "Introduce efficient irrigation systems and adopt drought-resistant crop varieties.",
-#                 "Implement reforestation programs in low-NDVI UCs to restore vegetation density.",
-#                 "Encourage sustainable agricultural practices and soil conservation methods.",
-#                 "Increase public awareness about deforestation and urban encroachment impacts.",
-#                 "Use satellite monitoring every quarter to observe recovery trends."
-#             ]
-#         elif mean_val < 0.6:
-#             interpretation = (
-#                 f"The region exhibits moderately healthy vegetation (average NDVI = {mean_val:.2f}), "
-#                 f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
-#                 "Some localized zones show signs of vegetation stress, indicating uneven agricultural health. "
-#                 "While most parts remain productive, sustained land management and water regulation are required "
-#                 "to prevent degradation over time."
-#             )
-#             recommendations = [
-#                 "Maintain irrigation schedules and monitor soil moisture regularly.",
-#                 "Introduce crop rotation and organic fertilizers to maintain soil fertility.",
-#                 "Encourage precision farming using satellite-based insights.",
-#                 "Identify and support UCs with below-average NDVI values through targeted interventions.",
-#                 "Adopt community-based plantation drives in semi-arid pockets."
-#             ]
-#         else:
-#             interpretation = (
-#                 f"The vegetation condition is excellent (average NDVI = {mean_val:.2f}). "
-#                 f"Most UCs fall within the '{dominant_category}' class, indicating dense and healthy vegetation cover. "
-#                 "This reflects successful agricultural and ecological management. However, continual monitoring "
-#                 "is essential to ensure that expanding urban infrastructure does not reduce these green zones in the future."
-#             )
-#             recommendations = [
-#                 "Preserve forest zones and prevent conversion of green lands into construction sites.",
-#                 "Promote agroforestry and mixed cropping for long-term ecological balance.",
-#                 "Monitor temperature and precipitation trends to safeguard vegetation health.",
-#                 "Use this NDVI dataset to identify high-potential zones for eco-tourism or conservation.",
-#                 "Share success models from high-performing UCs with surrounding communities."
-#             ]
-
-#     elif analysis_type == "thermal":
-#         if mean_val < 300:
-#             interpretation = (
-#                 f"The overall surface temperature is relatively cool (average {mean_val:.1f} K), "
-#                 f"with '{dominant_category}' dominating ({dominant_percent:.1f}% of UCs). "
-#                 "The presence of cooler surfaces indicates healthy vegetation and water bodies acting as natural coolants. "
-#                 "These conditions are favorable for both human comfort and ecological sustainability."
-#             )
-#             recommendations = [
-#                 "Protect and expand vegetated and water-covered areas to maintain cool surface temperatures.",
-#                 "Encourage green roofing and reflective building materials in new developments.",
-#                 "Integrate tree planting along roads and public spaces for better heat regulation.",
-#                 "Monitor land-use changes to prevent loss of natural cooling zones.",
-#                 "Continue observation across multiple seasons to detect early signs of heat buildup."
-#             ]
-#         elif mean_val < 308:
-#             interpretation = (
-#                 f"The analyzed area shows moderate surface temperatures (average {mean_val:.1f} K). "
-#                 f"'{dominant_category}' represents around {dominant_percent:.1f}% of UCs, "
-#                 "indicating balanced conditions but rising urban heat in certain locations. "
-#                 "Built-up surfaces and reduced vegetation could be contributing to localized temperature peaks."
-#             )
-#             recommendations = [
-#                 "Increase vegetation density in built-up areas through pocket parks and rooftop gardens.",
-#                 "Adopt reflective materials and light-colored surfaces in construction to reduce heat absorption.",
-#                 "Expand monitoring to identify consistently hot UCs and assess their contributing factors.",
-#                 "Promote energy-efficient urban planning that reduces heat emissions.",
-#                 "Implement awareness campaigns on heat safety and sustainable city design."
-#             ]
-#         else:
-#             interpretation = (
-#                 f"The area shows high surface temperatures (average {mean_val:.1f} K), "
-#                 f"dominated by '{dominant_category}' ({dominant_percent:.1f}% of UCs). "
-#                 "This suggests a strong urban heat island effect, particularly in highly developed regions. "
-#                 "The heat levels may adversely affect air quality, water evaporation, and human well-being if left unmitigated."
-#             )
-#             recommendations = [
-#                 "Develop urban greening programs targeting the hottest UCs first.",
-#                 "Mandate green spaces in residential and commercial construction projects.",
-#                 "Increase the use of high-albedo and cool pavement technologies.",
-#                 "Establish heat-monitoring networks and provide public heat alerts.",
-#                 "Prioritize afforestation around industrial or densely populated areas."
-#             ]
-#     elif analysis_type == "aqi":
-#         if mean_val < 5:
-#             interpretation = (
-#                 f"The air quality across most UCs is excellent (average AQI = {mean_val:.1f}). "
-#                 f"'{dominant_category}' accounts for approximately {dominant_percent:.1f}% of the region. "
-#                 "This indicates minimal industrial or vehicular pollution, likely due to sufficient greenery and "
-#                 "low emission activity. The atmosphere is well-balanced for public health and environmental safety."
-#             )
-#             recommendations = [
-#                 "Maintain strict emission control standards and encourage renewable energy adoption.",
-#                 "Promote non-motorized and public transport systems to sustain low NO₂ levels.",
-#                 "Continue afforestation programs to absorb airborne pollutants.",
-#                 "Regularly monitor pollutant levels to maintain compliance with air quality standards.",
-#                 "Educate citizens about preserving clean air through community initiatives."
-#             ]
-#         elif mean_val < 15:
-#             interpretation = (
-#                 f"The air quality is moderate (average AQI = {mean_val:.1f}). "
-#                 f"'{dominant_category}' dominates ({dominant_percent:.1f}% of UCs), "
-#                 "indicating a gradual increase in emissions possibly from traffic or small industries. "
-#                 "While still acceptable, air quality must be actively managed to prevent further deterioration."
-#             )
-#             recommendations = [
-#                 "Introduce stricter emissions policies in moderately polluted zones.",
-#                 "Enhance public transport infrastructure to reduce vehicle dependence.",
-#                 "Deploy air quality monitoring sensors at UC level for continuous observation.",
-#                 "Encourage clean-energy adoption in domestic and industrial sectors.",
-#                 "Conduct periodic awareness campaigns on pollution prevention and mitigation."
-#             ]
-#         else:
-#             interpretation = (
-#                 f"The AQI results reveal poor air quality (average AQI = {mean_val:.1f}), "
-#                 f"with '{dominant_category}' covering {dominant_percent:.1f}% of UCs. "
-#                 "These values exceed safe thresholds, signaling heavy pollution from traffic, industry, or open burning. "
-#                 "Immediate regulatory and community-level interventions are essential to protect public health."
-#             )
-#             recommendations = [
-#                 "Implement emergency air pollution control measures such as traffic restrictions.",
-#                 "Ban open burning and impose emission limits on industrial facilities.",
-#                 "Launch public health advisories for sensitive populations.",
-#                 "Promote urban green belts and air-purifying vegetation.",
-#                 "Invest in clean energy transitions and emission-free public transportation."
-#             ]
-#     else:
-#         interpretation = "No dynamic interpretation available."
-#         recommendations = ["No specific recommendations available."]
-
-#     return interpretation, recommendations
 def generate_dynamic_insights(analysis_type, stats, counts, categories):
     """
     Uses LangGraph summarizer (LangGraph pipeline) for AI-based insights.
     """
-    # Prepare text input for summarization
+    
     report_text = f"""
     Analysis Type: {analysis_type}
     Mean: {stats['mean']}
@@ -329,13 +208,13 @@ def generate_dynamic_insights(analysis_type, stats, counts, categories):
     Category Counts: {counts}
     """
 
-    # Use 'average' report type for this report
+    
     summary, interpretation, recommendation = run_langgraph_summarizer(
         report_text=report_text,
         report_type="average"
     )
 
-    # Convert recommendation text into a list (split by newline or bullet)
+    
     rec_list = [r.strip("-• ").strip() for r in recommendation.split("\n") if r.strip()]
     return interpretation, rec_list
 
@@ -419,6 +298,18 @@ body {
 
 /* footer */
 .footer { margin-top:28px; color:#666; font-size:12px; text-align:center; }
+/* Disclaimer box */
+.disclaimer-box {
+    background-color: #fff3cd;  /* light yellow */
+    border-left: 4px solid #ffeeba;  /* darker yellow border */
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #856404;  /* dark yellow/brown text */
+    line-height: 1.4;
+}
+
 </style>
 
 </head>
@@ -485,15 +376,14 @@ body {
       display: flex; 
       align-items: flex-start; 
       justify-content: flex-start; 
-      gap: 60px; 
+      gap: 40px; 
       margin-top: 25px;
+      flex-wrap: wrap;
   ">
     <!-- Left: Pie chart -->
     <div style="
         flex: 0 0 45%; 
         text-align: center;
-        display: flex; 
-        justify-content: flex-end;
     ">
       <img src="data:image/png;base64,{{ pie_chart }}" 
            style="width: 100%; max-width: 420px; border-radius: 8px; border: 2px solid #ccc;" />
@@ -502,52 +392,46 @@ body {
     <!-- Right: Legend section -->
     <div style="
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: flex-start;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 8px 16px;
+        align-items: start;
         padding-top: 10px;
         border-left: 3px solid #ddd;
-        padding-left: 40px;
+        padding-left: 20px;
     ">
-      <h4 style="margin-bottom: 15px; font-size: 18px; color: #333;">Legend</h4>
-
+      {% for item in legend %}
       <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 12px;
-          width: 100%;
+          display:flex; 
+          align-items:flex-start; 
+          gap:8px; 
+          word-break: break-word;
       ">
-        {% for item in legend %}
         <div style="
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            font-size: 14px; 
-            line-height: 1.5; 
-            width: 100%;
+            width: 22px; 
+            height: 18px; 
+            background: {{item.color}}; 
+            border: 1px solid #aaa; 
+            border-radius: 3px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        "></div>
+        <div style="
+            font-size:13px; 
+            line-height:1.3; 
+            word-wrap: break-word; 
+            max-width: 140px;
         ">
-          <div style="
-              width: 25px; 
-              height: 18px; 
-              background: {{item.color}}; 
-              border: 1px solid #aaa; 
-              border-radius: 3px;
-          "></div>
-          <div style="flex: 1; text-align: left;">
-            <strong>{{item.label}}</strong>
-          </div>
+          {{item.label}}
         </div>
-        {% endfor %}
       </div>
+      {% endfor %}
     </div>
   </div>
   <p style="font-size:12px; color:#555; margin-top:10px; text-align:center;">
     {{category_chart_caption}}
   </p>
 </div>
-
 
 
 <div class="section" style="text-align:center;">
@@ -598,9 +482,16 @@ body {
 </div>
 
 <div class="section">
+  <div class="disclaimer-box">
+    {{disclaimer}}
+  </div>
+</div>
+
+<div class="section">
   <h3>Interpretation</h3>
   <p class="small">{{interpretation}}</p>
 </div>
+
 
 <div class="section recommendations">
   <h3>Recommendations</h3>
@@ -612,6 +503,7 @@ body {
     </ul>
   </div>
 </div>
+
 
 <div class="footer">Generated by Urban Analytics • {{generated_on}}</div>
 </body>
@@ -675,9 +567,13 @@ def generate_average_report(project_id, analysis_type, report_type, area_type, s
     categories = cfg["categories"]
     def bucket_value(v):
         for label, lo, hi in categories:
-            if lo <= v < hi or (hi == categories[-1][2] and lo <= v <= hi):
+            lo_check = True if lo is None else lo <= v
+            hi_check = True if hi is None else v < hi
+            
+            if lo_check and hi_check:
                 return label
         return "Unknown"
+
 
     counts = {}
     for v in values:
@@ -763,6 +659,12 @@ def generate_average_report(project_id, analysis_type, report_type, area_type, s
         "heading_color": cfg.get("heading_color", "#333"),
         'mean_chart_caption': mean_chart_caption,
         'category_chart_caption': category_chart_caption,
+        "disclaimer": (
+              "The interpretations and recommendations are derived from a robust analysis "
+              "of environmental data using AI-assisted tools. They provide indicative insights "
+              "and are intended to support decision-making, but should be validated by domain experts "
+              "before implementation."
+          ),
     }))
 
     
