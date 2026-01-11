@@ -2811,11 +2811,69 @@ def before_after_comparison_stats(request):
             start_before, end_before = f"{before_year}-01-01", f"{before_year}-12-31"
             start_after, end_after = f"{after_year}-01-01", f"{after_year}-12-31"
 
-            before_result = perform_analysis_for_polygon(analysis_type, polygon, start_before, end_before)
-            after_result = perform_analysis_for_polygon(analysis_type, polygon, start_after, end_after)
+            
+            max_attempts = 3
+            before_result = None
+            after_result = None
+            
+            
+            for attempt in range(max_attempts):
+                try:
+                    if attempt == 0:
+                        working_polygon = polygon.simplify(30)
+                    elif attempt == 1:
+                        working_polygon = polygon.simplify(100)
+                        print(f"[RETRY {attempt}] {uc_name} - before year, simplifying polygon")
+                    else:
+                        working_polygon = polygon.simplify(200)
+                        print(f"[RETRY {attempt}] {uc_name} - before year, max simplification")
+                    
+                    before_result = perform_analysis_for_polygon(analysis_type, working_polygon, start_before, end_before)
+                    break  
+                    
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "computation timed out" in error_str or "deadline exceeded" in error_str:
+                        print(f"[TIMEOUT] {uc_name} before year attempt {attempt + 1} failed")
+                        if attempt == max_attempts - 1:
+                            before_result = {"stats": {"mean": None, "status": f"timeout after {max_attempts} attempts"}}
+                    else:
+                        raise e
+            
+            
+            for attempt in range(max_attempts):
+                try:
+                    if attempt == 0:
+                        working_polygon = polygon.simplify(30)
+                    elif attempt == 1:
+                        working_polygon = polygon.simplify(100)
+                        print(f"[RETRY {attempt}] {uc_name} - after year, simplifying polygon")
+                    else:
+                        working_polygon = polygon.simplify(200)
+                        print(f"[RETRY {attempt}] {uc_name} - after year, max simplification")
+                    
+                    after_result = perform_analysis_for_polygon(analysis_type, working_polygon, start_after, end_after)
+                    break  
+                    
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "computation timed out" in error_str or "deadline exceeded" in error_str:
+                        print(f"[TIMEOUT] {uc_name} after year attempt {attempt + 1} failed")
+                        if attempt == max_attempts - 1:
+                            after_result = {"stats": {"mean": None, "status": f"timeout after {max_attempts} attempts"}}
+                    else:
+                        raise e
 
             before_mean = before_result.get("stats", {}).get("mean")
             after_mean = after_result.get("stats", {}).get("mean")
+            
+            
+            if before_mean is not None and after_mean is None:
+                after_status = after_result.get("stats", {}).get("status", "unknown")
+                print(f"[DIAGNOSTIC] {uc_name}: before={before_mean}, after=None")
+                print(f"  After status: {after_status}")
+                print(f"  Years: {before_year} vs {after_year}")
+                print(f"  Analysis type: {analysis_type}")
 
             
             if before_mean is None or after_mean is None:
