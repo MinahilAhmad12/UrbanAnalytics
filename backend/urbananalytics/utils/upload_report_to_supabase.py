@@ -8,18 +8,10 @@ from supabase import create_client
 from django.conf import settings
 from urbananalytics.models import Report
 
-# -------------------------------
-# Helper: UC row detector
-# -------------------------------
 UC_ROW_PATTERN = re.compile(
-    r"^\s*([A-Za-z0-9\s'\-\(\)]+?)\s+([A-Za-z]+)\s+([0-9]+\.[0-9]+)\s+(#[A-Fa-f0-9]{6})\s*$",
+    r"^\s*([A-Za-z0-9\s'\-\(\)]+?)\s+([A-Za-z]+)\s+([0-9]+(?:\.[0-9]+)?)\s+(#[A-Fa-f0-9]{6})\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
-
-
-# -------------------------------
-# Helper: split text into chunks
-# -------------------------------
 def split_text(text, chunk_size=800, overlap=100):
     chunks = []
     start = 0
@@ -28,29 +20,20 @@ def split_text(text, chunk_size=800, overlap=100):
         chunks.append(text[start:end].strip())
         start += chunk_size - overlap
     return chunks
-
-# -------------------------------
-# Helper: extract text + tables + UC rows
-# -------------------------------
 def extract_pdf_text_and_tables(pdf_path):
     full_text = []
     uc_rows = []
-    seen = set()  # Track unique UC rows
+    seen = set()  
 
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
             text = page.extract_text() or ""
             full_text.append(f"\n--- Page {i} Text ---\n{text}")
-
-            # Extract UC rows from text
-                        # Extract UC rows from text
-                        # Extract UC rows from text
             for line in text.split("\n"):
                 m = UC_ROW_PATTERN.match(line.strip())
                 if m:
                     uc_name, city, mean_val, color = m.groups()
 
-                    # normalize fields
                     uc_name_norm = uc_name.strip().lower()
                     city_norm = city.strip().lower()
                     value_norm = float(mean_val)
@@ -68,9 +51,6 @@ def extract_pdf_text_and_tables(pdf_path):
                         "value": value_norm,
                         "color": color_norm,
                     })
-
-
-            # Extract UC rows from tables
             tables = page.extract_tables()
             for table in tables:
                 for row in table:
@@ -85,8 +65,6 @@ def extract_pdf_text_and_tables(pdf_path):
                             continue
                         if name.lower().startswith("uc name"):
                             continue
-
-                                    # normalize fields
                         name_norm = name.strip().lower()
                         city_norm = city.strip().lower()
                         val_norm = float(val)
@@ -107,10 +85,6 @@ def extract_pdf_text_and_tables(pdf_path):
 
     return "\n".join(full_text), uc_rows
 
-
-# -------------------------------
-# Main upload function
-# -------------------------------
 def upload_report_to_supabase(report_id):
     """Download, extract, embed, and upload report data to Supabase."""
     genai.configure(api_key=settings.GOOGLE_API_KEY)
@@ -119,12 +93,6 @@ def upload_report_to_supabase(report_id):
     report = Report.objects.get(id=report_id)
     pdf_url = report.file.url
     report_type_raw = (report.report_type or "").lower()
-
-    # --------------------------------------------------
-    # STRICT RULE: Only yearly reports can store embeddings
-    # --------------------------------------------------
-
-    # Skip if no year (means range or comparison)
     if not report.year:
         print(" Skipping embeddings:(range/comparison report).")
         return
@@ -135,18 +103,13 @@ def upload_report_to_supabase(report_id):
      return 
     year = report.year
     raw_type = report.analysis_type.lower() if report.analysis_type else ""
-
-    # Normalize analysis type
     if "aqi" in raw_type or "air" in raw_type:
         normalized_type = "aqi"
     elif "thermal" in raw_type or "temperature" in raw_type:
         normalized_type = "thermal"
     else:
         normalized_type = "ndvi"
-
-    # --------------------------------------------------
-    # Step 0: Skip upload if embeddings already exist
-    # --------------------------------------------------
+        
     check = (
         supabase.table("documents")
         .select("id")
@@ -162,9 +125,6 @@ def upload_report_to_supabase(report_id):
 
     print(f"Uploading new embeddings for {normalized_type} {year} ...")
 
-    # --------------------------------------------------
-    # Step 1: Download the PDF
-    # --------------------------------------------------
     from urllib.parse import unquote
     pdf_url = unquote(pdf_url)
 
@@ -186,9 +146,7 @@ def upload_report_to_supabase(report_id):
     if not combined_text.strip():
         raise ValueError("No readable text or tables found in the PDF.")
 
-    # --------------------------------------------------
-    # Step 2: Build metadata
-    # --------------------------------------------------
+
     metadata = {
         "analysis_type": normalized_type,
         "report_type": report.report_type,
@@ -197,10 +155,6 @@ def upload_report_to_supabase(report_id):
     }
 
     model = "models/embedding-001"
-
-    # --------------------------------------------------
-    # Step 3: Extract and upload Overall Summary
-    # --------------------------------------------------
     summary_match = re.search(
         r"(Overall Summary Statistics|Average Value)[\s\S]*?Average Value\s+([0-9.]+)",
         combined_text,
@@ -230,9 +184,6 @@ def upload_report_to_supabase(report_id):
 
         print(f"Uploaded summary stats for {year} (avg={avg_val})")
 
-    # --------------------------------------------------
-    # Step 4: Upload UC-level rows
-    # --------------------------------------------------
     if uc_rows:
         print(f"Found {len(uc_rows)} UC rows — uploading individually.")
         for i, uc in enumerate(uc_rows, start=1):
@@ -257,9 +208,7 @@ def upload_report_to_supabase(report_id):
 
             print(f" Uploaded UC {i}/{len(uc_rows)}: {uc['uc_name']}")
 
-    # --------------------------------------------------
-    # Step 5: Upload full report text chunks
-    # --------------------------------------------------
+
     chunks = split_text(combined_text)
     print(f"Uploading {len(chunks)} general text chunks.")
 
