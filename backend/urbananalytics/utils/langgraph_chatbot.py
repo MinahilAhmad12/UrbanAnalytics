@@ -157,7 +157,7 @@ def parse_query_metadata(query: str):
     for part in parts:
         part = part.strip()
         if part and len(part) > 1:
-            if not any(kw in part for kw in ['2024', '2023', '2022', '2021', '2020', '2025', 'ndvi', 'aqi', 'thermal', 'year', 'data', 'what', 'how', 'why', '?']) and 'uc' not in part and 'union' not in part:
+            if not any(kw in part for kw in ['2024', '2023', '2022', '2021', '2020', '2025','2019','2018','2017','2016','2015', 'ndvi', 'aqi', 'thermal', 'year', 'data', 'what', 'how', 'why', '?']) and 'uc' not in part and 'union' not in part:
                 if len(part.split()) <= 3:
                     if part not in banned_uc_words and part not in ['the', 'a', 'an', 'for', 'of', 'at', 'in', 'on']:
                         uc_names.add(part)
