@@ -1826,7 +1826,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 if atype == "ndvi":
                     plt.ylim(0, 1)
                 elif atype == "aqi":
-                    plt.ylim(0, 30)
+                    plt.ylim(0, 300)
 
             # Save line chart image
             line_chart_path = os.path.join(
@@ -1860,12 +1860,23 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             )
             story.append(Spacer(1, 6))
 
-            story.append(
-                Paragraph(
-                    "<font size=8 color='gray'><i>Note: All temperature values are expressed in Kelvin (K).</i></font>",
-                    normal,
+            if atype == "thermal":
+                note = "All temperature values are expressed in Kelvin (K)."
+            elif atype == "aqi":
+                note = "AQI values represent air pollution levels (higher values indicate worse air quality)."
+            elif atype == "ndvi":
+                note = "NDVI ranges from 0 to 1 (higher values indicate healthier vegetation)."
+            else:
+                note = ""
+
+            if note:
+                story.append(
+                    Paragraph(
+                        f"<font size=8 color='gray'><i>{note}</i></font>",
+                        normal,
+                    )
                 )
-            )
+
             story.append(Spacer(1, 6))
 
             story.append(
