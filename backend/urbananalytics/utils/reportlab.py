@@ -45,7 +45,6 @@ s3_client = boto3.client(
 )
 
 
-# ---------------- helpers ----------------
 def _ensure_reports_dir():
     reports_dir = os.path.join(settings.MEDIA_ROOT, "reports")
     os.makedirs(reports_dir, exist_ok=True)
@@ -59,7 +58,6 @@ def _unique_filename(base_name, ext):
     return f"{safe}_{ts}_{uid}.{ext}"
 
 
-# ------------------ Upload to S3 ------------------
 def upload_report_to_s3(
     local_path, project_id, year, api_name="generate_yearly_report"
 ):
@@ -105,7 +103,6 @@ class NumberedCanvas(canvas.Canvas):
         self.drawRightString(200 * mm, 10 * mm, text)
 
 
-# ---------------- PDF ----------------
 def create_annual_report_pdf(instances, filename=None, created_by=None):
     """
     Generate annual environmental report PDF.
@@ -127,7 +124,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     filename = filename or _unique_filename(base, "pdf")
     file_path = os.path.join(reports_dir, filename)
 
-    # PDF Setup
+
     doc = SimpleDocTemplate(
         file_path,
         pagesize=A4,
@@ -140,7 +137,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     story = []
     temp_files = []
 
-    # Styles
+   
     title_style = ParagraphStyle(
         "TitleStyle",
         parent=styles["Heading1"],
@@ -149,34 +146,28 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         leading=22,
         spaceAfter=12,
     )
-    # -----------------------------
-    # Detect analysis type & choose color theme
-    # -----------------------------
+   
     analysis_type_lower = instance.analysis_type.lower()
 
-    # Default colors (blue theme)
-    primary_color = "#2E86C1"  # section headers, titles
+    primary_color = "#2E86C1"  
     table_header_color = "#2E86C1"
     chart_title_color = "#2E86C1"
 
-    # 🌿 NDVI special green layout theme
     if analysis_type_lower == "ndvi":
-        primary_color = "#1B5E20"  # dark forest green for section titles
-        table_header_color = "#2E7D32"  # medium green for table headers
-        chart_title_color = "#2E7D32"  # same for chart titles
-        # 🌫️ AQI cool blue layout theme
+        primary_color = "#1B5E20"  
+        table_header_color = "#2E7D32"  
+        chart_title_color = "#2E7D32"  
+       
     elif analysis_type_lower == "aqi":
-        primary_color = "#1565C0"  # medium blue for section titles
-        table_header_color = "#1565C0"  # same for tables
-        chart_title_color = "#1565C0"  # same for charts
+        primary_color = "#1565C0"  
+        table_header_color = "#1565C0"  
+        chart_title_color = "#1565C0"  
     elif analysis_type_lower == "thermal":
-        primary_color = "#E65100"  # section titles
-        table_header_color = "#F57C00"  # warm orange
-        chart_title_color = "#E65100"  # match titles
+        primary_color = "#E65100"  
+        table_header_color = "#F57C00"  
+        chart_title_color = "#E65100"  
 
-    # -----------------------------
-    # Styles
-    # -----------------------------
+   
     title_style = ParagraphStyle(
         "TitleStyle",
         parent=styles["Heading1"],
@@ -204,17 +195,13 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         fontSize=9,
         textColor=colors.grey,
     )
-    # -----------------------------
-    # 1. Report Header (with NDVI banner)
-    # -----------------------------
+
     if analysis_type_lower == "ndvi":
         from reportlab.platypus import Table, TableStyle
 
-        # Balanced NDVI theme colors
-        dark_green = colors.HexColor("#1B5E20")  # banner green
-        light_green = colors.HexColor("#DFF0D8")  # soft pastel background
+        dark_green = colors.HexColor("#1B5E20")  
+        light_green = colors.HexColor("#DFF0D8")  
 
-        # Create the dark-green title bar
         title_table = Table(
             [
                 [
@@ -246,7 +233,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             )
         )
 
-        # Outer light-green box — perfectly balanced padding
         bg_table = Table([[title_table]], colWidths=[480])
         bg_table.setStyle(
             TableStyle(
@@ -256,7 +242,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                     ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 12),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),  # now equal
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),  
                     ("TOPPADDING", (0, 0), (-1, -1), 12),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
                 ]
@@ -268,11 +254,9 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     elif analysis_type_lower == "aqi":
         from reportlab.platypus import Table, TableStyle
 
-        # Cool AQI blue theme colors
-        dark_blue = colors.HexColor("#0D47A1")  # banner blue
-        light_blue = colors.HexColor("#E3F2FD")  # soft sky background
+        dark_blue = colors.HexColor("#0D47A1")  
+        light_blue = colors.HexColor("#E3F2FD")  
 
-        # Create the dark-blue title bar
         title_table = Table(
             [
                 [
@@ -304,7 +288,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             )
         )
 
-        # Outer light-blue box — adjusted for symmetry (same as NDVI)
         bg_table = Table([[title_table]], colWidths=[480])
         bg_table.setStyle(
             TableStyle(
@@ -315,8 +298,8 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 12),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-                    ("TOPPADDING", (0, 0), (-1, -1), 12),  # ✅ same as NDVI
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),  # ✅ same as NDVI
+                    ("TOPPADDING", (0, 0), (-1, -1), 12),  
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),  
                 ]
             )
         )
@@ -326,11 +309,9 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     elif analysis_type_lower == "thermal":
         from reportlab.platypus import Table, TableStyle
 
-        # Warm Thermal orange theme colors
-        dark_orange = colors.HexColor("#E65100")  # rich burnt orange (inner bar)
-        light_orange = colors.HexColor("#FFF3E0")  # soft cream background
+        dark_orange = colors.HexColor("#E65100")  
+        light_orange = colors.HexColor("#FFF3E0")  
 
-        # Create the dark-orange title bar
         title_table = Table(
             [
                 [
@@ -362,7 +343,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             )
         )
 
-        # Outer light-orange box — perfectly matched with NDVI & AQI
         bg_table = Table([[title_table]], colWidths=[480])
         bg_table.setStyle(
             TableStyle(
@@ -388,9 +368,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         )
         story.append(Spacer(1, 6))
 
-    # -----------------------------
-    # 1.1 Report Meta Information
-    # -----------------------------
+   
     story.append(Spacer(1, 4))
     story.append(Paragraph(f"<b>Project:</b> {project_name}", normal))
     story.append(Paragraph(f"<b>Area Type:</b> {instance.area_type}", normal))
@@ -398,7 +376,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         Paragraph(f"<b>Analysis Type:</b> {instance.analysis_type.upper()}", normal)
     )
 
-    # Add more NDVI-specific details if available
     if hasattr(instance, "year"):
         story.append(Paragraph(f"<b>Year:</b> {instance.year}", normal))
 
@@ -420,9 +397,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     )
     story.append(Spacer(1, 14))
 
-    # -----------------------------
-    # 2. Overview
-    # -----------------------------
+   
     story.append(Paragraph("1. Overview", section_title))
     story.append(
         Paragraph(
@@ -435,13 +410,11 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     )
     story.append(Spacer(1, 12))
 
-    # -----------------------------
-    # 3. Statistical Summary Table (with color patches + text)
-    # -----------------------------
+
     story.append(Paragraph("2. Statistical Summary", section_title))
     data = [["UC Name", "City", "Mean Value", "Color"]]
     hist_values = []
-    color_cells = []  # To store color cell details (for color + text overlay)
+    color_cells = []  
 
     for idx, inst in enumerate(instances, start=1):
         stats = inst.stats or {}
@@ -453,10 +426,10 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                 inst.uc_name or "-",
                 inst.city_name or "-",
                 round(mean_val, 4),
-                color_hex,  # Display text too
+                color_hex,  
             ]
         )
-        color_cells.append((3, idx, color_hex))  # col=3, row=index
+        color_cells.append((3, idx, color_hex))  
 
     table = Table(data, colWidths=[130, 130, 90, 90])
     table_style = TableStyle(
@@ -472,14 +445,12 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         ]
     )
 
-    # Apply color patches + adjust text color
     from reportlab.lib.utils import ImageReader
 
     for col, row, hex_code in color_cells:
         try:
             bg_color = colors.HexColor(hex_code)
 
-            # Determine brightness (for text contrast)
             hex_str = hex_code.lstrip("#")
             r, g, b = tuple(int(hex_str[i : i + 2], 16) for i in (0, 2, 4))
             brightness = r * 0.299 + g * 0.587 + b * 0.114
@@ -496,13 +467,10 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     table.setStyle(table_style)
     story.append(table)
     story.append(Spacer(1, 12))
-    # -----------------------------
-    # 2 Color Legend (Dynamic per Analysis Type)
-    # -----------------------------
+   
     story.append(Paragraph("3. Color Legend", section_title))
 
-    # ✅ Unified with backend & before-after legend colors
-    # ✅ Unified with backend & yearly-average legend colors
+   
     if analysis_type_lower == "ndvi":
         legend_data = [
             ["#ffffcc", "No vegetation – bare soil, urban areas, water, sand (< 0.2)"],
@@ -549,7 +517,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         )
     )
 
-    # 🎨 Fill color patches dynamically
     for i, (color_code, _) in enumerate(legend_data):
         legend_table.setStyle(
             [("BACKGROUND", (0, i), (0, i), colors.HexColor(color_code))]
@@ -559,19 +526,14 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     story.append(Spacer(1, 6))
     story.append(legend_table)
     story.append(Spacer(1, 16))
-    # -----------------------------
-    # 3. Summary Statistics
-    # -----------------------------
+   
     if hist_values:
         overall_mean = round(float(np.mean(hist_values)), 4)
         min_val = round(float(np.min(hist_values)), 4)
         max_val = round(float(np.max(hist_values)), 4)
         hetero_val = round(float(np.std(hist_values)), 4)
-    # -----------------------------
-    # AI-Based Summary Generation using LangGraph
-    # -----------------------------
+   
     try:
-        # Prepare report text for AI model
         report_text = f"""
         Analysis Type: {instance.analysis_type}
         Year: {instance.year}
@@ -582,7 +544,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         UC Count: {len(hist_values)}
         """
 
-        # Run LangGraph summarizer pipeline (3 steps: summarize → interpret → recommend)
         summary, interpretation, recommendation = run_langgraph_summarizer(
             report_text=report_text, report_type="annual"
         )
@@ -591,9 +552,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         print("LangGraph summarization failed:", e)
         summary, interpretation, recommendation = ("", "", "")
 
-    # -----------------------------
-    # Summary Statistics Table
-    # -----------------------------
+   
     summary_data = [
         ["Metric", "Value"],
         ["Total Urban Units", len(hist_values)],
@@ -618,9 +577,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     story.append(summary_table)
     story.append(Spacer(1, 14))
 
-    # -----------------------------
-    # 6. Summary Statistics Line Chart
-    # -----------------------------
+   
     try:
         if hist_values:
             line_path = os.path.join(
@@ -677,7 +634,6 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
 
             temp_files.append(line_path)
 
-            # Keep chart header, image, and caption together
             chart_section = KeepTogether(
                 [
                     Paragraph("5. Summary Statistics Line Chart", section_title),
@@ -697,10 +653,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     except Exception as e:
         print("Summary line chart generation failed:", e)
 
-    # -----------------------------
-    # 5. Dynamic Analysis Summary (NDVI / Thermal / AQI)
-    # -----------------------------
-    # temp_files = []
+   
 
     try:
         if hist_values:
@@ -710,14 +663,11 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             )
             story.append(Spacer(1, 8))
 
-            # Compute basic stats
             avg_val = round(float(np.mean(hist_values)), 2)
             max_val = round(float(np.max(hist_values)), 2)
             min_val = round(float(np.min(hist_values)), 2)
 
-            # -----------------------------
-            # Info Cards (Horizontal layout)
-            # -----------------------------
+           
             color_map = {
                 "ndvi": ["#F4B400", "#0F9D58", "#DB4437"],  # Yellow, Green, Red
                 "thermal": ["#E67E22", "#C0392B", "#7D6608"],  # Warm tones
@@ -770,9 +720,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
             story.append(card_table)
             story.append(Spacer(1, 14))
 
-            # -----------------------------
-            # Create Quality Distribution (Based on Type)
-            # -----------------------------
+           
             if analysis_type_lower == "ndvi":
                 categories = {
                     "Bad": 0,
@@ -825,7 +773,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                 colors_used = ["#00008B", "#00FFFF", "#00FF00", "#FFFF00", "#FFA500", "#FF4500", "#FF0000"]
                 ylabel = "Percentage (%)"
 
-            else:  # AQI
+            else:  
                 categories = {
                     "Good": 0,
                     "Moderate": 0,
@@ -851,16 +799,14 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                 colors_used = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"]
                 ylabel = "Percentage (%)"
 
-            # Compute %
             total = sum(categories.values()) or 1
             percentages = {k: (v / total) * 100 for k, v in categories.items()}
 
-            # Create bar chart
             dist_path = os.path.join(
                 reports_dir,
                 _unique_filename(f"dist_{analysis_type_lower}_{instance.year}", "png"),
             )
-            plt.figure(figsize=(6.0, 3))
+            plt.figure(figsize=(7.2, 4.5))
             bars = plt.bar(
                 list(percentages.keys()),
                 list(percentages.values()),
@@ -868,11 +814,18 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
                 edgecolor="black",
                 alpha=0.9,
             )
+            plt.xticks(rotation=20, ha="right")
+            plt.gca().set_xticklabels(
+            [label.get_text().replace(" for ", "\nfor ").replace(" ", "\n", 1) for label in plt.gca().get_xticklabels()]
+            )
+
+            plt.ylim(0, 110)  
+
             for i, bar in enumerate(bars):
                 height = bar.get_height()
                 plt.text(
                     bar.get_x() + bar.get_width() / 2,
-                    height + 1,
+                    height + 2,
                     f"{list(percentages.values())[i]:.1f}%",
                     ha="center",
                     fontsize=9,
@@ -890,16 +843,15 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
 
             plt.ylabel(ylabel, fontsize=9)
             plt.grid(axis="y", linestyle="--", alpha=0.4)
-            plt.tight_layout()
+            # plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.12, 1, 1])
             plt.savefig(dist_path, dpi=130)
             plt.close()
             temp_files.append(dist_path)
 
-            story.append(RLImage(dist_path, width=420, height=200))
-            story.append(Spacer(1, 8))
-            # -----------------------------
-            # Intelligent Paragraphs per Type
-            # -----------------------------
+            story.append(RLImage(dist_path, width=460, height=340))
+            story.append(Spacer(1, 1.5))
+           
             if analysis_type_lower == "ndvi":
                 text = (
                     f"The NDVI analysis for {instance.year} highlights vegetation coverage across urban areas. "
@@ -935,9 +887,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
     except Exception as e:
         print("Dynamic summary section failed:", e)
 
-    # -----------------------------
-    # 7. AI-Based Interpretation & Recommendations
-    # -----------------------------
+   
     disclaimer_text = (
     "<b>DISCLAIMER</b><br/>"
     "The following interpretation and recommendations are generated using "
@@ -995,9 +945,7 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         story.append(Paragraph("No recommendations available.", normal))
     story.append(Spacer(1, 12))
 
-    # -----------------------------
-    # Footer
-    # -----------------------------
+   
     story.append(
         Paragraph(
             f"Generated by Urban Analytics System • {datetime.now().strftime('%d %b %Y %H:%M')}",
@@ -1005,12 +953,9 @@ def create_annual_report_pdf(instances, filename=None, created_by=None):
         )
     )
 
-    # -----------------------------
-    # Build PDF
-    # -----------------------------
+   
     doc.build(story, canvasmaker=NumberedCanvas)
 
-    # Clean up temp files
     for fpath in temp_files:
         try:
             os.remove(fpath)
@@ -1049,27 +994,22 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     )
     styles = getSampleStyleSheet()
     story = []
-    # -----------------------------
-    # Detect analysis type & set theme colors
-    # -----------------------------
+   
     analysis_type_lower = instance.analysis_type.lower()
 
-    # Default blue theme (used if type is unknown)
-    primary_color = "#2E86C1"  # section titles
-    table_header_color = "#2E86C1"  # table headers
-    chart_title_color = "#2E86C1"  # chart headings
+    primary_color = "#2E86C1"  
+    table_header_color = "#2E86C1"  
+    chart_title_color = "#2E86C1"  
     header_dark = "#2E86C1"
     header_light = "#EAF2F8"
 
-    # 🌿 NDVI theme
     if analysis_type_lower == "ndvi":
-        primary_color = "#1B5E20"  # dark forest green
+        primary_color = "#1B5E20"  
         table_header_color = "#2E7D32"
         chart_title_color = "#2E7D32"
         header_dark = "#1B5E20"
         header_light = "#DFF0D8"
 
-    # 💙 AQI theme
     elif analysis_type_lower == "aqi":
         primary_color = "#1565C0"
         table_header_color = "#1565C0"
@@ -1077,7 +1017,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         header_dark = "#0D47A1"
         header_light = "#E3F2FD"
 
-    # 🔶 Thermal theme
     elif analysis_type_lower == "thermal":
         primary_color = "#E65100"
         table_header_color = "#F57C00"
@@ -1106,9 +1045,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         fontSize=11,
         leading=15,
     )
-    # -----------------------------
-    # 1. Report Header (color-matched banner)
-    # -----------------------------
+   
     from reportlab.platypus import Table, TableStyle
 
     dark_color = colors.HexColor(header_dark)
@@ -1146,7 +1083,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         )
     )
 
-    # Outer box (light background) — same for all themes
     bg_table = Table([[title_table]], colWidths=[480])
     bg_table.setStyle(
         TableStyle(
@@ -1183,9 +1119,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         )
     )
     story.append(Spacer(1, 12))
-    # -----------------------------
-    # 1. Overview
-    # -----------------------------
+   
     story.append(Paragraph("1. Overview", section))
     story.append(
         Paragraph(
@@ -1200,9 +1134,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     )
     story.append(Spacer(1, 12))
 
-    # -----------------------------
-    # 1. UC-wise Comparison Table
-    # -----------------------------
+   
     story.append(Paragraph("1. UC-wise Comparison Summary", section))
     data = [["UC Name", "City", "Before Mean", "After Mean", "Change", "Status"]]
     before_vals, after_vals, diffs = [], [], []
@@ -1255,9 +1187,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     story.append(table)
     story.append(Spacer(1, 12))
 
-    # -----------------------------
-    # 2.1 Overall Summary Statistics (Before vs After)
-    # -----------------------------
     try:
         story.append(Paragraph("2.1 Overall Summary Statistics", section))
 
@@ -1319,9 +1248,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     except Exception as e:
         print("Overall Summary Statistics generation failed:", e)
 
-    # -----------------------------
-    # Before–After Category Distribution
-    # -----------------------------
     dist_chart_path = None
     try:
         if before_vals and after_vals:
@@ -1498,7 +1424,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             story.append(Paragraph(f"<font size=9 color='gray'>{desc}</font>", normal))
             story.append(Spacer(1, 10))
 
-            # --- Bar Chart ---
             if atype == "ndvi":
                 categories = ["Bad", "Moderate", "Good", "Very Good", "Excellent"]
                 colors_palette_before = [
@@ -1639,7 +1564,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
 
             x = np.arange(len(categories))
             bar_width = 0.35
-            plt.figure(figsize=(6, 3))
+            plt.figure(figsize=(7.5, 4.5))
             for i in range(len(categories)):
                 plt.bar(
                     x[i] - bar_width / 2,
@@ -1676,6 +1601,12 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 )
 
             plt.xticks(x, categories)
+            plt.gca().set_xticklabels(
+            [c.replace("–", "\n–").replace(" for ", "\nfor ") for c in categories],
+            rotation=20,
+            ha="right"
+)
+
             plt.ylabel("Percentage (%)")
             plt.title(
                 f"{instance.analysis_type.upper()} Category Distribution ({instance.before_year} vs {instance.after_year})",
@@ -1683,9 +1614,8 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 color=chart_title_color,
             )
 
-            # plt.legend(fontsize=8)
             plt.grid(axis="y", linestyle="--", alpha=0.3)
-            plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.12, 1, 1])
 
             dist_chart_path = os.path.join(
                 reports_dir, _unique_filename("before_after_distribution", "png")
@@ -1693,13 +1623,12 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             plt.savefig(dist_chart_path, dpi=130)
             plt.close()
 
-            # Group heading, chart, and caption together to prevent page split
             chart_block = []
             chart_block.append(
                 Paragraph("2. Before–After Category Distribution", section)
             )
             chart_block.append(Spacer(1, 6))
-            chart_block.append(RLImage(dist_chart_path, width=400, height=200))
+            chart_block.append(RLImage(dist_chart_path, width=460, height=320))
             chart_block.append(Spacer(1, 8))
             chart_block.append(
                 Paragraph(
@@ -1714,13 +1643,10 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     except Exception as e:
         print("Distribution chart generation failed:", e)
 
-    # -----------------------------
-    # 3. Line Chart + Trend Analysis
-    # -----------------------------
+   
     line_chart_path = None
     try:
         if before_vals and after_vals:
-            # Compute key statistics for both years (real data)
             stats = {
                 "Min": [np.min(before_vals), np.min(after_vals)],
                 "Max": [np.max(before_vals), np.max(after_vals)],
@@ -1730,15 +1656,12 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
 
             years = [int(instance.before_year), int(instance.after_year)]
 
-            # --- Smart Line Chart (thermal dual-axis, others normal) ---
             atype = instance.analysis_type.lower()
 
             if atype == "thermal":
-                #  Dual-axis chart for thermal
                 fig, ax1 = plt.subplots(figsize=(6.2, 4.5))
                 ax2 = ax1.twinx()
 
-                # Plot temperature stats on left axis
                 ax1.plot(
                     years,
                     stats["Min"],
@@ -1764,7 +1687,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     label="Avg",
                 )
 
-                # Plot heterogeneity on right axis
                 ax2.plot(
                     years,
                     stats["Heterogeneity"],
@@ -1774,7 +1696,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     label="Heterogeneity",
                 )
 
-                # Annotate both axes
                 for label, values, color in [
                     ("Min", stats["Min"], "#E74C3C"),
                     ("Max", stats["Max"], "#2ECC71"),
@@ -1801,7 +1722,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                         fontsize=8,
                         fontweight="bold",
                     )
-                # Labels and layout
                 ax1.set_xlabel("Year", fontsize=9)
                 ax1.set_ylabel(
                     "Temperature (Kelvin)", fontsize=9, color=chart_title_color
@@ -1817,7 +1737,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 ax1.tick_params(axis="y", labelcolor=chart_title_color)
                 ax2.tick_params(axis="y", labelcolor="#F1C40F")
 
-                # Combine legends
                 lines1, labels1 = ax1.get_legend_handles_labels()
                 lines2, labels2 = ax2.get_legend_handles_labels()
                 ax1.legend(
@@ -1828,11 +1747,9 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     frameon=False,
                 )
 
-                #  FIX: Force only 2 years (no extra ticks like 2020/2021)
                 ax1.set_xticks(years)
                 ax1.set_xticklabels([str(y) for y in years])
 
-                # Smart zoom range
                 all_temp = [*stats["Min"], *stats["Max"], *stats["Avg"]]
                 y_min, y_max = min(all_temp), max(all_temp)
                 buffer = (y_max - y_min) * 0.1
@@ -1842,7 +1759,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 plt.tight_layout()
 
             else:
-                # Original single-axis chart for NDVI & AQI
                 plt.figure(figsize=(6.2, 4.5))
                 plt.plot(
                     years,
@@ -1877,7 +1793,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                     label="Heterogeneity",
                 )
 
-                # Annotate points
                 for label, color in zip(
                     stats.keys(), ["#E74C3C", "#2ECC71", "#3498DB", "#F1C40F"]
                 ):
@@ -1911,7 +1826,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
                 if atype == "ndvi":
                     plt.ylim(0, 1)
                 elif atype == "aqi":
-                    plt.ylim(0, 30)
+                    plt.ylim(0, 300)
 
             # Save line chart image
             line_chart_path = os.path.join(
@@ -1920,26 +1835,22 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             plt.savefig(line_chart_path, dpi=130, bbox_inches="tight")
             plt.close()
 
-            # --- Add chart + summary (keep all together) ---
             avg_before = np.mean(before_vals)
             avg_after = np.mean(after_vals)
             trend_percent = ((avg_after - avg_before) / avg_before) * 100 if avg_before else 0
             trend_direction = "up" if trend_percent > 0 else "down"
 
-            # --- Fix arrow direction to match real trend ---
             arrow = "↑" if trend_percent > 0 else ("↓" if trend_percent < 0 else "→")
 
-            # --- Smart split layout for chart section (prevents large empty gaps) ---
             story.append(
                 KeepTogether([
                     Paragraph("3. Before–After Summary Chart", section),
                     Spacer(1, 6),
-                    RLImage(line_chart_path, width=400, height=180),  # slightly shorter image
+                    RLImage(line_chart_path, width=400, height=180),  
                 ])
             )
             story.append(Spacer(1, 6))
 
-            # Caption and note can flow naturally if space is short
             story.append(
                 Paragraph(
                     f"<font size=9 color='gray'>Shows before–after trends in min, max, avg, and heterogeneity "
@@ -1949,15 +1860,25 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             )
             story.append(Spacer(1, 6))
 
-            story.append(
-                Paragraph(
-                    "<font size=8 color='gray'><i>Note: All temperature values are expressed in Kelvin (K).</i></font>",
-                    normal,
+            if atype == "thermal":
+                note = "All temperature values are expressed in Kelvin (K)."
+            elif atype == "aqi":
+                note = "AQI values represent air pollution levels (higher values indicate worse air quality)."
+            elif atype == "ndvi":
+                note = "NDVI ranges from 0 to 1 (higher values indicate healthier vegetation)."
+            else:
+                note = ""
+
+            if note:
+                story.append(
+                    Paragraph(
+                        f"<font size=8 color='gray'><i>{note}</i></font>",
+                        normal,
+                    )
                 )
-            )
+
             story.append(Spacer(1, 6))
 
-            # --- Trend summary line ---
             story.append(
                 Paragraph(
                     f"<b>{instance.analysis_type.upper()}</b> is trending {arrow} <b>{trend_direction}</b> by "
@@ -1976,13 +1897,8 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     except Exception as e:
         print("Line chart generation failed:", e)
 
-    # -----------------------------
-    # 4. AI-Based Interpretation & Recommendations
-    # -----------------------------
     try:
-        # story.append(PageBreak())  # start a new page for clarity
 
-        # Collect overall summary stats for AI prompt
         report_text = f"""
         Analysis Type: {instance.analysis_type}
         Before Year: {instance.before_year}
@@ -1992,12 +1908,11 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         Change (%): {((np.mean(after_vals) - np.mean(before_vals)) / (np.mean(before_vals) or 1)) * 100 if before_vals and after_vals else 0}
         """
 
-        # Generate AI-based insights
         summary, interpretation, recommendation = run_langgraph_summarizer(
             report_text=report_text,
             report_type="before_after"
         )
-        
+       
         disclaimer_text = (
             "<b>DISCLAIMER</b><br/>"
             "The following interpretation and recommendations are generated using "
@@ -2039,7 +1954,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         story.append(disclaimer_table)
         story.append(Spacer(1, 14))
 
-        # ---- Display AI Interpretation ----
         story.append(Paragraph("4. Interpretation", section))
         if interpretation:
             story.append(Paragraph(interpretation, normal))
@@ -2047,7 +1961,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
             story.append(Paragraph("Interpretation unavailable.", normal))
         story.append(Spacer(1, 10))
 
-        # ---- Display AI Recommendations ----
         story.append(Paragraph("5. Recommendations", section))
         if recommendation:
             for rec in recommendation.split("\n"):
@@ -2061,7 +1974,6 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     except Exception as e:
         print("Interpretation & Recommendations failed:", e)
 
-        # 4.2 Recommendations
         story.append(Paragraph("5. Recommendations", section))
 
         if atype == "ndvi":
@@ -2091,9 +2003,7 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
     except Exception as e:
         print("Interpretation & Recommendations block failed:", e)
 
-    # -----------------------------
-    # 4. Summary and Footer
-    # -----------------------------
+   
     if before_vals and after_vals:
         avg_diff = np.mean(after_vals) - np.mean(before_vals)
         overall_change = "increase" if avg_diff > 0 else "decrease"
@@ -2124,10 +2034,8 @@ def create_before_after_report_pdf(entries, filename=None, created_by=None):
         )
     )
 
-    # Build PDF FIRST
     doc.build(story, canvasmaker=NumberedCanvas)
 
-    # Cleanup temporary charts
     try:
         if dist_chart_path and os.path.exists(dist_chart_path):
             os.remove(dist_chart_path)

@@ -101,7 +101,7 @@ class YearlyAnalysis(models.Model):
 
     def _str_(self):
         return f"{self.analysis_type.upper()} | {self.year} | {self.area_type} | {self.uc_name or 'ALL'} | {'Pixelwise' if self.is_pixelwise else 'Annual'}"
-    
+   
 class YearlyPixelValue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="yearly_pixel_values", null=True, blank=True)
     analysis_type = models.CharField(max_length=50)  
@@ -117,7 +117,17 @@ class YearlyPixelValue(models.Model):
 
     def str(self):
         return f"{self.analysis_type.upper()} | {self.year} | ({self.lat}, {self.lng})"
-    
+class ProjectChatMessage(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="chat_messages")
+    role = models.CharField(max_length=20)  # "user" or "assistant"
+    message = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["timestamp"]
+
+    def __str__(self):
+        return f"{self.project.project_name} | {self.role}: {self.message[:30]}"     
 class BeforeAfterAnalysis(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="before_after_analyses")
     analysis_type = models.CharField(max_length=50)   
