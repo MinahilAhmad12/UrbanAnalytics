@@ -835,10 +835,6 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
             
             if date_range_days >= 300:  
                 
-                daily_aqi_values = []
-                current_date = start_dt
-                
-                
                 aod_annual_avg = None
                 try:
                     modis_annual = (
@@ -860,61 +856,35 @@ def perform_analysis_for_polygon(analysis_type, polygon, start_date, end_date):
                     pass
                 
                 
+                aod_factor = 1.0
+                if aod_annual_avg is not None:
+                    aod_clamped = max(0.1, min(aod_annual_avg, 1.5))
+                    aod_reference = 0.5
+                    aod_sensitivity = 0.6
+                    aod_factor = 1.0 + aod_sensitivity * (aod_clamped - aod_reference)
+                    aod_factor = max(0.7, min(aod_factor, 1.4))
+                
+                
+                month_weights = {}
+                current_date = start_dt
                 while current_date <= end_dt:
-                    month = current_date.month
-                    day_baseline_pm25 = MONTHLY_PM25_BASELINE.get(month, 60)
-                    
-                    
-                    import random
-                    random.seed(hash(str(polygon.getInfo()) + str(current_date)))
-                    daily_variation = random.uniform(0.95, 1.05)
-                    
-                    
-                    aod_factor = 1.0
-                    if aod_annual_avg is not None:
-                        aod_clamped = max(0.1, min(aod_annual_avg, 1.5))
-                        aod_reference = 0.5
-                        aod_sensitivity = 0.6
-                        aod_factor = 1.0 + aod_sensitivity * (aod_clamped - aod_reference)
-                        aod_factor = max(0.7, min(aod_factor, 1.4))
-                    
-                    
-                    daily_pm25 = day_baseline_pm25 * aod_factor * daily_variation
-                    daily_pm25 = max(15, min(daily_pm25, 350))
-                    
-                    
-                    daily_aqi = compute_aqi(daily_pm25, AQI_BREAKPOINTS["PM25"])
-                    
-                    if daily_aqi is not None:
-                        daily_aqi_values.append(daily_aqi)
-                    
+                    month_key = current_date.month
+                    if month_key not in month_weights:
+                        month_weights[month_key] = 0
+                    month_weights[month_key] += 1
                     current_date += timedelta(days=1)
                 
                 
-                if daily_aqi_values:
-                    annual_aqi = sum(daily_aqi_values) / len(daily_aqi_values)
-                    
-                    if annual_aqi <= 50:
-                        pm25 = annual_aqi * 12 / 50
-                    elif annual_aqi <= 100:
-                        pm25 = 12 + (annual_aqi - 50) * 23.4 / 50
-                    elif annual_aqi <= 150:
-                        pm25 = 35.4 + (annual_aqi - 100) * 19.6 / 50
-                    elif annual_aqi <= 200:
-                        pm25 = 55 + (annual_aqi - 150) * 95 / 50
-                    elif annual_aqi <= 300:
-                        pm25 = 150 + (annual_aqi - 200) * 100 / 100
-                    else:
-                        pm25 = 250 + (annual_aqi - 300) * 100 / 100
-                else:
-                    
-                    days_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-                    annual_sum = sum(
-                        MONTHLY_PM25_BASELINE[month] * days 
-                        for month, days in zip(range(1, 13), days_per_month)
-                    )
-                    pm25 = annual_sum / 365
+                total_weight = sum(month_weights.values())
+                weighted_pm25 = 0
                 
+                for month, weight in month_weights.items():
+                    month_baseline = MONTHLY_PM25_BASELINE.get(month, 60)
+                
+                    month_pm25 = month_baseline * aod_factor
+                    weighted_pm25 += month_pm25 * weight
+                
+                pm25 = weighted_pm25 / total_weight
                 pm25 = max(15, min(pm25, 350))
                 
             elif date_range_days > 45:  
@@ -2774,7 +2744,7 @@ def before_after_comparison_stats(request):
     else:
         return Response({"error": "Invalid area_type"}, status=400)
 
-   
+    # Check cache first - if everything is cached, return immediately
     cached_data = BeforeAfterAnalysis.objects.filter(
         project_id=project_id,
         analysis_type=analysis_type,
@@ -2784,6 +2754,58 @@ def before_after_comparison_stats(request):
     )
 
     cached_map = {c.uc_name: c for c in cached_data}
+    
+    # OPTIMIZATION: If all data is cached, skip Earth Engine initialization and processing
+    uc_names_needed = {f.get("uc_name") for f in features}
+    all_cached = uc_names_needed.issubset(cached_map.keys())
+    
+    if all_cached:
+        # Fast path: all data cached, return immediately
+        for feature in features:
+            uc_name = feature.get("uc_name")
+            city_name = feature.get("city_name")
+            c = cached_map[uc_name]
+            comp = c.comparison or {}
+            results.append({
+                "uc_name": uc_name,
+                "city_name": city_name,
+                "before_mean": comp.get("before_mean"),
+                "after_mean": comp.get("after_mean"),
+                "status": comp.get("status"),
+                "area_type": area_type
+            })
+        
+        # Calculate summary stats and return
+        before_vals = [r["before_mean"] for r in results if r["before_mean"] is not None]
+        after_vals = [r["after_mean"] for r in results if r["after_mean"] is not None]
+        change_counts = {"increase": 0, "decrease": 0, "no_change": 0}
+        for r in results:
+            if r["status"] in change_counts:
+                change_counts[r["status"]] += 1
+
+        summary_stats = {
+            "before": {
+                "mean": round(sum(before_vals) / len(before_vals), 4) if before_vals else None,
+                "min": round(min(before_vals), 4) if before_vals else None,
+                "max": round(max(before_vals), 4) if before_vals else None,
+            },
+            "after": {
+                "mean": round(sum(after_vals) / len(after_vals), 4) if after_vals else None,
+                "min": round(min(after_vals), 4) if after_vals else None,
+                "max": round(max(after_vals), 4) if after_vals else None,
+            },
+            "changes": change_counts,
+            "total": len(results)
+        }
+
+        return Response({
+            "message": f"{analysis_type.upper()} before-after comparison completed (from cache)",
+            "analysis_type": analysis_type,
+            "before_year": before_year,
+            "after_year": after_year,
+            "results": results,
+            "summary_stats": summary_stats
+        })
 
     
     def process_feature(feature):
@@ -3036,8 +3058,8 @@ def before_after_comparison_pixelwise(request):
         shared_filter = {
             "project_id__isnull": True,
             "analysis_type": analysis_type,
-            "before_year": before_year,
-            "after_year": after_year,
+            "before_year": int(before_year),
+            "after_year": int(after_year),
             "area_type": area_type
         }
 
@@ -3046,14 +3068,10 @@ def before_after_comparison_pixelwise(request):
             shared_filter["city_name"] = city_safe
         elif area_type == "kml":
             if kml_hash:
-                
-                shared_filter.update({
-                    "kml_hash": kml_hash,
-                    "before_year": int(before_year),
-                    "after_year": int(after_year),
-                    "uc_name": uc_safe,          
-                    "city_name": city_safe 
-                })
+                # Add KML-specific filters (avoid redundant updates)
+                shared_filter["kml_hash"] = kml_hash
+                shared_filter["uc_name"] = uc_safe
+                shared_filter["city_name"] = city_safe
             else:
                 return {
                     "uc_name": uc_name,
@@ -3065,9 +3083,18 @@ def before_after_comparison_pixelwise(request):
                 }
             
 
+        # Debug: Print the filter to verify it's correct
+        print(f"[DEBUG] Shared filter for {uc_name} ({analysis_type}): {shared_filter}")
 
-
-        shared_cache = BeforeAfterPixelwise.objects.filter(**shared_filter).first()
+        shared_cache = BeforeAfterPixelwise.objects.filter(**shared_filter).order_by('-created_at').first()
+        
+        # Debug: Verify the returned record
+        if shared_cache:
+            print(f"[DEBUG] Found shared cache: analysis_type={shared_cache.analysis_type}, uc_name={shared_cache.uc_name}, urls={shared_cache.tile_url_before[:50] if shared_cache.tile_url_before else None}")
+            # Verify analysis_type matches
+            if shared_cache.analysis_type != analysis_type:
+                print(f"[ERROR] Analysis type mismatch! Expected {analysis_type}, got {shared_cache.analysis_type}")
+                shared_cache = None  # Force recomputation
         if shared_cache:
             
             if project_id:
@@ -3290,6 +3317,7 @@ def before_after_comparison_pixelwise(request):
             tile_url_before = export_to_s3(before_image, before_vis, before_year, before_scale, polygon)
             tile_url_after = export_to_s3(after_image, after_vis, after_year, after_scale, polygon)
 
+            # Save shared cache (project_id=None) for reuse across projects
             BeforeAfterPixelwise.objects.update_or_create(
                 project_id=None,
                 analysis_type=analysis_type,
@@ -3297,13 +3325,15 @@ def before_after_comparison_pixelwise(request):
                 after_year=after_year,
                 area_type=area_type,
                 uc_name=uc_safe,
+                kml_hash=kml_hash if area_type == "kml" else None,
                 defaults={
                     "city_name": city_safe,
-                    "kml_hash": kml_hash,
                     "tile_url_before": tile_url_before,
                     "tile_url_after": tile_url_after
                 }
             )
+            
+            # Save project-specific cache if project_id exists
             if project_id:
                
                 BeforeAfterPixelwise.objects.update_or_create(
@@ -3314,7 +3344,7 @@ def before_after_comparison_pixelwise(request):
                     before_year=before_year,
                     after_year=after_year,
                     defaults={
-                        "city_name": city_name,
+                        "city_name": city_safe,
                         "kml_hash": kml_hash,
                         "tile_url_before": tile_url_before,
                         "tile_url_after": tile_url_after
